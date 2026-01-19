@@ -11,195 +11,221 @@ from typing import Dict, Optional, Tuple
 # Configuration section name
 SECTION_NAME = "specs"
 
-@dataclass
-class ConfigState:
-    """Global configuration state container."""
-    project_root: Path
-    config_path: Path
-    config_parser: configparser.ConfigParser
-    is_initialized: bool = False
-
-class ConfigurationError(Exception):
-    """Raised when configuration operations fail."""
-    pass
-
-def find_project_root(start_path: Optional[Path] = None) -> Path:
+def find_project_root() -> Optional[Path]:
     """
-    Find project root by looking for .git directory or apiscope.ini.
-
-    Args:
-        start_path: Path to start searching from. If None, uses current directory.
-
-    Returns:
-        Path to project root.
-
-    Raises:
-        ConfigurationError: If no project root can be determined.
+    Find project root by looking for .git directory AND apiscope.ini.
+    Returns None if either is missing (e.g., before initialization).
     """
-    if start_path is None:
-        start_path = Path.cwd()
-
-    current = start_path.resolve()
-
-    # Check current and all parent directories
+    current = Path.cwd().resolve()
     for parent in [current] + list(current.parents):
-        # Check for .git directory (common project marker)
-        if (parent / ".git").is_dir():
+        if (parent / ".git").is_dir() and (parent / "apiscope.ini").is_file():
             return parent
+    return None
 
-        # Check for apiscope.ini (our own config file)
-        if (parent / "apiscope.ini").is_file():
-            return parent
 
-    # If we can't find a project root, use the directory containing apiscope.ini
-    # or the current directory if no config exists yet
-    config_path = current / "apiscope.ini"
-    if config_path.exists():
-        return config_path.parent
-
-    # Default to current directory (will be initialized here)
-    return current
-
-def load_or_init_config(project_root: Optional[Path] = None) -> ConfigState:
+class GlobalConfig:
     """
-    Load existing configuration or initialize new one.
-
-    Args:
-        project_root: Explicit project root path. If None, will be discovered.
-
-    Returns:
-        Initialized ConfigState object.
+    Global configuration manager with lazy initialization.
     """
-    if project_root is None:
-        project_root = find_project_root()
 
-    config_path = project_root / "apiscope.ini"
-    config_parser = configparser.ConfigParser()
+    _instance = None  # Singleton pattern
 
-    # Initialize with default structure if file doesn't exist
-    if not config_path.exists():
-        config_parser[SECTION_NAME] = {}
-        is_initialized = False
-    else:
-        config_parser.read(config_path)
-        is_initialized = SECTION_NAME in config_parser
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
-    return ConfigState(
-        project_root=project_root,
-        config_path=config_path,
-        config_parser=config_parser,
-        is_initialized=is_initialized
-    )
+    def __init__(self) -> None:
+        # Prevent re-initialization
+        if getattr(self, '_initialized', False):
+            return
 
-def get_specs(state: ConfigState) -> Dict[str, str]:
-    """
-    Get all API specifications from configuration.
+        self._root: Optional[Path] = None
+        self._home: Optional[Path] = None
+        self._file: Optional[Path] = None
+        self._cache: Optional[Path] = None
+        self._settings: Optional[configparser.ConfigParser] = None
+        self._specs_cache: Optional[Dict[str, Tuple[str, str]]] = None  # name -> (type, source)
 
-    Args:
-        state: Current configuration state.
+        # Try to auto-discover, but don't fail if not found
+        try:
+            self.load()
+        except RuntimeError:
+            # Not initialized yet, that's okay
+            pass
 
-    Returns:
-        Dictionary mapping spec names to source URLs/paths.
+        self._initialized = True
 
-    Raises:
-        ConfigurationError: If configuration is not properly initialized.
-    """
-    if not state.is_initialized:
-        raise ConfigurationError(
-            "Configuration not initialized. Run 'apiscope init' first."
-        )
+    def _ensure_loaded(self) -> None:
+        """Ensure configuration is loaded, or raise RuntimeError."""
+        if self._settings is None:
+            raise RuntimeError(
+                "Configuration not loaded. Run 'apiscope init' first or call load() manually."
+            )
 
-    return dict(state.config_parser[SECTION_NAME])
+    def load(self) -> None:
+        """Load configuration from disk. Raises RuntimeError if not found."""
+        root = find_project_root()
+        if root is None:
+            raise RuntimeError("Project root not found. Run 'apiscope init' first.")
 
-def save_config(state: ConfigState) -> None:
-    """
-    Save current configuration to disk.
+        self._root = root
+        self._home = self._root / ".apiscope"
+        self._file = self._root / "apiscope.ini"
+        self._cache = self._home / "cache"
+        self._settings = self._load_settings(self._file)
+        self._specs_cache = None  # Clear cache
 
-    Args:
-        state: Configuration state to save.
+    def reload(self) -> None:
+        """Reload configuration from disk."""
+        self._settings = None
+        self._specs_cache = None
+        self.load()
 
-    Raises:
-        ConfigurationError: If saving fails.
-    """
-    try:
-        with open(state.config_path, 'w') as config_file:
-            state.config_parser.write(config_file)
-    except (IOError, OSError) as e:
-        raise ConfigurationError(f"Failed to save configuration: {e}")
+    @staticmethod
+    def _load_settings(path: Path) -> configparser.ConfigParser:
+        config = configparser.ConfigParser()
+        config.read(path)
+        return config
 
-def add_spec(state: ConfigState, name: str, source: str) -> None:
-    """
-    Add a new API specification to configuration.
+    @staticmethod
+    def _classify_source(source: str) -> Tuple[str, str]:
+        """
+        Classify source string into type and clean version.
 
-    Args:
-        state: Current configuration state.
-        name: Unique identifier for the specification.
-        source: URL or file path to the OpenAPI specification.
+        Args:
+            source: Raw source string from configuration
 
-    Raises:
-        ConfigurationError: If spec with this name already exists.
-    """
-    if not state.is_initialized:
-        # Initialize the section if needed
-        state.config_parser[SECTION_NAME] = {}
-        state.is_initialized = True
+        Returns:
+            Tuple of (type, cleaned_source)
+            Type is one of: URL, FILE, UNKNOWN
+        """
+        cleaned = source.strip().strip('"\'')
 
-    if name in state.config_parser[SECTION_NAME]:
-        raise ConfigurationError(
-            f"Specification '{name}' already exists in configuration."
-        )
+        if cleaned.startswith(("http://", "https://")):
+            return "URL", cleaned
+        elif cleaned.startswith("./") or cleaned.startswith("../"):
+            return "FILE", cleaned
+        else:
+            return "UNKNOWN", cleaned
 
-    state.config_parser[SECTION_NAME][name] = source
+    def _refresh_specs_cache(self) -> None:
+        """Refresh the cached classified specs."""
+        if not self.settings.has_section(SECTION_NAME):
+            self._specs_cache = {}
+            return
 
-def remove_spec(state: ConfigState, name: str) -> bool:
-    """
-    Remove an API specification from configuration.
+        self._specs_cache = {}
+        for name, source in self.settings[SECTION_NAME].items():
+            self._specs_cache[name] = self._classify_source(source)
 
-    Args:
-        state: Current configuration state.
-        name: Name of the specification to remove.
+    # Public properties with lazy validation
 
-    Returns:
-        True if spec was removed, False if it didn't exist.
-    """
-    if not state.is_initialized or name not in state.config_parser[SECTION_NAME]:
-        return False
+    @property
+    def root(self) -> Path:
+        self._ensure_loaded()
+        return self._root  # type: ignore
 
-    state.config_parser.remove_option(SECTION_NAME, name)
-    return True
+    @property
+    def home(self) -> Path:
+        self._ensure_loaded()
+        return self._home  # type: ignore
 
-def get_cache_directory(state: ConfigState) -> Path:
-    """
-    Get path to cache directory for this project.
+    @property
+    def file(self) -> Path:
+        self._ensure_loaded()
+        return self._file  # type: ignore
 
-    Args:
-        state: Current configuration state.
+    @property
+    def cache(self) -> Path:
+        self._ensure_loaded()
+        return self._cache  # type: ignore
 
-    Returns:
-        Path to .apiscope cache directory.
-    """
-    cache_dir = state.project_root / ".apiscope"
-    cache_dir.mkdir(exist_ok=True)
-    return cache_dir
+    @property
+    def settings(self) -> configparser.ConfigParser:
+        self._ensure_loaded()
+        return self._settings  # type: ignore
 
-def ensure_gitignore(state: ConfigState) -> None:
-    """
-    Ensure .apiscope directory is in .gitignore.
+    # Configuration operations
 
-    Args:
-        state: Current configuration state.
-    """
-    gitignore_path = state.project_root / ".gitignore"
-    ignore_line = ".apiscope/\n"
+    def get_specs(self) -> Dict[str, str]:
+        """Get all API specifications from configuration (raw)."""
+        if not self.settings.has_section(SECTION_NAME):
+            return {}
+        return dict(self.settings[SECTION_NAME])
 
-    if not gitignore_path.exists():
-        gitignore_path.write_text(ignore_line)
-        return
+    def get_classified_specs(self) -> Dict[str, Tuple[str, str]]:
+        """Get all API specifications with classification (type, cleaned_source)."""
+        if self._specs_cache is None:
+            self._refresh_specs_cache()
+        return self._specs_cache or {}
 
-    content = gitignore_path.read_text()
-    if ignore_line not in content:
-        # Add a newline if file doesn't end with one
-        if content and not content.endswith('\n'):
-            content += '\n'
-        content += ignore_line
-        gitignore_path.write_text(content)
+    def add_spec(self, name: str, source: str) -> None:
+        """Add a new API specification to configuration."""
+        if not self.settings.has_section(SECTION_NAME):
+            self.settings.add_section(SECTION_NAME)
+
+        if name in self.settings[SECTION_NAME]:
+            raise ValueError(f"Specification '{name}' already exists")
+
+        self.settings[SECTION_NAME][name] = source
+        self._specs_cache = None  # Clear cache
+        self._save()
+
+    def remove_spec(self, name: str) -> bool:
+        """Remove an API specification from configuration."""
+        if not self.settings.has_section(SECTION_NAME):
+            return False
+
+        removed = self.settings.remove_option(SECTION_NAME, name)
+        if removed:
+            self._specs_cache = None  # Clear cache
+            self._save()
+        return removed
+
+    def ensure_section(self) -> None:
+        """Ensure the [specs] section exists in configuration."""
+        if not self.settings.has_section(SECTION_NAME):
+            self.settings.add_section(SECTION_NAME)
+            self._save()
+
+    def ensure_gitignore(self) -> None:
+        """Ensure .apiscope directory is in .gitignore."""
+        gitignore_path = self.root / ".gitignore"
+        ignore_line = ".apiscope/\n"
+
+        if not gitignore_path.exists():
+            gitignore_path.write_text(ignore_line)
+            return
+
+        content = gitignore_path.read_text()
+        if ignore_line not in content:
+            if content and not content.endswith('\n'):
+                content += '\n'
+            content += ignore_line
+            gitignore_path.write_text(content)
+
+    def _save(self) -> None:
+        """Save current configuration to disk."""
+        with open(self.file, 'w') as f:
+            self.settings.write(f)
+
+    @property
+    def is_initialized(self) -> bool:
+        """Check if configuration is fully initialized (has [specs] section)."""
+        if self._settings is None:
+            return False
+        return self.settings.has_section(SECTION_NAME)
+
+    def ensure_directories(self) -> None:
+        """Ensure all required directories exist."""
+        if self._home:
+            self._home.mkdir(exist_ok=True)
+        if self._cache:
+            self._cache.mkdir(exist_ok=True)
+
+
+# Global singleton instance
+# Note: This creates the instance but doesn't immediately load config
+GLOBAL_CONFIG = GlobalConfig()
