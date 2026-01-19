@@ -45,12 +45,13 @@ def _parse_path_method(path_method: str) -> Tuple[str, str]:
     return path, method
 
 
-def _extract_schema_basics(schema: Any) -> Dict[str, Any]:
+def _extract_schema_basics(spec: Any, schema: Any) -> Dict[str, Any]:
     """
     Extract basic schema information for LLM understanding.
     Returns essential fields without deep recursion.
 
     Args:
+        spec: OpenAPI object for reference resolution
         schema: SchemaPath object or dict
 
     Returns:
@@ -62,29 +63,47 @@ def _extract_schema_basics(schema: Any) -> Dict[str, Any]:
     try:
         result = {}
 
-        # Extract basic type information
-        if "type" in schema:
-            result["type"] = str(schema["type"])
-            if "format" in schema:
-                result["format"] = str(schema["format"])
-
-        # Handle references - provide meaningful info
-        elif "$ref" in schema:
+        # Handle references first - resolve to actual content
+        if "$ref" in schema:
             ref = str(schema["$ref"])
-            result["$ref"] = ref
-            # Add reference type hint
-            if "#/components/schemas/" in ref:
-                result["ref_type"] = "schema"
-                result["schema_name"] = ref.split("/")[-1]
-            elif "#/components/parameters/" in ref:
-                result["ref_type"] = "parameter"
-            elif "#/components/responses/" in ref:
-                result["ref_type"] = "response"
+            try:
+                # Parse reference path: remove #/ prefix and split by /
+                if ref.startswith("#/"):
+                    path_parts = ref[2:].split("/")  # Remove #/ and split
+                else:
+                    path_parts = ref.split("/")
+
+                # Navigate to the referenced schema using SchemaPath / operator
+                resolved = spec.spec
+                for part in path_parts:
+                    resolved = resolved / part
+
+                # Recursively extract info from resolved schema
+                result = _extract_schema_basics(spec, resolved)
+                # Keep original reference info for context
+                result["$ref"] = ref
+                if "#/components/schemas/" in ref:
+                    result["ref_type"] = "schema"
+                    result["schema_name"] = ref.split("/")[-1]
+                elif "#/components/parameters/" in ref:
+                    result["ref_type"] = "parameter"
+                elif "#/components/responses/" in ref:
+                    result["ref_type"] = "response"
+            except Exception:
+                # Fallback to reference info only if resolution fails
+                result["$ref"] = ref
+                if "#/components/schemas/" in ref:
+                    result["ref_type"] = "schema"
+                    result["schema_name"] = ref.split("/")[-1]
+                elif "#/components/parameters/" in ref:
+                    result["ref_type"] = "parameter"
+                elif "#/components/responses/" in ref:
+                    result["ref_type"] = "response"
 
         # Handle arrays
         elif "items" in schema:
             result["type"] = "array"
-            result["items"] = _extract_schema_basics(schema["items"])
+            result["items"] = _extract_schema_basics(spec, schema["items"])
 
         # Handle object properties (limited depth)
         elif "properties" in schema:
@@ -97,13 +116,19 @@ def _extract_schema_basics(schema: Any) -> Dict[str, Any]:
                 if i >= 3:  # Limit to 3 properties for brevity
                     sample_props["_more"] = f"{len(properties) - 3} more properties"
                     break
-                prop_info = _extract_schema_basics(prop_schema)
+                prop_info = _extract_schema_basics(spec, prop_schema)
                 sample_props[str(prop_name)] = prop_info
 
             result["properties"] = sample_props
 
             if "required" in schema:
                 result["required"] = [str(r) for r in schema["required"]]
+
+        # Default: extract basic type information
+        if "type" in schema:
+            result["type"] = str(schema["type"])
+            if "format" in schema:
+                result["format"] = str(schema["format"])
 
         # Handle required field
         if "required" in schema:
@@ -181,7 +206,7 @@ def _extract_operation_info(spec: Any, path: str, method: str) -> dict:
 
             # Schema information
             if "schema" in param:
-                param_info["schema"] = _extract_schema_basics(param["schema"])
+                param_info["schema"] = _extract_schema_basics(spec, param["schema"])
 
             result["parameters"].append(param_info)
 
@@ -208,7 +233,7 @@ def _extract_operation_info(spec: Any, path: str, method: str) -> dict:
                 media_type_info = {}
 
                 if "schema" in media_info:
-                    media_type_info["schema"] = _extract_schema_basics(media_info["schema"])
+                    media_type_info["schema"] = _extract_schema_basics(spec, media_info["schema"])
 
                 content_info[media_type] = media_type_info
 
@@ -234,7 +259,7 @@ def _extract_operation_info(spec: Any, path: str, method: str) -> dict:
                     media_type_info = {}
 
                     if "schema" in media_info:
-                        media_type_info["schema"] = _extract_schema_basics(media_info["schema"])
+                        media_type_info["schema"] = _extract_schema_basics(spec, media_info["schema"])
 
                     content_info[media_type] = media_type_info
 
