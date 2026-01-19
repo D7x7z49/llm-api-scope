@@ -12,7 +12,7 @@ license = {text = "MIT"}
 
 
 [project.scripts]
-apiscope = "apiscope.cli:cli"
+apiscope = "apiscope.cli"
 
 [tool.pdm]
 distribution = false
