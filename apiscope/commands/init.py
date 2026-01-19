@@ -1,20 +1,15 @@
 # apiscope/commands/init.py
-
 """
 Initialize apiscope configuration for the current project.
 Uses LogLight-style output for consistent, concise logging.
 """
-
 import click
+from pathlib import Path
 from ..core.output import OutputBuilder
-from ..core.config import (
-    ConfigState,
-    ensure_gitignore,
-    save_config,
-    SECTION_NAME
-)
+from ..core.config import find_project_root, GLOBAL_CONFIG
 
-EXAMPLE_CONFIG = """# Example API specifications
+EXAMPLE_CONFIG = f"""[specs]
+# Example API specifications
 # Format: <name> = <source>
 #
 # Sources can be:
@@ -27,74 +22,104 @@ EXAMPLE_CONFIG = """# Example API specifications
 # petstore = https://petstore3.swagger.io/api/v3/openapi.json
 """
 
+def _find_git_root() -> Path:
+    """Find git root directory (for init command)."""
+    current = Path.cwd().resolve()
+    for parent in [current] + list(current.parents):
+        if (parent / ".git").is_dir():
+            return parent
+    return current  # Fallback to current directory
+
 @click.command()
-@click.pass_context
-def init_command(ctx: click.Context) -> None:
+def init_command():
     """
     Initialize apiscope configuration.
 
     Creates the configuration file (apiscope.ini) and cache directory
     (.apiscope/), and ensures the cache directory is ignored by git.
     """
-    config_state: ConfigState = ctx.obj
     output = OutputBuilder()
-
     output.section("Initialization")
 
-    # Check if already initialized
-    if config_state.is_initialized:
-        output.action("Checking existing configuration")
-        output.result(f"Configuration already exists: {config_state.config_path}")
+    # 1. Check if already initialized
+    output.action("Checking existing configuration")
+
+    already_initialized = find_project_root() is not None
+    if already_initialized:
+        output.result("Configuration already initialized")
+        output.note("Run 'apiscope list' to view configured APIs")
         output.complete("Initialization")
         output.emit()
         return
 
-    # Ensure the specs section exists
-    output.action("Setting up configuration structure")
-    if SECTION_NAME not in config_state.config_parser:
-        config_state.config_parser[SECTION_NAME] = {}
+    # 2. Find git root for new initialization
+    output.action("Finding project root")
+    project_root = _find_git_root()
+    output.result(f"Project root: {project_root}")
 
-    # Write example configuration if file doesn't exist or is empty
-    if not config_state.config_path.exists() or config_state.config_path.stat().st_size == 0:
-        config_state.config_path.write_text(EXAMPLE_CONFIG)
-        config_state.config_parser.read(config_state.config_path)
-        output.result(f"Created example configuration: {config_state.config_path}")
-    else:
-        # File exists with content, just ensure the section exists
-        config_state.config_parser.read(config_state.config_path)
-        if SECTION_NAME not in config_state.config_parser:
-            config_state.config_parser[SECTION_NAME] = {}
-        output.result(f"Updated existing configuration: {config_state.config_path}")
+    # 3. Create directories
+    output.action("Creating directory structure")
 
-    # Update initialization state
-    config_state.is_initialized = SECTION_NAME in config_state.config_parser
+    home_dir = project_root / ".apiscope"
+    cache_dir = home_dir / "cache"
+    config_file = project_root / "apiscope.ini"
 
-    # Ensure cache directory exists
-    output.action("Creating cache directory")
-    cache_dir = config_state.project_root / ".apiscope"
+    home_dir.mkdir(exist_ok=True)
     cache_dir.mkdir(exist_ok=True)
+
     output.result(f"Cache directory: {cache_dir}")
 
-    # Ensure .gitignore includes cache directory
-    output.action("Updating version control ignore")
-    try:
-        ensure_gitignore(config_state)
-        output.result("Updated .gitignore")
-    except Exception as e:
-        output.note(f"Could not update .gitignore: {e}")
+    # 4. Create configuration file with [specs] section
+    output.action("Creating configuration file")
 
-    # Save configuration
-    output.action("Saving configuration")
+    if not config_file.exists():
+        config_file.write_text(EXAMPLE_CONFIG)
+        output.result(f"Created configuration: {config_file}")
+    else:
+        # File exists, ensure it has [specs] section
+        output.result(f"Configuration exists: {config_file}")
+        output.action("Ensuring [specs] section")
+        try:
+            GLOBAL_CONFIG._root = project_root
+            GLOBAL_CONFIG._file = config_file
+            GLOBAL_CONFIG._settings = GLOBAL_CONFIG._load_settings(config_file)
+            GLOBAL_CONFIG.ensure_section()
+            output.result("Added [specs] section")
+        except Exception as e:
+            output.note(f"Could not modify existing config: {e}")
+
+    # 5. Update .gitignore
+    output.action("Updating version control ignore")
+
+    gitignore_path = project_root / ".gitignore"
+    ignore_line = ".apiscope/\n"
+
+    if not gitignore_path.exists():
+        gitignore_path.write_text(ignore_line)
+        output.result("Created .gitignore file")
+    else:
+        content = gitignore_path.read_text()
+        if ignore_line not in content:
+            if content and not content.endswith('\n'):
+                content += '\n'
+            content += ignore_line
+            gitignore_path.write_text(content)
+            output.result("Updated .gitignore")
+        else:
+            output.result(".gitignore already contains .apiscope/")
+
+    # 6. Reload global config
+    output.action("Reloading configuration")
     try:
-        save_config(config_state)
-        output.result("Configuration saved successfully")
+        GLOBAL_CONFIG.reload()
+        output.result("Configuration loaded successfully")
     except Exception as e:
-        output.error(f"Failed to save configuration: {e}")
-        raise click.ClickException("Configuration save failed")
+        output.note(f"Could not reload configuration: {e}")
+        output.note("Configuration will be available after restarting the tool")
 
     output.complete("Initialization")
 
-    # Next steps guidance
+    # 7. Next steps
     output.action("Next steps")
     output.note("Edit apiscope.ini to add API specifications")
     output.note("Run 'apiscope list' to view configured APIs")

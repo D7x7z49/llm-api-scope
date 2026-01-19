@@ -1,42 +1,32 @@
 # apiscope/cli.py
-"""
-Main CLI entry point for apiscope.
-Pre-loads configuration state and provides it to all subcommands.
-"""
 import click
-from .core.config import load_or_init_config, ConfigState
+from typing import Optional
+
+from .core.config import GLOBAL_CONFIG
 from .commands.init import init_command
 from .commands.list import list_command
 
-def create_cli() -> click.Group:
+
+@click.group()
+@click.pass_context
+def cli(ctx: click.Context) -> None:
     """
-    Create CLI application with pre-loaded configuration.
-
-    Returns:
-        Configured Click CLI group.
+    LLM API Scope - Index, search, and query API documentation.
     """
+    # Try to load config automatically
+    try:
+        GLOBAL_CONFIG.load()
+    except RuntimeError:
+        # Not initialized yet, that's okay for init command
+        pass
 
-    @click.group()
-    @click.pass_context
-    def cli(ctx: click.Context) -> None:
-        """
-        LLM API Scope - Index, search, and query API documentation.
+    # Store in context for commands that need explicit access
+    ctx.obj = GLOBAL_CONFIG
 
-        This tool helps LLMs and developers work with structured API
-        documentation (OpenAPI specifications) through a unified interface.
-        """
-        # Pre-load configuration state for all commands
-        ctx.obj = load_or_init_config()
-        ctx.ensure_object(ConfigState)
 
-    # Register subcommands
-    cli.add_command(init_command, name="init")
-    cli.add_command(list_command, name="list")
-
-    return cli
-
-# Create the main CLI instance
-cli = create_cli()
+# Register commands using decorator pattern
+cli.add_command(init_command, name="init")
+cli.add_command(list_command, name="list")
 
 if __name__ == "__main__":
     cli()
