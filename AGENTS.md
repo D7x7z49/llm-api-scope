@@ -16,3 +16,4 @@ if you need help, you can MCP (Model Context Protocol) to get help.
 1. click: <https://github.com/pallets/click>
 2. httpx: <https://github.com/encode/httpx>
 3. openapi-core: <https://github.com/python-openapi/openapi-core>
+4. hishel: <https://github.com/karpetrosyan/hishel>
