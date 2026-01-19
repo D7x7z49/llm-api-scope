@@ -1,8 +1,12 @@
 # apiscope/commands/init.py
+
 """
 Initialize apiscope configuration for the current project.
+Uses LogLight-style output for consistent, concise logging.
 """
+
 import click
+from ..core.output import OutputBuilder
 from ..core.config import (
     ConfigState,
     ensure_gitignore,
@@ -33,15 +37,20 @@ def init_command(ctx: click.Context) -> None:
     (.apiscope/), and ensures the cache directory is ignored by git.
     """
     config_state: ConfigState = ctx.obj
+    output = OutputBuilder()
+
+    output.section("Initialization")
 
     # Check if already initialized
     if config_state.is_initialized:
-        click.echo(
-            f"Configuration already initialized at: {config_state.config_path}"
-        )
+        output.action("Checking existing configuration")
+        output.result(f"Configuration already exists: {config_state.config_path}")
+        output.complete("Initialization")
+        output.emit()
         return
 
     # Ensure the specs section exists
+    output.action("Setting up configuration structure")
     if SECTION_NAME not in config_state.config_parser:
         config_state.config_parser[SECTION_NAME] = {}
 
@@ -49,36 +58,45 @@ def init_command(ctx: click.Context) -> None:
     if not config_state.config_path.exists() or config_state.config_path.stat().st_size == 0:
         config_state.config_path.write_text(EXAMPLE_CONFIG)
         config_state.config_parser.read(config_state.config_path)
-        click.echo(f"Created example configuration at: {config_state.config_path}")
+        output.result(f"Created example configuration: {config_state.config_path}")
     else:
         # File exists with content, just ensure the section exists
         config_state.config_parser.read(config_state.config_path)
         if SECTION_NAME not in config_state.config_parser:
             config_state.config_parser[SECTION_NAME] = {}
-        click.echo(f"Updated existing configuration at: {config_state.config_path}")
+        output.result(f"Updated existing configuration: {config_state.config_path}")
 
     # Update initialization state
     config_state.is_initialized = SECTION_NAME in config_state.config_parser
 
     # Ensure cache directory exists
+    output.action("Creating cache directory")
     cache_dir = config_state.project_root / ".apiscope"
     cache_dir.mkdir(exist_ok=True)
-    click.echo(f"Created cache directory at: {cache_dir}")
+    output.result(f"Cache directory: {cache_dir}")
 
     # Ensure .gitignore includes cache directory
+    output.action("Updating version control ignore")
     try:
         ensure_gitignore(config_state)
-        click.echo("Updated .gitignore to include .apiscope/")
+        output.result("Updated .gitignore")
     except Exception as e:
-        click.echo(f"Warning: Could not update .gitignore: {e}")
+        output.note(f"Could not update .gitignore: {e}")
 
     # Save configuration
+    output.action("Saving configuration")
     try:
         save_config(config_state)
-        click.echo("Configuration initialized successfully.")
-        click.echo("\nNext steps:")
-        click.echo("  1. Edit apiscope.ini to add your API specifications")
-        click.echo("  2. Run 'apiscope list' to see configured APIs")
-        click.echo("  3. Run 'apiscope search <name> <keywords>' to search endpoints")
+        output.result("Configuration saved successfully")
     except Exception as e:
-        raise click.ClickException(f"Failed to save configuration: {e}")
+        output.error(f"Failed to save configuration: {e}")
+        raise click.ClickException("Configuration save failed")
+
+    output.complete("Initialization")
+
+    # Next steps guidance
+    output.action("Next steps")
+    output.note("Edit apiscope.ini to add API specifications")
+    output.note("Run 'apiscope list' to view configured APIs")
+
+    output.emit()

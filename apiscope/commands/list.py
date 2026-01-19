@@ -1,9 +1,34 @@
 # apiscope/commands/list.py
+
 """
 List all configured API specifications.
+Uses LogLight-style output for consistent, concise logging.
 """
+
 import click
+from typing import Tuple
+from ..core.output import OutputBuilder
 from ..core.config import ConfigState, get_specs
+
+def _classify_source(source: str) -> Tuple[str, str]:
+    """
+    Classify source string into type and clean version.
+
+    Args:
+        source: Raw source string from configuration
+
+    Returns:
+        Tuple of (type, cleaned_source)
+        Type is one of: URL, FILE, INVALID
+    """
+    cleaned = source.strip().strip('"\'')
+
+    if cleaned.startswith(("http://", "https://")):
+        return "URL", cleaned
+    elif cleaned.startswith("./") or cleaned.startswith("../"):
+        return "FILE", cleaned
+    else:
+        return "INVALID", cleaned
 
 @click.command()
 @click.pass_context
@@ -11,54 +36,73 @@ def list_command(ctx: click.Context) -> None:
     """
     List all configured API specifications.
 
-    Displays each specification name and its source in a readable format.
+    Displays each specification with its type and source.
+    Provides guidance for invalid formats.
     """
     config_state: ConfigState = ctx.obj
+    output = OutputBuilder()
+
+    output.section("Listing API Specifications")
 
     # Check if configuration is initialized
     if not config_state.is_initialized:
-        click.echo("Configuration not initialized. Run 'apiscope init' first.")
+        output.action("Checking configuration state")
+        output.note("Configuration not initialized")
+        output.note("Run 'apiscope init' first")
+        output.complete("Listing API Specifications")
+        output.emit()
         return
 
     try:
         # Get all configured specifications
+        output.action("Reading configuration")
         specs = get_specs(config_state)
+        output.result(f"Configuration file: {config_state.config_path}")
 
         if not specs:
-            click.echo("No API specifications configured.")
-            click.echo("\nTo add specifications:")
-            click.echo("  1. Edit apiscope.ini in your project root")
-            click.echo("  2. Add lines in the format: <name> = <source>")
-            click.echo("  3. Sources can be local files or remote URLs")
+            output.action("Checking configured APIs")
+            output.note("No API specifications found")
+
+            output.action("Configuration format")
+            output.note("Add lines to apiscope.ini: <name> = <source>")
+            output.note("Source types: URL (http://...), FILE (./... or ../...)")
+
+            output.complete("Listing API Specifications")
+            output.emit()
             return
 
-        # Display specifications in a clear format
-        click.echo(f"Configured API specifications ({len(specs)} total):")
-        click.echo()
+        # Display found specifications
+        output.action(f"Found {len(specs)} API specification(s)")
+
+        has_invalid = False
 
         for name, source in specs.items():
-            # Format source for display (truncate long URLs)
-            display_source = source
-            if len(source) > 60:
-                display_source = source[:57] + "..."
+            source_type, cleaned_source = _classify_source(source)
 
-            click.echo(f"  {click.style(name, fg='cyan', bold=True)}")
-            click.echo(f"    Source: {display_source}")
+            # Format for display - truncate long sources
+            display_source = cleaned_source
+            if len(cleaned_source) > 60:
+                display_source = cleaned_source[:57] + "..."
 
-            # Show source type hint
-            if source.startswith(("http://", "https://")):
-                click.echo("    Type: Remote URL")
-            elif "/" in source or "\\" in source:
-                click.echo("    Type: Local file")
+            # Choose marker based on type
+            if source_type == "INVALID":
+                output.note(f"{name} ({source_type}): {display_source}")
+                has_invalid = True
             else:
-                click.echo("    Type: Unknown (check format)")
+                output.result(f"{name} ({source_type}): {display_source}")
 
-            click.echo()
+        # Provide guidance for invalid entries
+        if has_invalid:
+            output.action("Format guidance for invalid entries")
+            output.note("Use ./ or ../ for local files")
+            output.note("Use http:// or https:// for URLs")
 
-        # Show help text
-        click.echo("Commands to use with these specifications:")
-        click.echo(f"  {click.style('apiscope search <name> <keywords>', fg='green')}")
-        click.echo(f"  {click.style('apiscope describe <name> <path:method>', fg='green')}")
+        output.complete("Listing API Specifications")
 
     except Exception as e:
-        raise click.ClickException(f"Failed to list specifications: {e}")
+        output.error(f"Failed to read configuration: {e}")
+        output.complete("Listing API Specifications")
+        output.emit()
+        raise click.ClickException("Listing failed")
+
+    output.emit()
