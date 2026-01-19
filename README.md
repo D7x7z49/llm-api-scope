@@ -2,6 +2,15 @@
 
 A command-line tool designed for Large Language Models (LLMs) and developers to index, search, and query structured API documentation (e.g., OpenAPI specifications). It assists LLMs in obtaining API information quickly and accurately within automated workflows.
 
+## Installation
+
+apiscope is a command-line tool, not a Python library. For isolated installation without affecting your system Python, we recommend using pipx:
+
+```bash
+# don't use pip
+pipx install llm-api-scope
+```
+
 ## Command Usage
 
 ### `apiscope init`

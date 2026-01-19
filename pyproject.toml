@@ -1,6 +1,6 @@
 [project]
 name = "llm-api-scope"
-version = "0.1.0"
+version = "0.1.2"
 description = "Default template for PDM package"
 authors = [
     {name = "D7x7z49", email = "85430783+D7x7z49@users.noreply.github.com"},
@@ -12,10 +12,10 @@ license = {text = "MIT"}
 
 
 [project.scripts]
-apiscope = "apiscope.cli"
+apiscope = "apiscope.cli:cli"
 
 [tool.pdm]
-distribution = false
+distribution = true
 
 [tool.pdm.scripts]
 apiscope = {call = "apiscope.cli:cli"}
