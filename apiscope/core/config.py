@@ -143,6 +143,11 @@ class GlobalConfig:
         return self._cache  # type: ignore
 
     @property
+    def http_cache_path(self) -> Path:
+        """Path to HTTP cache database."""
+        return self.cache / "http.db"
+
+    @property
     def settings(self) -> configparser.ConfigParser:
         self._ensure_loaded()
         return self._settings  # type: ignore
