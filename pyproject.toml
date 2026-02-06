@@ -1,15 +1,30 @@
 [project]
 name = "llm-api-scope"
 version = "0.2.0"
-description = "Default template for PDM package"
+description = "Command-line tool for LLMs to quickly search and understand OpenAPI endpoints"
+readme = "README.md"
+license = {file = "LICENSE"}
 authors = [
     {name = "D7x7z49", email = "85430783+D7x7z49@users.noreply.github.com"},
 ]
-dependencies = ["click>=8.3.1", "openapi-core>=0.22.0", "httpx>=0.28.1"]
+keywords = ["openapi", "api", "cli", "llm", "swagger", "endpoint", "search"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+]
 requires-python = ">=3.12,<4.0"
-readme = "README.md"
-license = {text = "MIT"}
+dependencies = ["click>=8.3.1", "openapi-core>=0.22.0", "httpx>=0.28.1"]
 
+[project.urls]
+Homepage = "https://github.com/D7x7z49/llm-api-scope"
+Repository = "https://github.com/D7x7z49/llm-api-scope.git"
+Issues = "https://github.com/D7x7z49/llm-api-scope/issues"
 
 [project.scripts]
 apiscope = "apiscope.cli:cli"
