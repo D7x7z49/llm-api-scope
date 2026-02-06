@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.1 (2026-02-06)
+
+### Bug Fixes
+
+- Update project metadata and improve package description
+  ([`cac2bcb`](https://github.com/D7x7z49/llm-api-scope/commit/cac2bcb77a6e32da1e190ffcd6585e762ef6f70e))
+
+
 ## v0.2.0 (2026-01-21)
 
 ### Bug Fixes

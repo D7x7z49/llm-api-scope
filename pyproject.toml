@@ -1,6 +1,6 @@
 [project]
 name = "llm-api-scope"
-version = "0.2.0"
+version = "0.2.1"
 description = "Command-line tool for LLMs to quickly search and understand OpenAPI endpoints"
 readme = "README.md"
 license = {file = "LICENSE"}
