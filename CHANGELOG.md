@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.1 (2026-03-01)
+
+### Bug Fixes
+
+- **note**: Remove interactive prompt in second phase of note creation
+  ([`3ad27b7`](https://github.com/D7x7z49/llm-api-scope/commit/3ad27b735943474e8014005bc4e0fc6bd8320a24))
+
+
 ## v0.3.0 (2026-03-01)
 
 ### Features
