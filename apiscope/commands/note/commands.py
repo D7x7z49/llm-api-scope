@@ -115,33 +115,21 @@ def write(ctx, author, note_type, context):
             output.emit(to_stderr=True)
             ctx.exit(1)
 
-        # 2d. prompt for content (to stderr)
-        click.echo("Please start writing (multiple lines, Ctrl+D to finish):", err=True)
-
-        # 2e. read user input from stdin
-        try:
-            user_content = sys.stdin.read()
-        except KeyboardInterrupt:
-            output.error("Write operation cancelled by user.")
-            output.emit(to_stderr=True)
-            ctx.exit(1)
-
-        # 2f. parse timestamp to human-readable format
+        # 2d. parse timestamp to human-readable format
         dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
         human_time = dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        # 2g. build header using template
+        # 2e. build content using template
         template = TEMPLATES[note_type]["context_template"]
-        header = template.format(
+        content = template.format(
             author=author,
             time=human_time,
             context=context
         )
 
-        # 2h. write header + user content to file
+        # 2f. write content to file
         with open(note_path, "w", encoding="utf-8") as f:
-            f.write(header + "\n")
-            f.write(user_content)
+            f.write(content + "\n")
 
         # 2i. remove lock file
         lock_path.unlink()
@@ -177,7 +165,7 @@ def write(ctx, author, note_type, context):
         output.result(f"Author: {author}")
         output.result(f"Note type: {note_type}")
         question = TEMPLATES[note_type]["question_template"].format(context=context)
-        output.result(question)
+        output.note(question)
         output.complete("Note Creation")
         output.emit()
 
