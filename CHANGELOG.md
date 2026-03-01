@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.3.0 (2026-03-01)
+
+### Features
+
+- **core**: Implement temporal clustering, pattern matching, and note system core
+  ([`107657f`](https://github.com/D7x7z49/llm-api-scope/commit/107657f36411df6b1f8d29966a3bab9b291cdcbd))
+
+- **note**: Integrate note command with improved module structure
+  ([`e47ea95`](https://github.com/D7x7z49/llm-api-scope/commit/e47ea95e40e5d5eeeae985d95d06edfd032e8d5a))
+
+
 ## v0.2.1 (2026-02-06)
 
 ### Bug Fixes
