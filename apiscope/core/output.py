@@ -98,6 +98,16 @@ class OutputBuilder:
         self._lines.append("")
         return self
 
+    def progress(self, message: str) -> "OutputBuilder":
+        """
+        Add a progress indicator for ongoing work.
+
+        Args:
+            message: Progress description (should include "..." for ongoing work)
+        """
+        self._lines.append(f"[*] {message}")
+        return self
+
     def add(self, marker: str, message: str) -> "OutputBuilder":
         """
         Add a line with custom marker.
