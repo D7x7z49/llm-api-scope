@@ -6,6 +6,7 @@ from .commands.init import init_command
 from .commands.list import list_command
 from .commands.search import search_command
 from .commands.describe import describe_command
+from .commands.note import note_command
 
 
 @click.group()
@@ -30,6 +31,7 @@ cli.add_command(init_command, name="init")
 cli.add_command(list_command, name="list")
 cli.add_command(search_command, name="search")
 cli.add_command(describe_command, name="describe")
+cli.add_command(note_command, name="note")
 
 if __name__ == "__main__":
     cli()

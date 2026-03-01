@@ -24,3 +24,16 @@ Search within a specific API specification (`<name>`) for endpoints matching the
 
 ### `apiscope describe <name> <path:method> [--force]`
 Generate and output a concise Markdown guide for using the specified endpoint (`<path:method>`) from the API specification (`<name>`). The guide includes essential calling information such as parameters, request body, and response structure.
+
+### `apiscope note`
+Manage reflective notes for agent reasoning and knowledge capture. This command provides a structured notebook system with six cognitive note types: Observation (OBS), Reasoning (REA), Action (ACT), Reflection (REF), Question (QUE), and Inspiration (INS).
+
+Available subcommands:
+- `auth`: Establish and manage agent identity authentication through three philosophical dimensions (Name, Role, Story). Required before creating notes to ensure the agent has a defined sense of self.
+- `write`: Create a new note with specified author and type (uses two-phase write mechanism)
+- `read`: Display notes for a specific author with pagination and size limits
+- `add`: Append annotations (REFERENCE, NOTE, or TIP) to existing notes
+- `stats`: Analyze note-taking patterns, temporal concentration, and thinking segments
+- `readme`: Display comprehensive documentation about the note system
+
+Notes are stored in `.apiscope/notes/` with automatic organization by author and timestamp. The system supports pattern recognition for classical thinking sequences like Empirical Induction, Hypothetico-Deductive reasoning, and Experimental Science. For complete documentation, run `apiscope note readme`.
