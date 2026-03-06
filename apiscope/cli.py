@@ -7,6 +7,7 @@ from .commands.list import list_command
 from .commands.search import search_command
 from .commands.describe import describe_command
 from .commands.note import note_command
+from .commands.rfc import rfc_command
 
 
 @click.group()
@@ -32,6 +33,7 @@ cli.add_command(list_command, name="list")
 cli.add_command(search_command, name="search")
 cli.add_command(describe_command, name="describe")
 cli.add_command(note_command, name="note")
+cli.add_command(rfc_command, name="rfc")
 
 if __name__ == "__main__":
     cli()
