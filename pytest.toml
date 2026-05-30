@@ -1,0 +1,9 @@
+[pytest]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
+python_files = [
+    "*.unit.test.py",
+    "*.component.test.py",
+    "*.integration.test.py",
+    "*.e2e.test.py",
+]
