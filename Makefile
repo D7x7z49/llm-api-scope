@@ -2,23 +2,23 @@
 # ------------
 .PHONY: lint format typecheck
 lint:
-	uv run ruff check apiscope/ tests/
+	pdm run ruff check apiscope/ tests/
 format:
-	uv run ruff format apiscope/ tests/
+	pdm run ruff format apiscope/ tests/
 typecheck:
-	uv run mypy apiscope/ tests/
+	pdm run mypy apiscope/ tests/
 
 # Testing
 # -------
 .PHONY: test
 test:
-	uv run pytest
+	pdm run pytest
 
 # All-in-one
 # ----------
 .PHONY: check
 check:
-	uv run pre-commit run --all-files
+	pdm run pre-commit run --all-files
 
 # Housekeeping
 # ------------

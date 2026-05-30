@@ -48,4 +48,5 @@ todo.md
 *.tmp
 *.bak
 apiscope.ini
+.apiscope.config.json
 .apiscope/

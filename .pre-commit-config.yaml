@@ -40,9 +40,9 @@ repos:
 
   - repo: local
     hooks:
-    - id: uv-lock-check
-      name: Check uv lock file consistency
-      entry: uv lock --check
+    - id: pdm-lock-check
+      name: Check pdm lock file consistency
+      entry: pdm lock --check
       language: system
-      files: ^pyproject\.toml$|^uv\.lock$
+      files: ^pyproject\.toml$|^pdm\.lock$
       pass_filenames: false

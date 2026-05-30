@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "llm-api-scope"
 version = "0.3.1"
@@ -19,7 +23,11 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 requires-python = ">=3.12,<4.0"
-dependencies = ["click>=8.3.1", "openapi-core>=0.22.0", "httpx>=0.28.1"]
+dependencies = [
+    "typer>=0.26.3",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+]
 
 [project.urls]
 Homepage = "https://github.com/D7x7z49/llm-api-scope"
@@ -27,15 +35,20 @@ Repository = "https://github.com/D7x7z49/llm-api-scope.git"
 Issues = "https://github.com/D7x7z49/llm-api-scope/issues"
 
 [project.scripts]
-apiscope = "apiscope"
+apiscope = "apiscope.main:app"
 
 [dependency-groups]
-dev = [
-    "mypy>=2.1.0",
-    "pre-commit>=4.5.1",
-    "pytest>=9.0.3",
-    "ruff>=0.15.15",
-]
+dev = ["mypy>=2.1.0", "pre-commit>=4.5.1", "pytest>=9.0.3", "ruff>=0.15.15"]
+
+# ==============================================================================
+# setuptools
+# ==============================================================================
+
+[tool.setuptools.packages.find]
+include = ["apiscope*"]
+
+[tool.setuptools.package-data]
+apiscope = ["**/*.yaml", "**/*.json"]
 
 # ==============================================================================
 # pdm configuration
@@ -43,9 +56,6 @@ dev = [
 
 [tool.pdm]
 distribution = true
-
-[tool.pdm.scripts]
-apiscope = { call = "apiscope" }
 
 # ==============================================================================
 # mypy configuration
@@ -57,7 +67,7 @@ warn_return_any = true
 warn_unused_configs = true
 
 # ==============================================================================
-# setting python-semantic-release
+# python-semantic-release
 # ==============================================================================
 
 [tool.semantic_release]
