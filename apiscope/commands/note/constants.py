@@ -1,3 +1,4 @@
+# apiscope/commands/note/constants.py
 """Constants for the note command module."""
 from pathlib import Path
 

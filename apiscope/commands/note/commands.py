@@ -1,3 +1,4 @@
+# apiscope/commands/note/commands.py
 """Commands for the note command module."""
 import click
 import sys

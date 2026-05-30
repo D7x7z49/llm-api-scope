@@ -1,3 +1,4 @@
+# apiscope/core/clustering.py
 """Time-based clustering algorithm for temporal data analysis.
 
 See docs/time-clustering-algorithm.md for detailed mathematical framework

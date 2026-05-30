@@ -1,3 +1,4 @@
+# apiscope/commands/note/utils.py
 """Public utility functions for the note command module."""
 import hashlib
 from pathlib import Path

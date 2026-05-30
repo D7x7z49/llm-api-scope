@@ -1,3 +1,4 @@
+# apiscope/core/trie.py
 """Generic trie (prefix tree) implementation for pattern matching."""
 from typing import Dict, List, Any
 

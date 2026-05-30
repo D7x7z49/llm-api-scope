@@ -1,3 +1,4 @@
+# apiscope/commands/note/core.py
 """Core functions for the note command module."""
 import json
 from datetime import datetime

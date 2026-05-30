@@ -1,3 +1,4 @@
+<!-- docs/loglight-style.md -->
 # LogLight Script Logging Style
 
 ## What is LogLight?
