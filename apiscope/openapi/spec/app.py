@@ -11,7 +11,7 @@ from apiscope.config import (
 )
 from apiscope.openapi.spec.schema import SpecCommandContext
 
-app = typer.Typer()
+app = typer.Typer(help="manage OpenAPI spec aliases")
 
 
 def _resolve_target(use_global: bool) -> Path:
@@ -40,7 +40,7 @@ def spec_callback(
     )
 
 
-@app.command(name="list")
+@app.command(name="list", help="list all registered aliases")
 def list_aliases(ctx: typer.Context) -> None:
     aliases: dict[str, str] = {}
 
@@ -62,8 +62,12 @@ def list_aliases(ctx: typer.Context) -> None:
         typer.echo(f"{name} = {source}")
 
 
-@app.command(name="add")
-def add_alias(ctx: typer.Context, alias: str, source: str) -> None:
+@app.command(name="add", help="register a new alias for an OpenAPI spec")
+def add_alias(
+    ctx: typer.Context,
+    alias: str = typer.Argument(help="alias name"),
+    source: str = typer.Argument(help="path or URL to the OpenAPI spec"),
+) -> None:
     context = ctx.obj.openapi_command_context.spec_command_context
     target = _resolve_target(context.global_flag)
 
@@ -75,8 +79,11 @@ def add_alias(ctx: typer.Context, alias: str, source: str) -> None:
     typer.echo(f"added [{alias}]")
 
 
-@app.command(name="remove")
-def remove_alias(ctx: typer.Context, alias: str) -> None:
+@app.command(name="remove", help="remove a registered alias")
+def remove_alias(
+    ctx: typer.Context,
+    alias: str = typer.Argument(help="alias name"),
+) -> None:
     context = ctx.obj.openapi_command_context.spec_command_context
     target = _resolve_target(context.global_flag)
 

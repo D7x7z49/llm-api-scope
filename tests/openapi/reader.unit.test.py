@@ -1,6 +1,6 @@
 # tests/openapi/reader.unit.test.py
 #
-# Unit tests for OpenapiReader — in-memory hand-crafted payloads.
+# unit tests for OpenapiReader — in-memory hand-crafted payloads.
 
 import pytest
 

@@ -1,7 +1,7 @@
 # tests/openapi/spec.component.test.py
 #
-# Component test for the apiscope/openapi/spec/ package.
-# Named spec.component.test.py (not spec/app.component.test.py) because
+# component test for the apiscope/openapi/spec/ package.
+# named spec.component.test.py (not spec/app.component.test.py) because
 # this tests the spec component as a whole, not a specific source file.
 
 import json

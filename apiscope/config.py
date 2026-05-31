@@ -12,10 +12,9 @@ from pydantic import BaseModel, Field
 # load .env file at module load time
 load_dotenv()
 
-# Brand identity
+# brand identity
 # ==============
 APP_NAME = "apiscope"
-APP_DESCRIPTION = "A reader for network resources"
 DEFAULT_HOME = Path(environ.get("APISCOPE_HOME", str(Path.home())))
 DEFAULT_ROOT = DEFAULT_HOME / ".apiscope"
 DEFAULT_CONFIG_PATH = DEFAULT_ROOT / "config.json"
@@ -24,7 +23,7 @@ DEFAULT_CONFIG_SCHEMA_PATH = DEFAULT_ROOT / "config.schema.json"
 CACHE_ROOT = DEFAULT_ROOT / "cache"
 
 # ==============================================================================
-# Config model
+# config model
 # ==============================================================================
 
 
@@ -58,7 +57,7 @@ class Config(BaseModel):
 
 
 # ==============================================================================
-# Helpers
+# helpers
 # ==============================================================================
 
 
@@ -74,7 +73,7 @@ def _get_project_root() -> Path | None:
 
 
 # ==============================================================================
-# Public API
+# public API
 # ==============================================================================
 
 

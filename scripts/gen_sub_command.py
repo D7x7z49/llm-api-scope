@@ -1,9 +1,9 @@
 # scripts/gen_sub_command.py
 #
-# Generate a subcommand directory skeleton under apiscope/.
+# generate a subcommand directory skeleton under apiscope/.
 #
-# Only creates new directories — never updates existing ones.
-# Registering the subcommand in its parent app.py is a manual step.
+# only creates new directories — never updates existing ones.
+# registering the subcommand in its parent app.py is a manual step.
 #
 # Usage:
 #   python scripts/gen_sub_command.py [<parent>...] <name>

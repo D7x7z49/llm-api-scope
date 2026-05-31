@@ -1,6 +1,6 @@
 # tests/openapi/reader.component.test.py
 #
-# Component test for OpenapiReader using real OpenAPI fixtures.
+# component test for OpenapiReader using real OpenAPI fixtures.
 
 from apiscope.openapi.reader import HttpMethod
 

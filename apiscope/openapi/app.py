@@ -6,7 +6,7 @@ from apiscope.config import CACHE_ROOT
 from apiscope.openapi.schema import OpenapiCommandContext
 from apiscope.openapi.spec import spec_app
 
-app = typer.Typer()
+app = typer.Typer(help="browse OpenAPI specifications")
 
 # ==============================================================================
 # callback
@@ -16,7 +16,7 @@ app = typer.Typer()
 @app.callback()
 def openapi_callback(
     ctx: typer.Context,
-    source: str | None = typer.Argument(None, help="Alias for the OpenAPI spec"),
+    source: str | None = typer.Argument(None, help="alias for the OpenAPI spec"),
 ) -> None:
     cache_dir = CACHE_ROOT / "openapi"
     cache_dir.mkdir(parents=True, exist_ok=True)
