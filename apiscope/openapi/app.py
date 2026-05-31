@@ -2,8 +2,8 @@
 
 import typer
 
-from apiscope.openapi.doc import doc_app
 from apiscope.openapi.schema import OpenapiCommandContext
+from apiscope.openapi.spec import spec_app
 
 app = typer.Typer()
 
@@ -21,4 +21,4 @@ def openapi_callback(ctx: typer.Context) -> None:
 # subcommands
 # ==============================================================================
 
-app.add_typer(doc_app, name="doc")
+app.add_typer(spec_app, name="spec")

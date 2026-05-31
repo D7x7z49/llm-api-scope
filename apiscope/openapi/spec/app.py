@@ -1,4 +1,4 @@
-# apiscope/openapi/doc/app.py
+# apiscope/openapi/spec/app.py
 
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from apiscope.config import (
     Config,
     get_project_config_path,
 )
-from apiscope.openapi.doc.schema import DocCommandContext
+from apiscope.openapi.spec.schema import SpecCommandContext
 
 app = typer.Typer()
 
@@ -29,13 +29,15 @@ def _resolve_target(use_global: bool) -> Path:
 
 
 @app.callback()
-def doc_callback(
+def spec_callback(
     ctx: typer.Context,
     global_flag: bool = typer.Option(
         False, "--global", "-g", help="edit global config instead of project config"
     ),
 ) -> None:
-    ctx.obj.openapi_command_context.doc_command_context = DocCommandContext(global_flag=global_flag)
+    ctx.obj.openapi_command_context.spec_command_context = SpecCommandContext(
+        global_flag=global_flag
+    )
 
 
 @app.command(name="list")
@@ -62,7 +64,7 @@ def list_aliases(ctx: typer.Context) -> None:
 
 @app.command(name="add")
 def add_alias(ctx: typer.Context, alias: str, source: str) -> None:
-    context = ctx.obj.openapi_command_context.doc_command_context
+    context = ctx.obj.openapi_command_context.spec_command_context
     target = _resolve_target(context.global_flag)
 
     with Config.edit(target) as cfg:
@@ -75,7 +77,7 @@ def add_alias(ctx: typer.Context, alias: str, source: str) -> None:
 
 @app.command(name="remove")
 def remove_alias(ctx: typer.Context, alias: str) -> None:
-    context = ctx.obj.openapi_command_context.doc_command_context
+    context = ctx.obj.openapi_command_context.spec_command_context
     target = _resolve_target(context.global_flag)
 
     with Config.edit(target) as cfg:

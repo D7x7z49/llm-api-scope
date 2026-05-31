@@ -1,8 +1,8 @@
-# tests/openapi/doc.component.test.py
+# tests/openapi/spec.component.test.py
 #
-# Component test for the apiscope/openapi/doc/ package.
-# Named doc.component.test.py (not doc/app.component.test.py) because
-# this tests the doc component as a whole, not a specific source file.
+# Component test for the apiscope/openapi/spec/ package.
+# Named spec.component.test.py (not spec/app.component.test.py) because
+# this tests the spec component as a whole, not a specific source file.
 
 import json
 from pathlib import Path

@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel
 
-from apiscope.openapi.doc.schema import DocCommandContext
+from apiscope.openapi.spec.schema import SpecCommandContext
 
 
 class OpenapiCommandContext(BaseModel):
-    doc_command_context: DocCommandContext | None = None
+    spec_command_context: SpecCommandContext | None = None
