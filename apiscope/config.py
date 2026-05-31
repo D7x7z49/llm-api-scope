@@ -1,8 +1,10 @@
 # apiscope/config.py
 
 import json
+from contextlib import contextmanager
 from os import environ
 from pathlib import Path
+from typing import Generator
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
@@ -19,6 +21,8 @@ DEFAULT_ROOT = DEFAULT_HOME / ".apiscope"
 DEFAULT_CONFIG_PATH = DEFAULT_ROOT / "config.json"
 DEFAULT_CONFIG_SCHEMA_PATH = DEFAULT_ROOT / "config.schema.json"
 
+CACHE_ROOT = DEFAULT_ROOT / "cache"
+
 # ==============================================================================
 # Config model
 # ==============================================================================
@@ -30,6 +34,27 @@ class OpenapiConfig(BaseModel):
 
 class Config(BaseModel):
     openapi: OpenapiConfig = Field(default_factory=OpenapiConfig)
+
+    @classmethod
+    def read(cls, path: Path) -> "Config":
+        if not path.exists():
+            raise FileNotFoundError(f"[{path}] not found.")
+        return cls.model_validate_json(path.read_text())
+
+    @classmethod
+    @contextmanager
+    def edit(cls, path: Path) -> Generator["Config", None, None]:
+        if not path.exists():
+            raise FileNotFoundError(f"[{path}] not found.")
+        config = cls.model_validate_json(path.read_text())
+        yield config
+        if isinstance(config, Config):
+            config.write(path)
+
+    def write(self, path: Path) -> None:
+        data = {"$schema": DEFAULT_CONFIG_SCHEMA_PATH.as_uri()} | self.model_dump()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2) + "\n")
 
 
 # ==============================================================================
@@ -56,11 +81,18 @@ def _get_project_root() -> Path | None:
 DEFAULT_CONFIG = Config()
 
 
+def get_project_config_path() -> Path | None:
+    project_root = _get_project_root()
+    if project_root is None:
+        return None
+    return project_root / f".{APP_NAME}.config.json"
+
+
 def get_config() -> Config:
     # ensure the default config exists
     if not DEFAULT_CONFIG_PATH.exists():
         DEFAULT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        DEFAULT_CONFIG_PATH.write_text(DEFAULT_CONFIG.model_dump_json())
+        DEFAULT_CONFIG.write(DEFAULT_CONFIG_PATH)
 
     # ensure the default config schema exists
     DEFAULT_CONFIG_SCHEMA_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -70,12 +102,11 @@ def get_config() -> Config:
     global_config = Config.model_validate_json(DEFAULT_CONFIG_PATH.read_text())
 
     # load the project config
-    project_root = _get_project_root()
+    project_config_path = get_project_config_path()
     project_config: Config | None = None
-    if project_root:
-        project_config_path = project_root / f".{APP_NAME}.config.json"
+    if project_config_path is not None:
         if not project_config_path.exists():
-            project_config_path.write_text(DEFAULT_CONFIG.model_dump_json())
+            DEFAULT_CONFIG.write(project_config_path)
         project_config = Config.model_validate_json(project_config_path.read_text())
 
     # merge the configs: default -> global -> project
