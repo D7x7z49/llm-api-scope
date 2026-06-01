@@ -28,6 +28,7 @@ CACHE_ROOT = DEFAULT_ROOT / "cache"
 
 
 class OpenapiConfig(BaseModel):
+    proxy: str | None = Field(default=None)
     alias: dict[str, str] = Field(default_factory=dict)
 
 
@@ -58,6 +59,8 @@ class Config(BaseModel):
     def merge(self, other: "Config") -> "Config":
         merged = self.model_copy(deep=True)
         merged.openapi.alias |= other.openapi.alias
+        if other.openapi.proxy is not None:
+            merged.openapi.proxy = other.openapi.proxy
         return merged
 
 

@@ -26,21 +26,24 @@ def _fetch_local(source: str, cache_dir: Path) -> Path:
     return cache_path
 
 
-def _fetch_remote(url: str, cache_dir: Path) -> Path:
+def _fetch_remote(url: str, cache_dir: Path, proxy: str | None = None) -> Path:
     path = unquote(urlparse(url).path).rstrip()
     suffix = Path(path).suffix.lower()
     ext = suffix if suffix in OPENAPI_EXTENSIONS else ".json"
     cache_path = cache_dir / f"{_cache_key(url)}{ext}"
 
     if not cache_path.exists():
-        resp = httpx.get(url, follow_redirects=True)
+        client_kwargs: dict = {}
+        if proxy is not None:
+            client_kwargs["proxy"] = proxy
+        resp = httpx.get(url, follow_redirects=True, **client_kwargs)
         resp.raise_for_status()
         cache_path.write_bytes(resp.content)
 
     return cache_path
 
 
-def fetch_openapi_spec(source: str, cache_dir: Path) -> Path:
+def fetch_openapi_spec(source: str, cache_dir: Path, proxy: str | None = None) -> Path:
     if "://" in source:
-        return _fetch_remote(source, cache_dir)
+        return _fetch_remote(source, cache_dir, proxy)
     return _fetch_local(source, cache_dir)

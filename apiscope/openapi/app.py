@@ -26,15 +26,16 @@ def _resolve_source(alias_or_source: str, config: Config) -> str:
     return alias_or_source
 
 
-def _load_reader(source: str, cache_dir: Path) -> OpenapiReader:
-    cached = fetch_openapi_spec(source, cache_dir)
+def _load_reader(source: str, cache_dir: Path, proxy: str | None = None) -> OpenapiReader:
+    cached = fetch_openapi_spec(source, cache_dir, proxy)
     return OpenapiReader.load(cached)
 
 
 def _get_reader(source: str, ctx: typer.Context) -> OpenapiReader:
     resolved = _resolve_source(source, ctx.obj.config)
     cache_dir = ctx.obj.openapi_command_context.cache_dir
-    return _load_reader(resolved, cache_dir)
+    proxy = ctx.obj.config.openapi.proxy
+    return _load_reader(resolved, cache_dir, proxy)
 
 
 # ==============================================================================

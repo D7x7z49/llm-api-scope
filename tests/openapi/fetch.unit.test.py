@@ -53,3 +53,24 @@ def test_fetch_returns_cached_path_on_hit(tmp_path: Path):
 
     assert first == second
     assert second.read_text() == "{}"
+
+
+def test_fetch_remote_passes_proxy_to_get(monkeypatch, tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+
+    captured: dict = {}
+
+    def fake_get(url, **kw):
+        captured.update(kw)
+        return _FakeResponse()
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    fetch_mod.fetch_openapi_spec(
+        "https://api.example.com/openapi.json",
+        cache_dir,
+        proxy="http://127.0.0.1:7890",
+    )
+
+    assert captured.get("proxy") == "http://127.0.0.1:7890"
