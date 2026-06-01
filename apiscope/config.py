@@ -55,6 +55,11 @@ class Config(BaseModel):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2) + "\n")
 
+    def merge(self, other: "Config") -> "Config":
+        merged = self.model_copy(deep=True)
+        merged.openapi.alias |= other.openapi.alias
+        return merged
+
 
 # ==============================================================================
 # helpers
@@ -100,17 +105,10 @@ def get_config() -> Config:
     # load the global config
     global_config = Config.model_validate_json(DEFAULT_CONFIG_PATH.read_text())
 
-    # load the project config
+    # load and merge the project config
     project_config_path = get_project_config_path()
-    project_config: Config | None = None
-    if project_config_path is not None:
-        if not project_config_path.exists():
-            DEFAULT_CONFIG.write(project_config_path)
+    if project_config_path is not None and project_config_path.exists():
         project_config = Config.model_validate_json(project_config_path.read_text())
+        return global_config.merge(project_config)
 
-    # merge the configs: default -> global -> project
-    merged = DEFAULT_CONFIG.model_dump() | global_config.model_dump()
-    if project_config:
-        merged |= project_config.model_dump()
-
-    return Config.model_validate(merged)
+    return global_config

@@ -38,6 +38,10 @@ class OpenapiReader:
     def paths(self) -> dict[str, dict[str, Any]]:
         return cast(dict[str, dict[str, Any]], self._payload.get("paths", {}))
 
+    @property
+    def raw(self) -> dict[str, Any]:
+        return self._payload
+
     def filter_paths(self, *methods: HttpMethod) -> dict[str, dict[str, Any]]:
         method_set = set(methods)
         result: dict[str, dict[str, Any]] = {}
