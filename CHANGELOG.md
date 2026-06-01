@@ -2,6 +2,75 @@
 
 <!-- version list -->
 
+## v0.4.0 (2026-06-01)
+
+### Chores
+
+- Add .pi/prompts and fix-headers pre-commit hook
+  ([`b5adb5d`](https://github.com/D7x7z49/llm-api-scope/commit/b5adb5d851982666b4e53e795f2fd2e0ebe74413))
+
+- Sync .pi prompts and add experience file support
+  ([`53a3740`](https://github.com/D7x7z49/llm-api-scope/commit/53a3740955e641bb03c8ac4100e9d531315c3167))
+
+- **scripts**: Add subcommand directory generator
+  ([`9d10415`](https://github.com/D7x7z49/llm-api-scope/commit/9d104150ab4a8dd51ac96a522bbb7c92fa5f597d))
+
+### Code Style
+
+- Add file header comments via fix-headers hook
+  ([`eba817b`](https://github.com/D7x7z49/llm-api-scope/commit/eba817b7daad5c6369ad1ab9d5a3df16be44ff61))
+
+- Add file header comments via fix-headers hook
+  ([`b9022e8`](https://github.com/D7x7z49/llm-api-scope/commit/b9022e8217597572a8df63f50d30ca48552422e6))
+
+### Continuous Integration
+
+- Add local pr creation script
+  ([`4cb3315`](https://github.com/D7x7z49/llm-api-scope/commit/4cb33151cfac69d2077548431270ee167c9bd4f7))
+
+### Documentation
+
+- Add writing style conventions and rewrite loglight spec
+  ([`f88a2f4`](https://github.com/D7x7z49/llm-api-scope/commit/f88a2f4704013ff539e13a52ad719eb0e9c1648c))
+
+- Refresh README, AGENTS, and CONTRIBUTING for rewrite branch
+  ([`03a8e7b`](https://github.com/D7x7z49/llm-api-scope/commit/03a8e7b4fc0c1a1ecd85188e0f53037fa6ebb411))
+
+### Features
+
+- **openapi**: Add doc command group for alias management
+  ([`0c3c6a8`](https://github.com/D7x7z49/llm-api-scope/commit/0c3c6a8922840131be2ebdf779cc5bc48f8fea81))
+
+- **openapi**: Add OpenapiReader with load, filter, lookup, and ref resolution
+  ([`39abc6a`](https://github.com/D7x7z49/llm-api-scope/commit/39abc6af1c0c5d216b4a37c7f15a7be5b96b1b23))
+
+- **openapi**: Add proxy support for remote spec fetching
+  ([`4c4022c`](https://github.com/D7x7z49/llm-api-scope/commit/4c4022ca160c51433e39ee0b474551393ac84c03))
+
+- **openapi**: Add spec fetching with local copy and remote download
+  ([`7371f3e`](https://github.com/D7x7z49/llm-api-scope/commit/7371f3e0c45663b2c8481dd6ac81ba2ba1a1e03e))
+
+- **openapi**: Implement operation commands with info, list, and describe
+  ([`21bc55b`](https://github.com/D7x7z49/llm-api-scope/commit/21bc55bcdfe6822030386c5af933670e46c7c114))
+
+### Refactoring
+
+- Apply lowercase style, remove docstrings, add help to all commands
+  ([`9a52d67`](https://github.com/D7x7z49/llm-api-scope/commit/9a52d679b586cf706407fc45752934d541a1c857))
+
+- Refresh project foundation with pydantic config and typer CLI
+  ([`1d251e6`](https://github.com/D7x7z49/llm-api-scope/commit/1d251e60a99b88295bfcf0267645b58fcdc34b65))
+
+- Rename pr target file from pr.md to pr.tmp
+  ([`f3d2175`](https://github.com/D7x7z49/llm-api-scope/commit/f3d2175ca9dda4be60d389aae01618c1a1eac674))
+
+- Strip old CLI and note system, add quality tooling
+  ([`188bbd7`](https://github.com/D7x7z49/llm-api-scope/commit/188bbd7b8f9875d0c144bf103220119278fab8d0))
+
+- **openapi**: Rename doc subcommand to spec
+  ([`19ee224`](https://github.com/D7x7z49/llm-api-scope/commit/19ee22499d52d2433d225329a1ddbf5b5df29003))
+
+
 ## v0.3.1 (2026-03-01)
 
 ### Bug Fixes
