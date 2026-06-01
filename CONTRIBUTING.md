@@ -1,20 +1,17 @@
-# CONTRIBUTING
+<!-- CONTRIBUTING.md -->
+<!-- how to set up and contribute to this project -->
 
-## Install
+SET UP
+- install [pdm](https://github.com/pdm-project/pdm)
+- run `pdm install` and `pdm run pre-commit install`
 
-You need `git` and `pipx`.
-```bash
-pipx install pdm
-pipx install python-semantic-release
-git clone https://github.com/D7x7z49/llm-api-scope
-cd llm-api-scope
-pdm install
-pdm run pre-commit install
-```
+DEVELOP
+- task commands: `make` (see Makefile)
+- commit rules: see [.pi/prompts/git/commit/conventional-commits.md](.pi/prompts/git/commit/conventional-commits.md)
+- writing style: see [docs/writing-style.md](docs/writing-style.md)
 
-## How to Contribute
+PULL REQUEST
+- create a feature branch from `main`, push and open a PR
+- PR format: see [.pi/prompts/gh/PR/pull-request.md](.pi/prompts/gh/PR/pull-request.md)
 
-1.  **Branch**: Create a feature branch from `main`.
-2.  **Develop**: Make your changes.
-3.  **Commit**: Follow the **Commit Rules** below.
-4.  **PR**: Push your branch and open a Pull Request.
+---

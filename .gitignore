@@ -22,6 +22,7 @@ venv.bak/
 # Build
 build/
 dist/
+tmp/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -47,4 +48,5 @@ todo.md
 *.tmp
 *.bak
 apiscope.ini
+.apiscope.config.json
 .apiscope/

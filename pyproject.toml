@@ -1,13 +1,17 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "llm-api-scope"
 version = "0.3.1"
-description = "Command-line tool for LLMs to quickly search and understand OpenAPI endpoints"
+description = "read and cache structured documents from remote for LLM agents"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 authors = [
-    {name = "D7x7z49", email = "85430783+D7x7z49@users.noreply.github.com"},
+    { name = "D7x7z49", email = "85430783+D7x7z49@users.noreply.github.com" },
 ]
-keywords = ["openapi", "api", "cli", "llm", "swagger", "endpoint", "search"]
+keywords = ["agent-tool", "document-reader", "openapi", "specification"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
@@ -19,7 +23,13 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 requires-python = ">=3.12,<4.0"
-dependencies = ["click>=8.3.1", "openapi-core>=0.22.0", "httpx>=0.28.1"]
+dependencies = [
+    "typer>=0.26.3",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+    "httpx>=0.28.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/D7x7z49/llm-api-scope"
@@ -27,20 +37,44 @@ Repository = "https://github.com/D7x7z49/llm-api-scope.git"
 Issues = "https://github.com/D7x7z49/llm-api-scope/issues"
 
 [project.scripts]
-apiscope = "apiscope.cli:cli"
+apiscope = "apiscope.main:app"
+
+[dependency-groups]
+dev = ["mypy>=2.1.0", "pre-commit>=4.5.1", "pytest>=9.0.3", "ruff>=0.15.15"]
+
+# ==============================================================================
+# setuptools
+# ==============================================================================
+types = [
+    "types-pyyaml>=6.0.12.20260518",
+]
+
+[tool.setuptools.packages.find]
+include = ["apiscope*"]
+
+[tool.setuptools.package-data]
+apiscope = ["**/*.yaml", "**/*.json"]
+
+# ==============================================================================
+# pdm configuration
+# ==============================================================================
 
 [tool.pdm]
 distribution = true
 
-[tool.pdm.scripts]
-apiscope = {call = "apiscope.cli:cli"}
+# ==============================================================================
+# mypy configuration
+# ==============================================================================
 
-[dependency-groups]
-dev = [
-    "pre-commit>=4.5.1",
-]
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
 
-# setting python-semantic-release
+# ==============================================================================
+# python-semantic-release
+# ==============================================================================
+
 [tool.semantic_release]
 assets = []
 build_command_env = []
@@ -92,8 +126,27 @@ default = "semantic-release <semantic-release>"
 [tool.semantic_release.commit_parser_options]
 minor_tags = ["feat"]
 patch_tags = ["fix", "perf"]
-other_allowed_tags = ["build", "chore", "ci", "docs", "style", "refactor", "test"]
-allowed_tags = ["feat", "fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+other_allowed_tags = [
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "style",
+    "refactor",
+    "test",
+]
+allowed_tags = [
+    "feat",
+    "fix",
+    "perf",
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "style",
+    "refactor",
+    "test",
+]
 default_bump_level = 0
 parse_squash_commits = true
 ignore_merge_commits = true

@@ -1,19 +1,13 @@
-# AGENTS.md
+<!-- AGENTS.md -->
+<!-- project conventions for ai coding agents -->
 
-## TOOL STACK
-- Version Control: `git` and GitHub CLI (`gh`)
-- Project & Dependency Management: `pdm` (Python)
-- Safety Check: Always use `[command] --help` or `-h` first if unsure.
+TOOL STACK
+- version control: `git` and GitHub CLI (`gh`)
+- package management: `pdm`
+- task automation: `make` (see Makefile)
 
-## SAFETY RULES
-1. Check First: Run `--help` before using an unfamiliar command or flag.
-2. Confirm Context: Ensure you are in the correct project directory.
-3. Be Cautious: Understand the impact before running commands that change history (`git rebase`, `git reset`) or remove dependencies (`pdm remove`).
+SAFETY RULES
+- check first: run `--help` before using an unfamiliar command or flag
+- confirm context: ensure you are in the correct project directory
 
-## PYTHON MODULES REPO
-if you need help, you can MCP (Model Context Protocol) to get help.
-
-1. click: <https://github.com/pallets/click>
-2. httpx: <https://github.com/encode/httpx>
-3. openapi-core: <https://github.com/python-openapi/openapi-core>
-4. python-semantic-release: <https://github.com/python-semantic-release/python-semantic-release>
+---
