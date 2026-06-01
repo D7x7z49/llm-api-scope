@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "llm-api-scope"
 version = "0.3.1"
-description = "Command-line tool for LLMs to quickly search and understand OpenAPI endpoints"
+description = "read and cache structured documents from remote for LLM agents"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
     { name = "D7x7z49", email = "85430783+D7x7z49@users.noreply.github.com" },
 ]
-keywords = ["openapi", "api", "cli", "llm", "swagger", "endpoint", "search"]
+keywords = ["agent-tool", "document-reader", "openapi", "specification"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
