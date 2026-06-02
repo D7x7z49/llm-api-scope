@@ -66,7 +66,7 @@ app.add_typer(rfc_app, name="rfc")
 @app.command(help="check that apiscope is installed and working")
 def health(
     ctx: typer.Context,
-    json_output: bool = typer.Option(default=False, show_default=False, help="output as JSON"),
+    json_output: bool = typer.Option(False, "--json", help="output as JSON"),
 ) -> None:
     # ensure directories exist
     DEFAULT_ROOT.mkdir(parents=True, exist_ok=True)
