@@ -25,6 +25,7 @@ from apiscope.config import (
     get_project_config_path,
 )
 from apiscope.openapi import openapi_app
+from apiscope.repo import check_repo_deps, repo_app
 from apiscope.rfc import check_rfc_deps, rfc_app
 from apiscope.schema import CommandContext
 
@@ -57,6 +58,7 @@ def callback(ctx: typer.Context) -> None:
 
 app.add_typer(openapi_app, name="openapi")
 app.add_typer(rfc_app, name="rfc")
+app.add_typer(repo_app, name="repo")
 
 # ==============================================================================
 # commands
@@ -74,7 +76,7 @@ def health(
 
     # gather issues from all modules
     issues: list[str] = []
-    for label, check in [("rfc", check_rfc_deps)]:
+    for label, check in [("rfc", check_rfc_deps), ("repo", check_repo_deps)]:
         err = check()
         if err is not None:
             issues.append(f"[{label}] {err}")
