@@ -1,0 +1,45 @@
+# .github/workflows/ci.yml
+
+# PR validation — commit messages, lint, format, type check, tests
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.json
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pdm sync -d
+
+      - name: Lint with ruff
+        run: pdm run ruff check --output-format=github
+
+      - name: Check format with ruff
+        run: pdm run ruff format --check --diff
+
+      - name: Type check with mypy
+        run: pdm run mypy
+
+      - name: Run tests
+        run: pdm run pytest
