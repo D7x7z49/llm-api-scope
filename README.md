@@ -24,9 +24,14 @@ browse OpenAPI specifications with subcommands for discovering, listing, and des
 
 aliases let you register frequently used specs once and reference them by short name. fetching is transparent — local copies are cached for fast repeat access, and a proxy can be configured for restricted networks.
 
+### rfc
+
+read, search, and navigate RFC documents from the IETF.
+
+the metadata index is mirrored once via rsync. individual text files are fetched on demand and cached locally. you can browse the table of contents, jump to a section (XML) or page (TXT), filter the index by status or source, and run keyword searches against fulltext content.
+
 ## future
 
-- read RFC documents by number
 - read academic papers from arxiv
 - more formal document formats as the need arises
 
