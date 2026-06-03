@@ -20,3 +20,28 @@
       - remove # remove a registered alias
         + [ALIAS] # alias name
       - list # list all registered aliases
+  - rfc # browse IETF RFC documents
+    - sync # download RFC metadata index via rsync
+    - info # show RFC metadata
+      + [NUMBER] # RFC number
+      + [--json]? # output as JSON
+    - read # show RFC content or table of contents
+      + [NUMBER] # RFC number
+      + [--section]? # extract by section id (XML only)
+      + [--page]? # extract by page number (TXT only)
+      + [--json]? # output as JSON
+    - search # search RFC index or fulltext
+      + [NUMBER]? # RFC number (fulltext mode)
+      + [TERM]? # search term (fulltext mode)
+      + [--status]...? # filter by status: ps, ds, std, bcp, info, exp, hist (index mode)
+      + [--since]? # filter by start year (index mode)
+      + [--until]? # filter by end year (index mode)
+      + [--author]? # filter by author name (index mode)
+      + [--title]? # filter by title keyword (index mode)
+      + [--abstract]? # filter by abstract keyword (index mode)
+      + [--keywords]? # filter by keywords field (index mode)
+      + [--source]? # filter by source / working group (index mode)
+      + [--context]? # lines of context around match (fulltext mode)
+      + [--no-snippet]? # hide content snippet (fulltext mode)
+      + [--limit]? # max results shown
+      + [--offset]? # skip first N results
