@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-api-scope"
-version = "0.6.0"
+version = "0.6.1"
 description = "read and cache structured documents from remote for LLM agents"
 readme = "README.md"
 license = { file = "LICENSE" }

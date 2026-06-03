@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.6.1 (2026-06-03)
+
+### Bug Fixes
+
+- **config**: Auto-create empty project config on first run
+  ([`374920e`](https://github.com/D7x7z49/llm-api-scope/commit/374920e209b81db4f6ebb629a11531f9a4136d86))
+
+
 ## v0.6.0 (2026-06-03)
 
 ### Continuous Integration
