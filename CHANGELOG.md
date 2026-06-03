@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.5.1 (2026-06-03)
+
+### Continuous Integration
+
+- Rewrite CI workflows
+  ([`2232b51`](https://github.com/D7x7z49/llm-api-scope/commit/2232b5177184bd54fbf7e15b43074071a549bb66))
+
+### Documentation
+
+- Add rfc command section to README
+  ([`efb340a`](https://github.com/D7x7z49/llm-api-scope/commit/efb340a482f294bb2b8a4cf7575c3a5fcc9ef302))
+
+### Performance Improvements
+
+- **cache**: Add TTL-based cache invalidation with --force override
+  ([`10aeacd`](https://github.com/D7x7z49/llm-api-scope/commit/10aeacd7d0a65234da8c93e480f733e35c377bc1))
+
+
 ## v0.5.0 (2026-06-03)
 
 ### Chores
