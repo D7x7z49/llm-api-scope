@@ -23,6 +23,8 @@ DEFAULT_CONFIG_SCHEMA_PATH = DEFAULT_ROOT / "config.schema.json"
 
 CACHE_ROOT = DEFAULT_ROOT / "cache"
 
+TMP_ROOT = DEFAULT_ROOT / "tmp"
+
 # ==============================================================================
 # config model
 # ==============================================================================
@@ -52,12 +54,28 @@ class OpenapiConfig(BaseConfig):
 
 class RfcConfig(BaseConfig):
     # override
+    cache_ttl: int = Field(default=60 * 60 * 24 * 30)  # 1 month
+
+
+class RepoEntryConfig(BaseModel):
+    dir: str
+
+    # format - branch:<branch>, tag:<tag>, commit:<short-hash>
+    # e.g. branch:main, tag:v1.0, commit:abc1234
+    target: str = Field(default="branch:main")
+
+
+class RepoConfig(BaseConfig):
+    entries: dict[str, RepoEntryConfig] = Field(default_factory=dict)
+
+    # override
     cache_ttl: int = Field(default=60 * 60 * 24 * 7)  # 1 week
 
 
 class Config(BaseModel):
     openapi: OpenapiConfig = Field(default_factory=OpenapiConfig)
     rfc: RfcConfig = Field(default_factory=RfcConfig)
+    repo: RepoConfig = Field(default_factory=RepoConfig)
 
     @classmethod
     def read(cls, path: Path) -> "Config":
@@ -85,6 +103,7 @@ class Config(BaseModel):
         merged.openapi.alias |= other.openapi.alias
         if other.openapi.proxy is not None:
             merged.openapi.proxy = other.openapi.proxy
+        merged.repo.entries = self.repo.entries | other.repo.entries
         return merged
 
 

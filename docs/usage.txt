@@ -51,3 +51,14 @@
       + [--no-snippet]? # hide content snippet (fulltext mode)
       + [--limit]? # max results shown
       + [--offset]? # skip first N results
+  - repo # sync documentation from git repositories
+    + [-g]? # edit global config instead of project config
+    - add # register a repo for syncing
+      + [URL] # git clone URL
+      + [DIR] # directory within repo to extract
+      + [--target]? # ref target (branch:, tag:, commit:)
+    - remove # remove a registered repo
+      + [URL] # git clone URL
+    - list # list registered repos
+    - sync # sync all registered repos to cache
+      + [--force]? # force re-sync ignoring cache TTL

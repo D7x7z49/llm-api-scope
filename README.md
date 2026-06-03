@@ -30,6 +30,12 @@ read, search, and navigate RFC documents from the IETF.
 
 the metadata index is mirrored once via rsync. individual text files are fetched on demand and cached locally. you can browse the table of contents, jump to a section (XML) or page (TXT), filter the index by status or source, and run keyword searches against fulltext content.
 
+### repo
+
+sync documentation directories from any git repository to a local cache.
+
+register repositories by URL with a target subdirectory and a ref — a branch, tag, or commit. the sync command clones with shallow depth, blobless filter, and sparse checkout so only the needed tree and files come over the wire. extracted docs land in the cache under a stable hash path, and a configurable TTL avoids redundant re-fetches. provider-agnostic, zero auth.
+
 ## future
 
 - read academic papers from arxiv
