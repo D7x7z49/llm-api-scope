@@ -7,7 +7,7 @@ from typing import Any
 import typer
 
 from apiscope.config import CACHE_ROOT, Config
-from apiscope.openapi.fetch import fetch_openapi_spec
+from apiscope.openapi.fetch import fetch_openapi_spec, openapi_cache_path
 from apiscope.openapi.reader import HttpMethod, OpenapiReader
 from apiscope.openapi.schema import OpenapiCommandContext
 from apiscope.openapi.spec import spec_app
@@ -26,16 +26,20 @@ def _resolve_source(alias_or_source: str, config: Config) -> str:
     return alias_or_source
 
 
-def _load_reader(source: str, cache_dir: Path, proxy: str | None = None) -> OpenapiReader:
-    cached = fetch_openapi_spec(source, cache_dir, proxy)
+def _load_reader(
+    source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
+) -> OpenapiReader:
+    cached = fetch_openapi_spec(source, cache_dir, proxy, refresh=refresh)
     return OpenapiReader.load(cached)
 
 
-def _get_reader(source: str, ctx: typer.Context) -> OpenapiReader:
+def _get_reader(source: str, ctx: typer.Context, force: bool = False) -> OpenapiReader:
     resolved = _resolve_source(source, ctx.obj.config)
     cache_dir = ctx.obj.openapi_command_context.cache_dir
     proxy = ctx.obj.config.openapi.proxy
-    return _load_reader(resolved, cache_dir, proxy)
+    cache_path = openapi_cache_path(resolved, cache_dir)
+    stale = ctx.obj.config.openapi.is_stale_path(cache_path)
+    return _load_reader(resolved, cache_dir, proxy, refresh=force or stale)
 
 
 # ==============================================================================
@@ -61,9 +65,9 @@ def list_operations(
     source: str = typer.Argument(help="alias or path to the OpenAPI spec"),
     tag: str | None = typer.Option(default=None, help="filter by tag"),
     method: str | None = typer.Option(default=None, help="filter by HTTP method"),
+    force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache"),
 ) -> None:
-    # load and resolve the spec
-    reader = _get_reader(source, ctx)
+    reader = _get_reader(source, ctx, force=force)
 
     # collect all operations (path + method + identity fields)
     operations: list[dict[str, Any]] = []
@@ -106,9 +110,9 @@ def describe_operation(
     request: bool = typer.Option(
         default=False, show_default=False, help="show only request fields, omit responses"
     ),
+    force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache"),
 ) -> None:
-    # load and resolve the spec
-    reader = _get_reader(source, ctx)
+    reader = _get_reader(source, ctx, force=force)
 
     # merge path-item parameters with operation parameters
     path_item = reader.paths.get(path, {})
@@ -132,8 +136,9 @@ def describe_operation(
 def show_info(
     ctx: typer.Context,
     source: str = typer.Argument(help="alias or path to the OpenAPI spec"),
+    force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache"),
 ) -> None:
-    reader = _get_reader(source, ctx)
+    reader = _get_reader(source, ctx, force=force)
 
     META_KEYS = ("openapi", "info", "servers", "tags", "security", "externalDocs")
     meta = {k: v for k, v in reader.raw.items() if k in META_KEYS}

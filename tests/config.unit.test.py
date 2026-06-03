@@ -1,6 +1,25 @@
 # tests/config.unit.test.py
 
+import time
+
 import apiscope.config as config_mod
+
+
+class TestBaseConfigStale:
+    def test_is_stale_path_missing_file(self, tmp_path):
+        cfg = config_mod.BaseConfig(cache_ttl=60)
+        missing = tmp_path / "nonexistent.txt"
+
+        assert cfg.is_stale_path(missing) is True
+
+    def test_is_stale_since_expired(self, monkeypatch):
+        cfg = config_mod.BaseConfig(cache_ttl=60)
+        monkeypatch.setattr(time, "time", lambda: 1e10)
+        assert cfg.is_stale_since(0.0) is True
+
+    def test_is_stale_since_recent(self):
+        cfg = config_mod.BaseConfig(cache_ttl=999999)
+        assert cfg.is_stale_since(time.time() - 1) is False
 
 
 class TestGetConfigFresh:

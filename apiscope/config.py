@@ -1,6 +1,7 @@
 # apiscope/config.py
 
 import json
+import time
 from contextlib import contextmanager
 from os import environ
 from pathlib import Path
@@ -27,13 +28,36 @@ CACHE_ROOT = DEFAULT_ROOT / "cache"
 # ==============================================================================
 
 
-class OpenapiConfig(BaseModel):
+class BaseConfig(BaseModel):
+    cache_ttl: int  # seconds
+
+    def is_stale_since(self, timestamp: float) -> bool:
+        return time.time() - timestamp > self.cache_ttl
+
+    def is_stale_path(self, path: Path) -> bool:
+        if not path.exists():
+            return True
+        stat = path.stat()
+        latest = max(stat.st_mtime, stat.st_ctime)
+        return self.is_stale_since(latest)
+
+
+class OpenapiConfig(BaseConfig):
     proxy: str | None = Field(default=None)
     alias: dict[str, str] = Field(default_factory=dict)
+
+    # override
+    cache_ttl: int = Field(default=60 * 60 * 24)  # 1 day
+
+
+class RfcConfig(BaseConfig):
+    # override
+    cache_ttl: int = Field(default=60 * 60 * 24 * 7)  # 1 week
 
 
 class Config(BaseModel):
     openapi: OpenapiConfig = Field(default_factory=OpenapiConfig)
+    rfc: RfcConfig = Field(default_factory=RfcConfig)
 
     @classmethod
     def read(cls, path: Path) -> "Config":

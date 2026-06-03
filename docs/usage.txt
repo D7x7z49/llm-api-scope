@@ -3,15 +3,18 @@
   - openapi # browse OpenAPI specifications
     - info # show OpenAPI spec metadata
       + [SOURCE] # alias or path to the OpenAPI spec
+      + [--force]? # force re-fetch ignoring cache
     - list # list operations from an OpenAPI spec
       + [SOURCE] # alias or path to the OpenAPI spec
       + [--tag]? # filter by tag
       + [--method]? # filter by HTTP method
+      + [--force]? # force re-fetch ignoring cache
     - describe # describe a single operation
       + [SOURCE] # alias or path to the OpenAPI spec
       + [PATH] # operation path
       + [METHOD] # HTTP method
       + [--request]? # show only request fields, omit responses
+      + [--force]? # force re-fetch ignoring cache
     - spec # manage OpenAPI spec aliases
       + [-g]? # edit global config instead of project config
       - add # register a new alias for an OpenAPI spec
@@ -22,6 +25,7 @@
       - list # list all registered aliases
   - rfc # browse IETF RFC documents
     - sync # download RFC metadata index via rsync
+      + [--force]? # force re-sync ignoring cache TTL
     - info # show RFC metadata
       + [NUMBER] # RFC number
       + [--json]? # output as JSON
@@ -30,9 +34,11 @@
       + [--section]? # extract by section id (XML only)
       + [--page]? # extract by page number (TXT only)
       + [--json]? # output as JSON
+      + [--force]? # force re-fetch ignoring cache TTL
     - search # search RFC index or fulltext
       + [NUMBER]? # RFC number (fulltext mode)
       + [TERM]? # search term (fulltext mode)
+      + [--force]? # force re-fetch ignoring cache TTL (fulltext mode)
       + [--status]...? # filter by status: ps, ds, std, bcp, info, exp, hist (index mode)
       + [--since]? # filter by start year (index mode)
       + [--until]? # filter by end year (index mode)

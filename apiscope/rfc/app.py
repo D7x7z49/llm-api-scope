@@ -88,10 +88,20 @@ def _show_page_info(content: str, number: int, rfc_ctx: RfcCommandContext) -> No
 
 
 @app.command(name="sync", help="download RFC metadata index via rsync")
-def sync_index(ctx: typer.Context) -> None:
+def sync_index(
+    ctx: typer.Context,
+    force: bool = typer.Option(False, "--force", help="force re-sync ignoring cache TTL"),
+) -> None:
     rfc_ctx = ctx.obj.rfc_command_context
+    rfc_config = ctx.obj.config.rfc
+    index_dir = rfc_ctx.index_json_dir
+
+    if not force and not rfc_config.is_stale_path(index_dir):
+        typer.echo("index is up to date")
+        return
+
     typer.echo("syncing via rsync...")
-    err = fetch_all_index_json(rfc_ctx.index_json_dir)
+    err = fetch_all_index_json(index_dir)
     if err is not None:
         typer.echo(f"sync failed\n{err}", err=True)
         raise typer.Exit(code=1)
@@ -139,8 +149,10 @@ def read_content(
     section: str | None = typer.Option(None, "--section", help="extract by section id (XML only)"),
     page: int | None = typer.Option(None, "--page", help="extract by page number (TXT only)"),
     json_output: bool = typer.Option(False, "--json", help="output as JSON"),
+    force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache TTL"),
 ) -> None:
     rfc_ctx = ctx.obj.rfc_command_context
+    rfc_config = ctx.obj.config.rfc
     meta = rfc_ctx.get_index_json(number)
     if meta is None:
         typer.echo(f"rfc {number} not found", err=True)
@@ -158,7 +170,7 @@ def read_content(
         raise typer.Exit(code=1)
 
     # ensure content is available locally
-    if not content_path.exists():
+    if force or rfc_config.is_stale_path(content_path):
         typer.echo(f"fetching <{content_path.name}> via rsync...")
         err = fetch_content_by_number(number, content_path.parent, fmt)
         if err is not None:
@@ -235,8 +247,10 @@ def search_rfc(
     no_snippet: bool = typer.Option(False, "--no-snippet", help="hide content snippet"),
     limit: int = typer.Option(20, "--limit", help="max results shown"),
     offset: int = typer.Option(0, "--offset", help="skip first N results"),
+    force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache TTL"),
 ) -> None:
     rfc_ctx = ctx.obj.rfc_command_context
+    rfc_config = ctx.obj.config.rfc
     # step 1: dispatch mode
     index_filters = [status, since, until, author, title, abstract, keywords_field, source]
     fulltext_mode = number is not None and term is not None
@@ -272,7 +286,7 @@ def search_rfc(
             raise typer.Exit(code=1)
 
         content_path = rfc_ctx.get_content_txt_path(number)
-        if not content_path.exists():
+        if force or rfc_config.is_stale_path(content_path):
             typer.echo(f"fetching <{content_path.name}> via rsync...")
             err = fetch_content_by_number(number, content_path.parent, "txt")
             if err is not None:

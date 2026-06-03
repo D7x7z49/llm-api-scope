@@ -14,25 +14,32 @@ def _cache_key(source: str) -> str:
     return sha256(source.encode()).hexdigest()
 
 
-def _fetch_local(source: str, cache_dir: Path) -> Path:
-    suffix = Path(source).suffix.lower()
+def openapi_cache_path(source: str, cache_dir: Path) -> Path:
+    if "://" in source:
+        path = unquote(urlparse(source).path).rstrip()
+    else:
+        path = source
+    suffix = Path(path).suffix.lower()
     ext = suffix if suffix in OPENAPI_EXTENSIONS else ".json"
-    cache_path = cache_dir / f"{_cache_key(source)}{ext}"
+    return cache_dir / f"{_cache_key(source)}{ext}"
 
-    if not cache_path.exists():
+
+def _fetch_local(source: str, cache_dir: Path, refresh: bool = False) -> Path:
+    cache_path = openapi_cache_path(source, cache_dir)
+
+    if refresh or not cache_path.exists():
         src = Path(source).expanduser().resolve()
         shutil.copy2(src, cache_path)
 
     return cache_path
 
 
-def _fetch_remote(url: str, cache_dir: Path, proxy: str | None = None) -> Path:
-    path = unquote(urlparse(url).path).rstrip()
-    suffix = Path(path).suffix.lower()
-    ext = suffix if suffix in OPENAPI_EXTENSIONS else ".json"
-    cache_path = cache_dir / f"{_cache_key(url)}{ext}"
+def _fetch_remote(
+    url: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
+) -> Path:
+    cache_path = openapi_cache_path(url, cache_dir)
 
-    if not cache_path.exists():
+    if refresh or not cache_path.exists():
         client_kwargs: dict = {}
         if proxy is not None:
             client_kwargs["proxy"] = proxy
@@ -43,7 +50,9 @@ def _fetch_remote(url: str, cache_dir: Path, proxy: str | None = None) -> Path:
     return cache_path
 
 
-def fetch_openapi_spec(source: str, cache_dir: Path, proxy: str | None = None) -> Path:
+def fetch_openapi_spec(
+    source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
+) -> Path:
     if "://" in source:
-        return _fetch_remote(source, cache_dir, proxy)
-    return _fetch_local(source, cache_dir)
+        return _fetch_remote(source, cache_dir, proxy, refresh=refresh)
+    return _fetch_local(source, cache_dir, refresh=refresh)
