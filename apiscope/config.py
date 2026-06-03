@@ -153,7 +153,12 @@ def get_config() -> Config:
 
     # load and merge the project config
     project_config_path = get_project_config_path()
-    if project_config_path is not None and project_config_path.exists():
+    if project_config_path is not None:
+        if not project_config_path.exists() or project_config_path.stat().st_size == 0:
+            # create default project config if not exists
+            project_config_path.write_text(
+                json.dumps({"$schema": DEFAULT_CONFIG_SCHEMA_PATH.as_uri()}, indent=2) + "\n"
+            )
         project_config = Config.model_validate_json(project_config_path.read_text())
         return global_config.merge(project_config)
 
