@@ -20,7 +20,8 @@ class RepoEntry(BaseModel):
 
     @property
     def sha256_id(self) -> str:
-        return hashlib.sha256(self.url.encode()).hexdigest()
+        # first 8 chars of sha256 hex digest; sufficient for collision resistance
+        return hashlib.sha256(self.url.encode()).hexdigest()[:8]
 
     @property
     def reference(self) -> tuple[str, str] | None:

@@ -77,7 +77,7 @@ def sync_entry(
     work_dir = tmp_dir / entry.sha256_id
     dst_dir = cache_dir / entry.sha256_id
 
-    # check cache freshness
+    # skip if cache is fresh (not stale) and not forced
     if not force and not _is_stale(dst_dir, ttl):
         return None
 
@@ -88,7 +88,7 @@ def sync_entry(
     ref = entry.reference
 
     if ref is not None and ref[0] == "commit":
-        # commit ref: clone first, then fetch specific commit
+        # commit ref: clone default branch first, then fetch + checkout specific commit
         ref_name = ref[1]
         err = _clone_repo(entry.url, work_dir)
         if err is not None:
@@ -97,7 +97,7 @@ def sync_entry(
         if err is not None:
             return err
     else:
-        # branch or tag: clone with --branch
+        # branch or tag: --branch accepts both (tags checkout in detached HEAD)
         branch = ref[1] if ref is not None else "main"
         err = _clone_repo(entry.url, work_dir, branch=branch)
         if err is not None:
