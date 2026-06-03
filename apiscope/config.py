@@ -57,8 +57,16 @@ class RfcConfig(BaseConfig):
     cache_ttl: int = Field(default=60 * 60 * 24 * 30)  # 1 month
 
 
+class RepoEntryConfig(BaseModel):
+    dir: str
+
+    # format - branch:<branch>, tag:<tag>, commit:<short-hash>
+    # e.g. branch:main, tag:v1.0, commit:abc1234
+    target: str = Field(default="branch:main")
+
+
 class RepoConfig(BaseConfig):
-    entries: list[dict] = Field(default_factory=list)
+    entries: dict[str, RepoEntryConfig] = Field(default_factory=dict)
 
     # override
     cache_ttl: int = Field(default=60 * 60 * 24 * 7)  # 1 week
@@ -95,8 +103,7 @@ class Config(BaseModel):
         merged.openapi.alias |= other.openapi.alias
         if other.openapi.proxy is not None:
             merged.openapi.proxy = other.openapi.proxy
-        all_entries = self.repo.entries + other.repo.entries
-        merged.repo.entries = list({e["url"]: e for e in all_entries}.values())
+        merged.repo.entries = self.repo.entries | other.repo.entries
         return merged
 
 
