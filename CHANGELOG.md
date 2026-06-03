@@ -2,6 +2,38 @@
 
 <!-- version list -->
 
+## v0.6.0 (2026-06-03)
+
+### Continuous Integration
+
+- Enable pdm package cache in CI workflow
+  ([`718e50c`](https://github.com/D7x7z49/llm-api-scope/commit/718e50cb47efe9e8ab1abf6897b2c985c7598553))
+
+- Fix mypy missing target paths in CI workflow
+  ([`ea0cf09`](https://github.com/D7x7z49/llm-api-scope/commit/ea0cf094cb376d84ee383bf9e87098d9e236d67b))
+
+### Documentation
+
+- **repo**: Add repo section to README and usage
+  ([`c56ac33`](https://github.com/D7x7z49/llm-api-scope/commit/c56ac332e35b60f12100bbcc97794d2e7357cafc))
+
+### Features
+
+- **repo**: Add repo subcommand skeleton with basic config structure
+  ([`c9aad18`](https://github.com/D7x7z49/llm-api-scope/commit/c9aad180300090aada4b3c91ce178340149c0fca))
+
+- **repo**: Implement add, remove, and list commands
+  ([`c666c9f`](https://github.com/D7x7z49/llm-api-scope/commit/c666c9f443329c217b14356bc1626e926ee09f34))
+
+- **repo**: Implement sync with minimal git clone pipeline
+  ([`381973e`](https://github.com/D7x7z49/llm-api-scope/commit/381973eea402ddf6f72a4010adefde814a8c14a8))
+
+### Performance Improvements
+
+- **repo**: Truncate sha256_id to 8 chars, clarify sync comments
+  ([`e5c110a`](https://github.com/D7x7z49/llm-api-scope/commit/e5c110ab61c847a1ed521a20b9ab56c26cc273fb))
+
+
 ## v0.5.1 (2026-06-03)
 
 ### Continuous Integration
