@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v0.5.0 (2026-06-03)
+
+### Chores
+
+- Remove accidentally tracked tmp/repo/pdm CI files
+  ([`97253c8`](https://github.com/D7x7z49/llm-api-scope/commit/97253c85b2715f4b135873c7aa7e13d5570a8cb1))
+
+### Documentation
+
+- Add CLI usage reference with EBNF format
+  ([`1650034`](https://github.com/D7x7z49/llm-api-scope/commit/165003411b0c6623f7fbb1a53302104130d754e5))
+
+### Features
+
+- **rfc**: Add rfc command group with sync, info, read, and search
+  ([`2494d2b`](https://github.com/D7x7z49/llm-api-scope/commit/2494d2b8f56d9601684e4ec6978d3789ba993ce7))
+
+- **rfc**: Add sync and info subcommands with metadata display
+  ([`1dba08b`](https://github.com/D7x7z49/llm-api-scope/commit/1dba08bdbf71fac756e436516414621b25d41dfd))
+
+- **rfc**: Register rfc command group and enhance health check
+  ([`07fb0d5`](https://github.com/D7x7z49/llm-api-scope/commit/07fb0d50ad3bd1a584b4080c768e5134fc4ab50f))
+
+
 ## v0.4.0 (2026-06-01)
 
 ### Chores
