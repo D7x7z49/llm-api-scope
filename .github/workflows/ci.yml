@@ -39,7 +39,7 @@ jobs:
         run: pdm run ruff format --check --diff
 
       - name: Type check with mypy
-        run: pdm run mypy
+        run: pdm run mypy apiscope/ tests/
 
       - name: Run tests
         run: pdm run pytest
