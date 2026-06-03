@@ -13,6 +13,7 @@ from apiscope.config import (
     RepoEntryConfig,
     get_project_config_path,
 )
+from apiscope.repo.fetch import sync_entry
 from apiscope.repo.schema import RepoCommandContext, RepoEntry
 
 app = typer.Typer(help="sync documentation from git repositories")
@@ -135,4 +136,17 @@ def sync_repos(
     ctx: typer.Context,
     force: bool = typer.Option(False, "--force", help="force re-sync ignoring cache TTL"),
 ) -> None:
-    pass
+    entries = RepoEntry.from_config(ctx.obj.config.repo)
+    if not entries:
+        typer.echo("no repos registered")
+        return
+
+    rc = ctx.obj.repo_command_context
+    ttl = ctx.obj.config.repo.cache_ttl
+
+    for entry in entries:
+        err = sync_entry(entry, rc.tmp_dir, rc.cache_dir, force=force, ttl=ttl)
+        if err is not None:
+            typer.echo(f"sync failed for <{entry.url}>: {err}", err=True)
+        else:
+            typer.echo(f"synced <{entry.url}>")
