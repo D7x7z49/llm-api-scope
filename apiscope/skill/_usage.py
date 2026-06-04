@@ -1,11 +1,8 @@
-# command reference for apiscope
-# synced with [apiscope/skill/_usage.py] -> update both when a command changes
-# notation:
-#   - name # description
-#   + [param] # required argument or option
-#   + [--option]? # optional option
-#   + [--option]...? # repeatable optional option
+# apiscope/skill/_usage.py
+#
+# synced with [docs/usage.txt] -> update both when a command changes.
 
+USAGE_TEXT = """\
 - apiscope # a reader for network resources
   - health # check that apiscope is installed and working
   - openapi # browse OpenAPI specifications
@@ -70,3 +67,4 @@
     - list # list registered repos
     - sync # sync all registered repos to cache
       + [--force]? # force re-sync ignoring cache TTL
+"""

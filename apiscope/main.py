@@ -28,6 +28,7 @@ from apiscope.openapi import openapi_app
 from apiscope.repo import check_repo_deps, repo_app
 from apiscope.rfc import check_rfc_deps, rfc_app
 from apiscope.schema import CommandContext
+from apiscope.skill import skill_app
 
 # ==============================================================================
 # app
@@ -59,6 +60,7 @@ def callback(ctx: typer.Context) -> None:
 app.add_typer(openapi_app, name="openapi")
 app.add_typer(rfc_app, name="rfc")
 app.add_typer(repo_app, name="repo")
+app.add_typer(skill_app, name="skill")
 
 # ==============================================================================
 # commands
