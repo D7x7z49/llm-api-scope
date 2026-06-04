@@ -65,6 +65,8 @@ def list_operations(
     source: str = typer.Argument(help="alias or path to the OpenAPI spec"),
     tag: str | None = typer.Option(default=None, help="filter by tag"),
     method: str | None = typer.Option(default=None, help="filter by HTTP method"),
+    limit: int = typer.Option(default=20, help="max results shown"),
+    offset: int = typer.Option(default=0, help="skip first N results"),
     force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache"),
 ) -> None:
     reader = _get_reader(source, ctx, force=force)
@@ -98,7 +100,14 @@ def list_operations(
                 }
             )
 
-    typer.echo(json.dumps(operations, ensure_ascii=False))
+    total = len(operations)
+    operations = operations[offset : offset + limit]
+    typer.echo(
+        json.dumps(
+            {"total": total, "offset": offset, "limit": limit, "items": operations},
+            ensure_ascii=False,
+        )
+    )
 
 
 @app.command(name="describe", help="describe a single operation")

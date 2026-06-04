@@ -16,6 +16,8 @@
       + [SOURCE] # alias or path to the OpenAPI spec
       + [--tag]? # filter by tag
       + [--method]? # filter by HTTP method
+      + [--limit]? # max results shown
+      + [--offset]? # skip first N results
       + [--force]? # force re-fetch ignoring cache
     - describe # describe a single operation
       + [SOURCE] # alias or path to the OpenAPI spec

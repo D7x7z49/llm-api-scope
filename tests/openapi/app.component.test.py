@@ -66,12 +66,17 @@ def test_show_info_with_alias(runner: CliRunner, patch_config: Path) -> None:
 
 
 def test_list_all_operations(runner: CliRunner, patch_config: Path) -> None:
-    """List returns an array of operations with required fields."""
+    """List returns paginated result with items array."""
     petstore = str(FIXTURE_DIR / "petstore.json")
     result = runner.invoke(app, ["openapi", "list", petstore])
 
     assert result.exit_code == 0
-    ops = json.loads(result.stdout)
+    data = json.loads(result.stdout)
+    assert "total" in data
+    assert "offset" in data
+    assert "limit" in data
+    assert "items" in data
+    ops = data["items"]
     assert isinstance(ops, list)
     assert len(ops) > 0
     for op in ops:
@@ -88,7 +93,9 @@ def test_list_filter_by_tag(runner: CliRunner, patch_config: Path) -> None:
     result = runner.invoke(app, ["openapi", "list", petstore, "--tag", "store"])
 
     assert result.exit_code == 0
-    ops = json.loads(result.stdout)
+    data = json.loads(result.stdout)
+    assert data["total"] == 4
+    ops = data["items"]
     assert len(ops) == 4
     for op in ops:
         assert "store" in op["tags"]
