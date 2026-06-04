@@ -30,6 +30,17 @@ read, search, and navigate RFC documents from the IETF.
 
 the metadata index is mirrored once via rsync. individual text files are fetched on demand and cached locally. you can browse the table of contents, jump to a section (XML) or page (TXT), filter the index by status or source, and run keyword searches against fulltext content.
 
+### skill
+
+output a combined command reference and strategy guide for AI agents.
+
+run `apiscope skill` to get a single document that covers every subcommand and
+how they fit together. the strategy guide classifies commands into management and
+usage groups, lists prerequisites in ABNF (RFC 5234), and provides workflow
+patterns with requirement levels (RFC 2119).
+
+agents read this output once at onboarding instead of running `--help` repeatedly.
+
 ### repo
 
 sync documentation directories from any git repository to a local cache.
