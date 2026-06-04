@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.7.0 (2026-06-04)
+
+### Features
+
+- **openapi**: Add --limit and --offset pagination to list
+  ([`a1b4259`](https://github.com/D7x7z49/llm-api-scope/commit/a1b4259988c0151a6292002a8ad5ee92bb4606c2))
+
+- **skill**: Add skill subcommand with command reference and strategy guide
+  ([`5ac913e`](https://github.com/D7x7z49/llm-api-scope/commit/5ac913eb6bbd718020cbe4ac9a89bdcf0aa89889))
+
+
 ## v0.6.1 (2026-06-03)
 
 ### Bug Fixes
