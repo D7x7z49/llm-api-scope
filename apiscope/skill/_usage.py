@@ -69,4 +69,7 @@ USAGE_TEXT = """\
     - list # list registered repos
     - sync # sync all registered repos to cache
       + [--force]? # force re-sync ignoring cache TTL
+  - skill # output usage guide for ai agents
+    - install # install SKILL.md for code agent
+      + [TARGET]? # install directory (default: ~/.agents/skills)
 """

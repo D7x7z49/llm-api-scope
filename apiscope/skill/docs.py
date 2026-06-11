@@ -109,3 +109,33 @@ TIPS
     first to scan endpoints, then [describe] to extract a
     specific operation in detail.
 """
+
+
+INSTALL_MD = """\
+---
+name: apiscope
+description: >-
+  Query OpenAPI specs, IETF RFCs, and synced git repo docs.
+  Use when searching API references, RFC standards,
+  or documentation of registered repos.
+---
+
+`apiscope` reads network resources to local cache.
+it covers openapi specs, ietf rfc documents, and git repo docs.
+
+discover commands with `--help`.
+  `apiscope --help`
+  `apiscope <sub> --help`
+
+read the full strategy guide.
+  `apiscope skill`
+
+find cached repo paths.
+  `apiscope repo list`
+
+search cached docs.
+  `rg <term> <cache-path>`
+
+prefer cached docs.
+use `--force` only when remote has changed.
+"""
