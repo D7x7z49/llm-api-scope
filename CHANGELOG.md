@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.8.0 (2026-06-11)
+
+### Documentation
+
+- Add skill section to readme
+  ([`667a818`](https://github.com/D7x7z49/llm-api-scope/commit/667a8185bdaf8d0125708334752ab87c52ba4651))
+
+### Features
+
+- **skill**: Add install subcommand to export SKILL.md for code agents
+  ([`2872127`](https://github.com/D7x7z49/llm-api-scope/commit/28721273cc920d707c304d8c5a890dea10e08574))
+
+
 ## v0.7.0 (2026-06-04)
 
 ### Features
