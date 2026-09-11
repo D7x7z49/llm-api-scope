@@ -116,9 +116,7 @@ def test_describe_operation_full(runner: CliRunner, patch_config: Path) -> None:
 def test_describe_operation_request_only(runner: CliRunner, patch_config: Path) -> None:
     """--request flag strips responses from output."""
     petstore = str(FIXTURE_DIR / "petstore.json")
-    result = runner.invoke(
-        app, ["openapi", "describe", petstore, "/pet/{petId}", "get", "--request"]
-    )
+    result = runner.invoke(app, ["openapi", "describe", petstore, "/pet/{petId}", "get", "--request"])
 
     assert result.exit_code == 0
     op = json.loads(result.stdout)

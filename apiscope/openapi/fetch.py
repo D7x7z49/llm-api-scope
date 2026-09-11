@@ -34,9 +34,7 @@ def _fetch_local(source: str, cache_dir: Path, refresh: bool = False) -> Path:
     return cache_path
 
 
-def _fetch_remote(
-    url: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
-) -> Path:
+def _fetch_remote(url: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False) -> Path:
     cache_path = openapi_cache_path(url, cache_dir)
 
     if refresh or not cache_path.exists():
@@ -50,9 +48,7 @@ def _fetch_remote(
     return cache_path
 
 
-def fetch_openapi_spec(
-    source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
-) -> Path:
+def fetch_openapi_spec(source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False) -> Path:
     if "://" in source:
         return _fetch_remote(source, cache_dir, proxy, refresh=refresh)
     return _fetch_local(source, cache_dir, refresh=refresh)

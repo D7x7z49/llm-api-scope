@@ -18,9 +18,9 @@ def page_count(content: str) -> int:
 
 
 def split_pages(content: str) -> list[tuple[int, int, int]]:
-    # returns [(page_number, start_line, end_line), ...]
+    # Each item contains the page number, start line, and end line.
     lines = content.split("\n")
-    boundaries: list[tuple[int, int]] = []  # [(page, line_index), ...]
+    boundaries: list[tuple[int, int]] = []  # Each item contains a page number and line index.
 
     for i, line in enumerate(lines):
         m = PAGE_RE.search(line)

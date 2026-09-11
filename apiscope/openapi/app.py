@@ -13,6 +13,7 @@ from apiscope.openapi.schema import OpenapiCommandContext
 from apiscope.openapi.spec import spec_app
 
 app = typer.Typer(help="browse OpenAPI specifications")
+OPENAPI_META_KEYS = ("openapi", "info", "servers", "tags", "security", "externalDocs")
 
 
 # ==============================================================================
@@ -26,9 +27,7 @@ def _resolve_source(alias_or_source: str, config: Config) -> str:
     return alias_or_source
 
 
-def _load_reader(
-    source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False
-) -> OpenapiReader:
+def _load_reader(source: str, cache_dir: Path, proxy: str | None = None, refresh: bool = False) -> OpenapiReader:
     cached = fetch_openapi_spec(source, cache_dir, proxy, refresh=refresh)
     return OpenapiReader.load(cached)
 
@@ -116,9 +115,7 @@ def describe_operation(
     source: str = typer.Argument(help="alias or path to the OpenAPI spec"),
     path: str = typer.Argument(help="operation path"),
     method: str = typer.Argument(help="HTTP method"),
-    request: bool = typer.Option(
-        default=False, show_default=False, help="show only request fields, omit responses"
-    ),
+    request: bool = typer.Option(default=False, show_default=False, help="show only request fields, omit responses"),
     force: bool = typer.Option(False, "--force", help="force re-fetch ignoring cache"),
 ) -> None:
     reader = _get_reader(source, ctx, force=force)
@@ -149,8 +146,7 @@ def show_info(
 ) -> None:
     reader = _get_reader(source, ctx, force=force)
 
-    META_KEYS = ("openapi", "info", "servers", "tags", "security", "externalDocs")
-    meta = {k: v for k, v in reader.raw.items() if k in META_KEYS}
+    meta = {key: value for key, value in reader.raw.items() if key in OPENAPI_META_KEYS}
     typer.echo(json.dumps(meta, ensure_ascii=False))
 
 

@@ -1,8 +1,48 @@
 target-version = "py312"
-line-length = 100
+line-length = 120
 
 [lint]
-select = ["E", "F", "I"]
+select = [
+    "E",
+    "F",
+    "I",
+    "A",
+    "B",
+    "BLE001",
+    "ERA001",
+    "N",
+    "PGH003",
+    "PGH004",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "RUF006",
+    "RUF008",
+    "RUF009",
+    "RUF012",
+    "RUF013",
+    "RUF016",
+    "RUF018",
+    "RUF021",
+    "RUF022",
+    "RUF023",
+    "RUF028",
+    "RUF030",
+    "RUF040",
+    "RUF043",
+    "RUF100",
+    "RUF101",
+    "RUF102",
+    "RUF103",
+    "RUF104",
+    "RUF200",
+    "SIM107",
+    "SIM115",
+    "SIM118",
+]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
 
 [format]
 quote-style = "double"

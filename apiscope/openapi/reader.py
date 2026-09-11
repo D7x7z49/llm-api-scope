@@ -66,9 +66,7 @@ class OpenapiReader:
             elif isinstance(v, dict):
                 result[k] = self.resolve_ref(v)
             elif isinstance(v, list):
-                result[k] = [
-                    self.resolve_ref(item) if isinstance(item, dict) else item for item in v
-                ]
+                result[k] = [self.resolve_ref(item) if isinstance(item, dict) else item for item in v]
             else:
                 result[k] = v
         return result

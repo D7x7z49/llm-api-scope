@@ -220,7 +220,7 @@ def read_content(
                 page_content = extract_page(content, page)
             except ValueError:
                 typer.echo(f"page {page} not found in rfc {number}", err=True)
-                raise typer.Exit(code=1)
+                raise typer.Exit(code=1) from None
             if json_output:
                 typer.echo(json.dumps({"page": page, "content": page_content}))
             else:
