@@ -52,9 +52,7 @@ def _resolve_target(global_flag: bool) -> Path:
 @app.callback()
 def repo_callback(
     ctx: typer.Context,
-    global_flag: bool = typer.Option(
-        False, "--global", "-g", help="edit global config instead of project config"
-    ),
+    global_flag: bool = typer.Option(False, "--global", "-g", help="edit global config instead of project config"),
 ) -> None:
     # check required external tools
     err = check_deps()
@@ -85,10 +83,8 @@ def repo_callback(
 def add_repo(
     ctx: typer.Context,
     url: str = typer.Argument(help="git clone URL"),
-    dir: str = typer.Argument(help="directory within repo to extract"),
-    target: str = typer.Option(
-        "branch:main", "--target", help="ref target (branch:, tag:, commit:)"
-    ),
+    directory: str = typer.Argument(help="directory within repo to extract"),
+    target: str = typer.Option("branch:main", "--target", help="ref target (branch:, tag:, commit:)"),
 ) -> None:
     # duplicate check against merged entries
     if url in ctx.obj.config.repo.entries:
@@ -97,7 +93,7 @@ def add_repo(
 
     target_path = _resolve_target(ctx.obj.repo_command_context.global_flag)
     with Config.edit(target_path) as cfg:
-        cfg.repo.entries[url] = RepoEntryConfig(dir=dir, target=target)
+        cfg.repo.entries[url] = RepoEntryConfig(dir=directory, target=target)
 
     typer.echo(f"registered <{url}>")
 

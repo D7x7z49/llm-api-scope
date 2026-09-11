@@ -92,9 +92,7 @@ class RfcMetadata(BaseModel):
 
     @property
     def is_txt_format(self) -> bool:
-        return (
-            self.is_format("txt") or self.is_format("ascii") or not any(f for f in self.format if f)
-        )
+        return self.is_format("txt") or self.is_format("ascii") or not any(f for f in self.format if f)
 
 
 class RfcCommandContext(BaseModel):

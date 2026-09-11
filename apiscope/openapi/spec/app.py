@@ -31,13 +31,9 @@ def _resolve_target(use_global: bool) -> Path:
 @app.callback()
 def spec_callback(
     ctx: typer.Context,
-    global_flag: bool = typer.Option(
-        False, "--global", "-g", help="edit global config instead of project config"
-    ),
+    global_flag: bool = typer.Option(False, "--global", "-g", help="edit global config instead of project config"),
 ) -> None:
-    ctx.obj.openapi_command_context.spec_command_context = SpecCommandContext(
-        global_flag=global_flag
-    )
+    ctx.obj.openapi_command_context.spec_command_context = SpecCommandContext(global_flag=global_flag)
 
 
 @app.command(name="list", help="list all registered aliases")

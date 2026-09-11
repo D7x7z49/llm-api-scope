@@ -34,9 +34,7 @@ class TestGetConfigFresh:
 
 class TestGetConfigGlobal:
     def test_loads_global_aliases(self, patch_config_paths, monkeypatch):
-        config_mod.DEFAULT_CONFIG_PATH.write_text(
-            '{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}'
-        )
+        config_mod.DEFAULT_CONFIG_PATH.write_text('{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}')
         monkeypatch.setattr(config_mod, "_get_project_root", lambda: None)
 
         cfg = config_mod.get_config()
@@ -45,9 +43,7 @@ class TestGetConfigGlobal:
 
 class TestGetConfigProject:
     def test_project_overrides_global(self, patch_config_paths, monkeypatch, tmp_path):
-        config_mod.DEFAULT_CONFIG_PATH.write_text(
-            '{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}'
-        )
+        config_mod.DEFAULT_CONFIG_PATH.write_text('{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}')
 
         project_dir = tmp_path / "project"
         project_dir.mkdir()

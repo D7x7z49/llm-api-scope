@@ -16,9 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Create a PR from ./tmp/pr.tmp using gh CLI.")
     parser.add_argument("--base", required=True, help="Target branch")
     parser.add_argument("--head", required=True, help="Source branch")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print what would be done without creating the PR"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Print what would be done without creating the PR")
     return parser.parse_args()
 
 
@@ -120,9 +118,7 @@ def main():
     if not args.dry_run:
         output = call_gh(title, body, args.base, args.head)
     else:
-        output = (
-            f"gh pr create --title {title!r} --body {body!r} --base {args.base} --head {args.head}"
-        )
+        output = f"gh pr create --title {title!r} --body {body!r} --base {args.base} --head {args.head}"
 
     data = output.splitlines()
     if len(data) > 1:
