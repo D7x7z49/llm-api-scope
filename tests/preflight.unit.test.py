@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from apiscope.constants import (
-    APISCOPE_CONFIG_UNIGNORE_RULE,
     APISCOPE_IGNORE_RULE,
     CONFIG_SCHEMA_REF,
     LOCAL_CONFIG_SCHEMA_REF,
@@ -53,9 +52,7 @@ def test_run_preflight_uses_apiscope_home_and_creates_project_assets(
     assert context.config.model_dump(mode="json") == expected_config
     assert context.project_paths is not None
     assert context.project_paths.gitignore == git_project / ".gitignore"
-    assert context.project_paths.gitignore.read_text(encoding="utf-8") == (
-        f"{APISCOPE_IGNORE_RULE}\n{APISCOPE_CONFIG_UNIGNORE_RULE}\n"
-    )
+    assert context.project_paths.gitignore.read_text(encoding="utf-8") == f"{APISCOPE_IGNORE_RULE}\n"
     assert context.project_paths.config == git_project / ".apiscope" / "config.json"
     assert context.project_paths.schema.is_file()
     assert context.project_paths.local_config == git_project / ".apiscope" / "local.json"

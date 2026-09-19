@@ -42,8 +42,7 @@ GITIGNORE_FILENAME: Final = ".gitignore"
 # project ignore policy
 # ===============================================================================
 
-APISCOPE_IGNORE_RULE: Final = "/.apiscope/*"
-APISCOPE_CONFIG_UNIGNORE_RULE: Final = "!/.apiscope/config.json"
+APISCOPE_IGNORE_RULE: Final = ".apiscope/"
 
 # ===============================================================================
 # home layout version
