@@ -2,6 +2,8 @@
 
 import typer
 
+from apiscope.add.app import app as add_app
+from apiscope.add.constants import COMMAND_NAME as ADD_COMMAND_NAME
 from apiscope.constants import MESSAGE_TEMPLATES
 from apiscope.context import RootOptions
 from apiscope.output import OutputFormat, Report, emit_report
@@ -17,6 +19,8 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
     help=MESSAGE_TEMPLATES["root.help.app"],
 )
+
+app.add_typer(add_app, name=ADD_COMMAND_NAME)
 
 # ==============================================================================
 # callback
