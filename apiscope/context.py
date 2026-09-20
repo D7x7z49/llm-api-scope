@@ -1,18 +1,18 @@
 # apiscope/context.py
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from apiscope.schema import RuntimeConfig
 
 # ==============================================================================
-# path structures
+# path values
 # ==============================================================================
 
 
 @dataclass(frozen=True, slots=True)
-class GlobalPaths:
-    home: Path
+class HomePaths:
+    base: Path
     root: Path
     version: Path
     config: Path
@@ -24,23 +24,41 @@ class GlobalPaths:
 class ProjectPaths:
     root: Path
     gitignore: Path
-    config_dir: Path
     config: Path
     schema: Path
-    local_config: Path
-    local_schema: Path
+
+
+@dataclass(frozen=True, slots=True)
+class LocalPaths:
+    config: Path
+    schema: Path
+
+
+# project and local paths are absent when no project root is found.
+@dataclass(frozen=True, slots=True)
+class Paths:
+    home: HomePaths
+    project: ProjectPaths | None
+    local: LocalPaths | None
 
 
 # ==============================================================================
-# command context
+# root options
 # ==============================================================================
 
 
-@dataclass(slots=True)
-class CommandContext:
-    global_paths: GlobalPaths
-    project_paths: ProjectPaths | None
+@dataclass(frozen=True, slots=True)
+class RootOptions:
+    global_only: bool = False
+
+
+# ==============================================================================
+# runtime context
+# ==============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeContext:
+    paths: Paths
     config: RuntimeConfig
-    command_name: str | None = None
-    parameters: dict[str, object] = field(default_factory=dict)
-    extras: dict[str, object] = field(default_factory=dict)
+    options: RootOptions

@@ -10,7 +10,7 @@ from apiscope.constants import (
     CONFIG_SCHEMA_REF,
     LOCAL_CONFIG_SCHEMA_REF,
 )
-from apiscope.context import CommandContext
+from apiscope.context import RootOptions, RuntimeContext
 from apiscope.preflight import PreflightError, find_project_root, run_preflight
 from apiscope.schema import LocalSetting, PublicSetting, RuntimeConfig, RuntimeSetting
 
@@ -43,20 +43,22 @@ def test_run_preflight_uses_apiscope_home_and_creates_project_assets(
     ).model_dump(mode="json")
 
     global_root = isolated_home.resolve() / ".apiscope"
-    assert isinstance(context, CommandContext)
-    assert context.global_paths.home == isolated_home.resolve()
-    assert context.global_paths.root == global_root
-    assert context.global_paths.version.read_text(encoding="utf-8") == "1\n"
-    assert context.global_paths.cache.is_dir()
-    assert context.global_paths.schema.is_file()
+    assert isinstance(context, RuntimeContext)
+    assert context.options.global_only is False
+    assert context.paths.home.base == isolated_home.resolve()
+    assert context.paths.home.root == global_root
+    assert context.paths.home.version.read_text(encoding="utf-8") == "1\n"
+    assert context.paths.home.cache.is_dir()
+    assert context.paths.home.schema.is_file()
     assert context.config.model_dump(mode="json") == expected_config
-    assert context.project_paths is not None
-    assert context.project_paths.gitignore == git_project / ".gitignore"
-    assert context.project_paths.gitignore.read_text(encoding="utf-8") == f"{APISCOPE_IGNORE_RULE}\n"
-    assert context.project_paths.config == git_project / ".apiscope" / "config.json"
-    assert context.project_paths.schema.is_file()
-    assert context.project_paths.local_config == git_project / ".apiscope" / "local.json"
-    assert context.project_paths.local_schema.is_file()
+    assert context.paths.project is not None
+    assert context.paths.project.gitignore == git_project / ".gitignore"
+    assert context.paths.project.gitignore.read_text(encoding="utf-8") == f"{APISCOPE_IGNORE_RULE}\n"
+    assert context.paths.project.config == git_project / ".apiscope" / "config.json"
+    assert context.paths.project.schema.is_file()
+    assert context.paths.local is not None
+    assert context.paths.local.config == git_project / ".apiscope" / "local.json"
+    assert context.paths.local.schema.is_file()
 
 
 def test_run_preflight_writes_scope_specific_schema_assets(
@@ -65,15 +67,29 @@ def test_run_preflight_writes_scope_specific_schema_assets(
 ) -> None:
     context = run_preflight(cwd=git_project)
 
-    assert context.project_paths is not None
-    global_schema = json.loads(context.global_paths.schema.read_text(encoding="utf-8"))
-    project_schema = json.loads(context.project_paths.schema.read_text(encoding="utf-8"))
-    local_schema = json.loads(context.project_paths.local_schema.read_text(encoding="utf-8"))
+    assert context.paths.project is not None
+    assert context.paths.local is not None
+    global_schema = json.loads(context.paths.home.schema.read_text(encoding="utf-8"))
+    project_schema = json.loads(context.paths.project.schema.read_text(encoding="utf-8"))
+    local_schema = json.loads(context.paths.local.schema.read_text(encoding="utf-8"))
 
     assert global_schema["title"] == "GlobalConfigFile"
     assert project_schema["title"] == "ProjectConfigFile"
     assert local_schema["title"] == "LocalConfigFile"
     assert local_schema["properties"]["$schema"]["minLength"] == 1
+
+
+def test_run_preflight_global_only_skips_project_assets(
+    isolated_home: Path,
+    git_project: Path,
+) -> None:
+    context = run_preflight(cwd=git_project, options=RootOptions(global_only=True))
+
+    assert context.options.global_only is True
+    assert context.paths.project is None
+    assert context.paths.local is None
+    assert context.paths.home.config.exists()
+    assert not (git_project / ".apiscope").exists()
 
 
 def test_run_preflight_without_a_project_only_creates_global_assets(
@@ -85,8 +101,9 @@ def test_run_preflight_without_a_project_only_creates_global_assets(
 
     context = run_preflight(cwd=workdir)
 
-    assert context.project_paths is None
-    assert context.global_paths.config.exists()
+    assert context.paths.project is None
+    assert context.paths.local is None
+    assert context.paths.home.config.exists()
 
 
 def test_run_preflight_preserves_an_existing_valid_config(
@@ -101,11 +118,11 @@ def test_run_preflight_preserves_an_existing_valid_config(
         "source": {"demo": {"doc_type": "filesystem", "doc_src": "."}},
         "setting": {"public": {"doc_ttl": 3}, "local": {"proxy": None}},
     }
-    context.global_paths.config.write_text(json.dumps(custom_config) + "\n", encoding="utf-8")
+    context.paths.home.config.write_text(json.dumps(custom_config) + "\n", encoding="utf-8")
 
     run_preflight(cwd=workdir)
 
-    assert json.loads(context.global_paths.config.read_text(encoding="utf-8")) == custom_config
+    assert json.loads(context.paths.home.config.read_text(encoding="utf-8")) == custom_config
 
 
 def test_run_preflight_loads_an_optional_local_config(
@@ -113,13 +130,13 @@ def test_run_preflight_loads_an_optional_local_config(
     git_project: Path,
 ) -> None:
     context = run_preflight(cwd=git_project)
-    assert context.project_paths is not None
+    assert context.paths.local is not None
 
     local_config = {
         "$schema": LOCAL_CONFIG_SCHEMA_REF,
         "setting": {"proxy": None},
     }
-    context.project_paths.local_config.write_text(json.dumps(local_config) + "\n", encoding="utf-8")
+    context.paths.local.config.write_text(json.dumps(local_config) + "\n", encoding="utf-8")
 
     context = run_preflight(cwd=git_project)
 

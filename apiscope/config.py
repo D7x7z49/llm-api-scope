@@ -25,7 +25,7 @@ from apiscope.constants import (
     SCHEMA_FILENAME,
     VERSION_FILENAME,
 )
-from apiscope.context import GlobalPaths, ProjectPaths
+from apiscope.context import HomePaths, LocalPaths, Paths, ProjectPaths
 from apiscope.schema import (
     LocalSetting,
     PublicSetting,
@@ -40,7 +40,7 @@ from apiscope.schema import (
 
 
 class ConfigError(RuntimeError):
-    """Raised when a configuration asset cannot be prepared safely."""
+    pass
 
 
 # ==============================================================================
@@ -48,8 +48,8 @@ class ConfigError(RuntimeError):
 # ==============================================================================
 
 
+# resolve the base directory used for apiscope home data
 def resolve_home(environment: Mapping[str, str] | None = None) -> Path:
-    """Resolve the base directory used for global apiscope data."""
     source = os.environ if environment is None else environment
     configured_home = source.get(APISCOPE_HOME_ENV)
     if configured_home is None or not configured_home.strip():
@@ -57,11 +57,11 @@ def resolve_home(environment: Mapping[str, str] | None = None) -> Path:
     return Path(configured_home).expanduser().resolve()
 
 
-def build_global_paths(home: Path) -> GlobalPaths:
+def build_home_paths(home: Path) -> HomePaths:
     root = home / APP_DIRECTORY
     schema_dir = root / SCHEMA_DIRECTORY
-    return GlobalPaths(
-        home=home,
+    return HomePaths(
+        base=home,
         root=root,
         version=root / VERSION_FILENAME,
         config=root / CONFIG_FILENAME,
@@ -70,17 +70,25 @@ def build_global_paths(home: Path) -> GlobalPaths:
     )
 
 
-def build_project_paths(root: Path) -> ProjectPaths:
-    config_dir = root / APP_DIRECTORY
+# derive project and local paths only after project discovery succeeds.
+def build_paths(home: HomePaths, project_root: Path | None) -> Paths:
+    if project_root is None:
+        return Paths(home=home, project=None, local=None)
+
+    config_dir = project_root / APP_DIRECTORY
     schema_dir = config_dir / SCHEMA_DIRECTORY
-    return ProjectPaths(
-        root=root,
-        gitignore=root / GITIGNORE_FILENAME,
-        config_dir=config_dir,
-        config=config_dir / CONFIG_FILENAME,
-        schema=schema_dir / SCHEMA_FILENAME,
-        local_config=config_dir / LOCAL_CONFIG_FILENAME,
-        local_schema=schema_dir / LOCAL_CONFIG_SCHEMA_FILENAME,
+    return Paths(
+        home=home,
+        project=ProjectPaths(
+            root=project_root,
+            gitignore=project_root / GITIGNORE_FILENAME,
+            config=config_dir / CONFIG_FILENAME,
+            schema=schema_dir / SCHEMA_FILENAME,
+        ),
+        local=LocalPaths(
+            config=config_dir / LOCAL_CONFIG_FILENAME,
+            schema=schema_dir / LOCAL_CONFIG_SCHEMA_FILENAME,
+        ),
     )
 
 

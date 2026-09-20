@@ -37,3 +37,17 @@ def test_callback_prepares_context_for_a_project(
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
     assert (git_project / ".apiscope" / "config.json").exists()
+
+
+def test_global_option_skips_project_preparation(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+
+    result = CliRunner().invoke(app, ["--global"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert (isolated_home / ".apiscope" / "config.json").exists()
+    assert not (git_project / ".apiscope").exists()
