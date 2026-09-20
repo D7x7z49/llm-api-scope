@@ -6,7 +6,7 @@ from apiscope.constants import APISCOPE_IGNORE_RULE
 
 
 class GitIgnoreError(RuntimeError):
-    """Raised when the project ignore file cannot be prepared safely."""
+    pass
 
 
 # Accept earlier spellings so an existing project file needs no rewrite.
@@ -15,8 +15,8 @@ class GitIgnoreError(RuntimeError):
 _ACCEPTED_APISCOPE_IGNORE_RULES = {APISCOPE_IGNORE_RULE, "/.apiscope/", "/.apiscope/*"}
 
 
+# ensure the project ignore file covers the apiscope state directory
 def ensure_project_gitignore(path: Path) -> None:
-    """Ensure the project ignore file covers the apiscope state directory."""
     if path.exists():
         if not path.is_file():
             raise GitIgnoreError(f"cannot use {path}; the path is not a file")
