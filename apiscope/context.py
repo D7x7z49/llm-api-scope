@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from apiscope.output import OutputFormat
 from apiscope.schema import RuntimeConfig
 
 # ==============================================================================
@@ -51,6 +52,7 @@ class Paths:
 @dataclass(frozen=True, slots=True)
 class RootOptions:
     global_only: bool = False
+    output_format: OutputFormat = OutputFormat.TEXT
 
 
 # ==============================================================================

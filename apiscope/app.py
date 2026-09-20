@@ -2,7 +2,9 @@
 
 import typer
 
+from apiscope.constants import MESSAGE_TEMPLATES
 from apiscope.context import RootOptions
+from apiscope.output import OutputFormat, Report, emit_report
 from apiscope.preflight import PreflightError, run_preflight
 
 # ==============================================================================
@@ -13,7 +15,7 @@ from apiscope.preflight import PreflightError, run_preflight
 app = typer.Typer(
     rich_markup_mode=None,
     pretty_exceptions_enable=False,
-    help="read and cache structured documents from remote for LLM agents",
+    help=MESSAGE_TEMPLATES["root.help.app"],
 )
 
 # ==============================================================================
@@ -28,14 +30,30 @@ def main_callback(
         False,
         "--global",
         "-g",
-        help="use home configuration and skip project discovery",
+        help=MESSAGE_TEMPLATES["root.help.option.global"],
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help=MESSAGE_TEMPLATES["root.help.option.json"],
     ),
 ) -> None:
-    root_options = RootOptions(global_only=global_only)
+    output_format = OutputFormat.JSON if json_output else OutputFormat.TEXT
+    root_options = RootOptions(global_only=global_only, output_format=output_format)
     try:
         runtime_context = run_preflight(options=root_options)
     except PreflightError as error:
-        typer.echo(f"Error: {error}", err=True)
+        emit_report(
+            Report(
+                status="error",
+                scope="home" if global_only else "project",
+                action="preflight",
+                code=error.code,
+                meta=error.values,
+            ),
+            output_format=output_format,
+            message_templates=MESSAGE_TEMPLATES,
+        )
         raise typer.Exit(code=1) from error
     ctx.obj = runtime_context
     if ctx.invoked_subcommand is None:

@@ -1,11 +1,12 @@
-# tests/main.component.test.py
-
+# tests/app.component.test.py
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from apiscope.main import app
+
+# report preflight failures
 
 
 def test_callback_reports_a_preflight_error_at_the_cli_boundary(
@@ -25,6 +26,9 @@ def test_callback_reports_a_preflight_error_at_the_cli_boundary(
     assert "Traceback" not in result.output
 
 
+# prepare a project context
+
+
 def test_callback_prepares_context_for_a_project(
     isolated_home: Path,
     git_project: Path,
@@ -37,6 +41,9 @@ def test_callback_prepares_context_for_a_project(
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
     assert (git_project / ".apiscope" / "config.json").exists()
+
+
+# skip project preparation in global mode
 
 
 def test_global_option_skips_project_preparation(
