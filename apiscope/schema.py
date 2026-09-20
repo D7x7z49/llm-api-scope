@@ -1,9 +1,9 @@
 # apiscope/schema.py
 
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal, Self, cast
+from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model
 from pydantic_core import MISSING
 
 # ==============================================================================
@@ -23,6 +23,7 @@ class StrictSchemaModel(BaseModel):
     )
 
 
+# `doc_ttl` values are measured in days.
 class RuntimeSource(StrictSchemaModel):
     doc_type: DocumentType
     doc_src: str = Field(min_length=1)
@@ -47,7 +48,12 @@ class RuntimeConfig(StrictSchemaModel):
     setting: RuntimeSetting
 
 
-# Derive a shallow partial model and keep nested value models unchanged.
+# ==============================================================================
+# partial model factory
+# ==============================================================================
+
+
+# derive a shallow partial model and keep nested value models unchanged.
 def derive_partial_model(
     name: str,
     base_model: type[BaseModel],
@@ -84,6 +90,11 @@ def derive_partial_model(
     )
 
 
+# ==============================================================================
+# configuration file schemas
+# ==============================================================================
+
+
 _SCHEMA_REF_FIELD: tuple[Any, Any] = (
     Annotated[
         str,
@@ -111,17 +122,9 @@ ProjectConfigFile = derive_partial_model(
 )
 
 
-class _LocalConfigFileBase(RuntimeConfig):
-    @model_validator(mode="after")
-    def validate_source(self) -> Self:
-        if "source" in self.model_fields_set and self.source:
-            raise ValueError("local configuration cannot define sources")
-        return self
-
-
 LocalConfigFile = derive_partial_model(
     "LocalConfigFile",
-    _LocalConfigFileBase,
+    RuntimeConfig,
     field_overrides={"setting": LocalSetting},
     extra_fields={"schema_ref": _SCHEMA_REF_FIELD},
 )

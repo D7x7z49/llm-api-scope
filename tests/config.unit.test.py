@@ -1,7 +1,4 @@
 # tests/config.unit.test.py
-import pytest
-from pydantic import ValidationError
-
 from apiscope.config import assemble_runtime_config
 from apiscope.constants import CONFIG_SCHEMA_REF
 from apiscope.schema import GlobalConfigFile, LocalConfigFile, ProjectConfigFile
@@ -30,13 +27,22 @@ def test_assemble_runtime_config_merges_sources_and_settings() -> None:
             setting={"doc_ttl": 3},
         )
     )
-    local_file = LocalConfigFile.model_validate(_config_data(setting={"proxy": None}))
+    local_file = LocalConfigFile.model_validate(
+        _config_data(
+            source={
+                "shared": {"doc_type": "filesystem", "doc_src": "local"},
+                "local": {"doc_type": "rfc", "doc_src": "local-rfc"},
+            },
+            setting={"proxy": None},
+        )
+    )
 
     config = assemble_runtime_config(global_file, project_file, local_file)
 
-    assert config.source["shared"].doc_src == "project"
+    assert config.source["shared"].doc_src == "local"
     assert config.source["global"].doc_src == "global-repo"
     assert config.source["project"].doc_src == "project-api"
+    assert config.source["local"].doc_src == "local-rfc"
     assert config.setting.public.doc_ttl == 3
     assert config.setting.local.proxy is None
 
@@ -71,10 +77,11 @@ def test_assemble_runtime_config_preserves_source_ttl_fallback_value() -> None:
     assert config.setting.public.doc_ttl == 9
 
 
-def test_local_config_rejects_source_entries() -> None:
-    with pytest.raises(ValidationError, match="cannot define sources"):
-        LocalConfigFile.model_validate(
-            _config_data(
-                source={"docs": {"doc_type": "filesystem", "doc_src": "docs"}},
-            )
+def test_local_config_accepts_source_entries() -> None:
+    config = LocalConfigFile.model_validate(
+        _config_data(
+            source={"docs": {"doc_type": "filesystem", "doc_src": "docs"}},
         )
+    )
+
+    assert config.model_dump()["source"]["docs"]["doc_src"] == "docs"
