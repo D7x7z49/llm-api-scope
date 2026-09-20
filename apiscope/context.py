@@ -11,27 +11,28 @@ from apiscope.schema import RuntimeConfig
 
 
 @dataclass(frozen=True, slots=True)
-class HomePaths:
+class BasePaths:
+    config: Path
+    schema: Path
+
+
+@dataclass(frozen=True, slots=True)
+class HomePaths(BasePaths):
     base: Path
     root: Path
     version: Path
-    config: Path
-    schema: Path
     cache: Path
 
 
 @dataclass(frozen=True, slots=True)
-class ProjectPaths:
+class ProjectPaths(BasePaths):
     root: Path
     gitignore: Path
-    config: Path
-    schema: Path
 
 
 @dataclass(frozen=True, slots=True)
-class LocalPaths:
-    config: Path
-    schema: Path
+class LocalPaths(BasePaths):
+    pass
 
 
 # project and local paths are absent when no project root is found.

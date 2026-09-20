@@ -10,7 +10,7 @@ from apiscope.constants import (
     CONFIG_SCHEMA_REF,
     LOCAL_CONFIG_SCHEMA_REF,
 )
-from apiscope.context import RootOptions, RuntimeContext
+from apiscope.context import BasePaths, RootOptions, RuntimeContext
 from apiscope.preflight import PreflightError, find_project_root, run_preflight
 from apiscope.schema import LocalSetting, PublicSetting, RuntimeConfig, RuntimeSetting
 
@@ -44,6 +44,9 @@ def test_run_preflight_uses_apiscope_home_and_creates_project_assets(
 
     global_root = isolated_home.resolve() / ".apiscope"
     assert isinstance(context, RuntimeContext)
+    assert isinstance(context.paths.home, BasePaths)
+    assert isinstance(context.paths.project, BasePaths)
+    assert isinstance(context.paths.local, BasePaths)
     assert context.options.global_only is False
     assert context.paths.home.base == isolated_home.resolve()
     assert context.paths.home.root == global_root
