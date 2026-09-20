@@ -19,6 +19,7 @@ from apiscope.config import (
 )
 from apiscope.constants import CONFIG_SCHEMA_REF, LOCAL_CONFIG_SCHEMA_REF
 from apiscope.context import RootOptions, RuntimeContext
+from apiscope.errors import MessageError
 from apiscope.gitignore import GitIgnoreError, ensure_project_gitignore
 from apiscope.schema import GlobalConfigFile, LocalConfigFile, ProjectConfigFile
 
@@ -27,7 +28,7 @@ from apiscope.schema import GlobalConfigFile, LocalConfigFile, ProjectConfigFile
 # ==============================================================================
 
 
-class PreflightError(RuntimeError):
+class PreflightError(MessageError):
     pass
 
 
@@ -64,7 +65,11 @@ def run_preflight(
     options: RootOptions | None = None,
 ) -> RuntimeContext:
     root_options = RootOptions() if options is None else options
-    home_paths = build_home_paths(resolve_home(environment))
+    try:
+        home = resolve_home(environment)
+    except ConfigError as error:
+        raise PreflightError(error.code, error.values) from error
+    home_paths = build_home_paths(home)
     _ensure_directory(home_paths.root)
     _prepare_version(home_paths.version)
 
@@ -72,7 +77,10 @@ def run_preflight(
         project_root = None if root_options.global_only else find_project_root(cwd)
     except OSError as error:
         location = str(cwd) if cwd is not None else "<current directory>"
-        raise PreflightError(f"cannot inspect project path {location}; check the path and its permissions") from error
+        raise PreflightError(
+            "root.error.preflight.project_inspection_failed",
+            {"location": location},
+        ) from error
     # paths.project and paths.local stay absent outside a project.
     paths = build_paths(home_paths, project_root)
     project_paths = paths.project
@@ -112,28 +120,28 @@ def _prepare_config(path: Path, model: type[BaseModel], schema_ref: str) -> Base
     try:
         return ensure_config_file(path, model, schema_ref=schema_ref)
     except ConfigError as error:
-        raise PreflightError(str(error)) from error
+        raise PreflightError(error.code, error.values) from error
 
 
 def _prepare_schema(path: Path, model: type[BaseModel]) -> None:
     try:
         ensure_schema_file(path, model)
     except ConfigError as error:
-        raise PreflightError(str(error)) from error
+        raise PreflightError(error.code, error.values) from error
 
 
 def _prepare_gitignore(path: Path) -> None:
     try:
         ensure_project_gitignore(path)
     except GitIgnoreError as error:
-        raise PreflightError(str(error)) from error
+        raise PreflightError(error.code, error.values) from error
 
 
 def _prepare_version(path: Path) -> None:
     try:
         ensure_version_file(path)
     except ConfigError as error:
-        raise PreflightError(str(error)) from error
+        raise PreflightError(error.code, error.values) from error
 
 
 def _ensure_directory(path: Path) -> None:
@@ -141,5 +149,6 @@ def _ensure_directory(path: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
     except OSError as error:
         raise PreflightError(
-            f"cannot prepare directory {path}; check permissions and choose a writable location"
+            "root.error.preflight.directory_prepare_failed",
+            {"path": str(path)},
         ) from error

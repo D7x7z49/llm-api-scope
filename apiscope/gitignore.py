@@ -3,9 +3,10 @@
 from pathlib import Path
 
 from apiscope.constants import APISCOPE_IGNORE_RULE
+from apiscope.errors import MessageError
 
 
-class GitIgnoreError(RuntimeError):
+class GitIgnoreError(MessageError):
     pass
 
 
@@ -19,7 +20,7 @@ _ACCEPTED_APISCOPE_IGNORE_RULES = {APISCOPE_IGNORE_RULE, "/.apiscope/", "/.apisc
 def ensure_project_gitignore(path: Path) -> None:
     if path.exists():
         if not path.is_file():
-            raise GitIgnoreError(f"cannot use {path}; the path is not a file")
+            raise GitIgnoreError("root.error.gitignore.not_file", {"path": str(path)})
         current = _read_text(path)
         if _covers_state_directory(current):
             return
@@ -41,7 +42,7 @@ def _read_text(path: Path) -> str:
         with path.open("r", encoding="utf-8", newline="") as file:
             return file.read()
     except OSError as error:
-        raise GitIgnoreError(f"cannot read {path}; check the file and its permissions") from error
+        raise GitIgnoreError("root.error.gitignore.read_failed", {"path": str(path)}) from error
 
 
 def _write_text(path: Path, content: str) -> None:
@@ -49,4 +50,4 @@ def _write_text(path: Path, content: str) -> None:
         with path.open("w", encoding="utf-8", newline="") as file:
             file.write(content)
     except OSError as error:
-        raise GitIgnoreError(f"cannot write {path}; check the file and its permissions") from error
+        raise GitIgnoreError("root.error.gitignore.write_failed", {"path": str(path)}) from error
