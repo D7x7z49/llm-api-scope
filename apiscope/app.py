@@ -6,6 +6,8 @@ from apiscope.add.app import app as add_app
 from apiscope.add.constants import COMMAND_NAME as ADD_COMMAND_NAME
 from apiscope.constants import MESSAGE_TEMPLATES
 from apiscope.context import RootOptions
+from apiscope.list.app import app as list_app
+from apiscope.list.constants import COMMAND_NAME as LIST_COMMAND_NAME
 from apiscope.output import OutputFormat, Report, emit_report
 from apiscope.preflight import PreflightError, run_preflight
 from apiscope.remove.app import app as remove_app
@@ -24,6 +26,7 @@ app = typer.Typer(
 
 app.add_typer(add_app, name=ADD_COMMAND_NAME)
 app.add_typer(remove_app, name=REMOVE_COMMAND_NAME)
+app.add_typer(list_app, name=LIST_COMMAND_NAME)
 
 # ==============================================================================
 # callback
