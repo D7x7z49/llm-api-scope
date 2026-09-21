@@ -6,8 +6,8 @@ from typing import Any
 import httpx
 import pytest
 
+from apiscope.cache import digest_content
 from apiscope.sync._lib import transport
-from apiscope.sync._lib.cache import digest_content
 from apiscope.sync._lib.schema import RemoteSource
 
 

@@ -1,4 +1,4 @@
-# apiscope/sync/_lib/cache.py
+# apiscope/cache.py
 from __future__ import annotations
 
 import hashlib
@@ -12,14 +12,45 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Final, Iterator, Literal
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
-from apiscope.sync._lib.schema import CacheMetadata, FetchResult, ParsedSource
+from apiscope.schema import DocumentType, StrictSchemaModel
+
+# ==============================================================================
+# constants
+# ==============================================================================
+
 
 CACHE_CONTENT_DIRECTORY: Final = "content"
 CACHE_FORMAT_VERSION: Final = "1"
 CACHE_METADATA_FILENAME: Final = "metadata.json"
+
+# ==============================================================================
+# types
+# ==============================================================================
+
+
 CacheState = Literal["missing", "fresh", "expired", "invalid"]
+ContentKind = Literal["file", "directory"]
+
+# ==============================================================================
+# metadata
+# ==============================================================================
+
+
+class CacheMetadata(StrictSchemaModel):
+    format_version: str = Field(min_length=1)
+    doc_type: DocumentType
+    source: str = Field(min_length=1)
+    fetched_at: datetime
+    content_kind: ContentKind
+    content_name: str | None = None
+    content_digest: str = Field(min_length=1)
+
+
+# ==============================================================================
+# state
+# ==============================================================================
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,9 +59,19 @@ class CacheInspection:
     metadata: CacheMetadata | None = None
 
 
+# ==============================================================================
+# identity
+# ==============================================================================
+
+
 def cache_path(cache_root: Path, canonical_source: str) -> Path:
     identity = sha256(canonical_source.encode("utf-8")).hexdigest()
     return cache_root / identity
+
+
+# ==============================================================================
+# inspection
+# ==============================================================================
 
 
 def inspect_cache(
@@ -38,6 +79,8 @@ def inspect_cache(
     *,
     ttl_days: int,
     now: datetime | None = None,
+    expected_source: str | None = None,
+    expected_doc_type: DocumentType | None = None,
 ) -> CacheInspection:
     if not path.exists():
         return CacheInspection("missing")
@@ -46,6 +89,12 @@ def inspect_cache(
     content_path = path / CACHE_CONTENT_DIRECTORY
     try:
         metadata = CacheMetadata.model_validate_json(metadata_path.read_text(encoding="utf-8"))
+        if metadata.format_version != CACHE_FORMAT_VERSION:
+            return CacheInspection("invalid")
+        if expected_source is not None and metadata.source != expected_source:
+            return CacheInspection("invalid")
+        if expected_doc_type is not None and metadata.doc_type != expected_doc_type:
+            return CacheInspection("invalid")
         if not _content_is_valid(content_path, metadata):
             return CacheInspection("invalid")
     except (OSError, TypeError, ValueError, ValidationError):
@@ -58,16 +107,12 @@ def inspect_cache(
     return CacheInspection(state, metadata)
 
 
-def write_metadata(path: Path, source: ParsedSource, result: FetchResult) -> CacheMetadata:
-    metadata = CacheMetadata(
-        format_version=CACHE_FORMAT_VERSION,
-        doc_type=source.doc_type,
-        source=source.canonical,
-        fetched_at=result.fetched_at,
-        content_kind=result.content_kind,
-        content_name=result.content_name,
-        content_digest=result.content_digest,
-    )
+# ==============================================================================
+# publication
+# ==============================================================================
+
+
+def write_metadata(path: Path, metadata: CacheMetadata) -> CacheMetadata:
     metadata_path = path / CACHE_METADATA_FILENAME
     metadata_path.write_text(metadata.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return metadata
@@ -88,6 +133,11 @@ def staging_cache(cache_root: Path, canonical_source: str) -> Iterator[Path]:
             _remove_path(staging_path)
 
 
+# ==============================================================================
+# digest
+# ==============================================================================
+
+
 def digest_content(path: Path) -> str:
     digest = sha256()
     if path.is_file():
@@ -98,6 +148,11 @@ def digest_content(path: Path) -> str:
         if child.is_file():
             _update_file_digest(digest, child.relative_to(path), child)
     return digest.hexdigest()
+
+
+# ==============================================================================
+# private helpers
+# ==============================================================================
 
 
 def _content_is_valid(path: Path, metadata: CacheMetadata) -> bool:
@@ -112,13 +167,12 @@ def _content_is_valid(path: Path, metadata: CacheMetadata) -> bool:
 
 
 def _update_file_digest(digest: hashlib._Hash, relative_path: Path, path: Path) -> None:
-    hasher = digest
-    hasher.update(relative_path.as_posix().encode("utf-8"))
-    hasher.update(b"\0")
+    digest.update(relative_path.as_posix().encode("utf-8"))
+    digest.update(b"\0")
     with path.open("rb") as file:
         while chunk := file.read(1024 * 1024):
-            hasher.update(chunk)
-    hasher.update(b"\0")
+            digest.update(chunk)
+    digest.update(b"\0")
 
 
 def _as_utc(value: datetime) -> datetime:

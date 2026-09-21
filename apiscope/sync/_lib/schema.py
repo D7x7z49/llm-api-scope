@@ -6,9 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
-
-from apiscope.schema import DocumentType, StrictSchemaModel
+from apiscope.schema import DocumentType
 
 ContentKind = Literal["file", "directory"]
 
@@ -40,13 +38,3 @@ class FetchResult:
     content_kind: ContentKind
     content_name: str | None
     content_digest: str
-
-
-class CacheMetadata(StrictSchemaModel):
-    format_version: str = Field(min_length=1)
-    doc_type: DocumentType
-    source: str = Field(min_length=1)
-    fetched_at: datetime
-    content_kind: ContentKind
-    content_name: str | None = None
-    content_digest: str = Field(min_length=1)

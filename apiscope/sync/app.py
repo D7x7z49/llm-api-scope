@@ -8,12 +8,20 @@ from typing import cast
 import typer
 from pydantic import ValidationError
 
+from apiscope.cache import (
+    CACHE_FORMAT_VERSION,
+    CacheInspection,
+    CacheMetadata,
+    cache_path,
+    inspect_cache,
+    staging_cache,
+    write_metadata,
+)
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, ReportScope, emit_report
 from apiscope.schema import DocumentType, RuntimeSource
-from apiscope.sync._lib.cache import CacheInspection, cache_path, inspect_cache, staging_cache, write_metadata
 from apiscope.sync._lib.errors import SourceError, SourceParseError
 from apiscope.sync._lib.registry import fetch_source, parse_source
 from apiscope.sync.constants import COMMAND_NAME, MESSAGE_TEMPLATES
@@ -163,7 +171,18 @@ def _sync_source(
                 destination=staging,
                 proxy=runtime.config.setting.local.proxy,
             )
-            write_metadata(staging, parsed, result)
+            write_metadata(
+                staging,
+                CacheMetadata(
+                    format_version=CACHE_FORMAT_VERSION,
+                    doc_type=parsed.doc_type,
+                    source=parsed.canonical,
+                    fetched_at=result.fetched_at,
+                    content_kind=result.content_kind,
+                    content_name=result.content_name,
+                    content_digest=result.content_digest,
+                ),
+            )
     except SourceError as error:
         raise _source_error_message(error) from error
     except MessageError:

@@ -3,7 +3,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-from apiscope.sync._lib.cache import digest_content
+from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.filesystem.constants import DEFAULT_CONTENT_NAME
 from apiscope.sync._lib.schema import ContentKind, FetchResult, LocalSource, ParsedSource

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from apiscope.sync._lib.cache import digest_content
+from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo.constants import (
     GIT_COMMAND,

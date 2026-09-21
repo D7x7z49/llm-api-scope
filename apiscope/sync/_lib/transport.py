@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlsplit
 
 import httpx
 
-from apiscope.sync._lib.cache import digest_content
+from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import TransportError
 from apiscope.sync._lib.schema import ContentKind, LocalSource, RemoteSource, SourceLocation
 
