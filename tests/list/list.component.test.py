@@ -46,7 +46,7 @@ def test_list_rejects_an_unknown_selector(
     assert result.exit_code == 1
     assert result.output == (
         "[error] [scope=project] [action=list] [code=list.error.invalid_selector] "
-        "[selector=markdown]: invalid list selector markdown; choose all or a supported document type\n"
+        "[selector=markdown]: list selector markdown is invalid. choose all or a supported document type\n"
     )
 
 

@@ -144,7 +144,7 @@ def test_add_rejects_an_unknown_document_type(
     assert result.exit_code == 1
     assert result.output == (
         "[error] [scope=project] [action=add] [code=add.error.invalid_options] [name=docs]: "
-        "invalid source definition for docs\n"
+        "source docs has an invalid definition. check its type, location, and TTL\n"
     )
 
 
@@ -164,7 +164,7 @@ def test_add_rejects_a_non_positive_ttl(
     assert result.exit_code == 1
     assert result.output == (
         "[error] [scope=project] [action=add] [code=add.error.invalid_options] [name=docs]: "
-        "invalid source definition for docs\n"
+        "source docs has an invalid definition. check its type, location, and TTL\n"
     )
 
 

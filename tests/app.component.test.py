@@ -22,7 +22,7 @@ def test_callback_reports_a_preflight_error_at_the_cli_boundary(
     result = CliRunner().invoke(app, [], catch_exceptions=False)
 
     assert result.exit_code == 1
-    assert "invalid configuration" in result.output
+    assert "configuration at" in result.output
     assert "Traceback" not in result.output
 
 

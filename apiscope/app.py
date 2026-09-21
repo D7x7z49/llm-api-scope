@@ -12,6 +12,8 @@ from apiscope.output import OutputFormat, Report, emit_report
 from apiscope.preflight import PreflightError, run_preflight
 from apiscope.remove.app import app as remove_app
 from apiscope.remove.constants import COMMAND_NAME as REMOVE_COMMAND_NAME
+from apiscope.sync.app import app as sync_app
+from apiscope.sync.constants import COMMAND_NAME as SYNC_COMMAND_NAME
 
 # ==============================================================================
 # app
@@ -27,6 +29,7 @@ app = typer.Typer(
 app.add_typer(add_app, name=ADD_COMMAND_NAME)
 app.add_typer(remove_app, name=REMOVE_COMMAND_NAME)
 app.add_typer(list_app, name=LIST_COMMAND_NAME)
+app.add_typer(sync_app, name=SYNC_COMMAND_NAME)
 
 # ==============================================================================
 # callback

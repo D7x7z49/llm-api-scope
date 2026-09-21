@@ -24,6 +24,21 @@ browse OpenAPI specifications with subcommands for discovering, listing, and des
 
 aliases let you register frequently used specs once and reference them by short name. fetching is transparent — local copies are cached for fast repeat access, and a proxy can be configured for restricted networks.
 
+### proxy
+
+set the default proxy in the home config at `~/.apiscope/config.json`:
+
+```json
+{
+  "setting": {
+    "public": {"doc_ttl": 7},
+    "local": {"proxy": "http://proxy.example.test:8080"}
+  }
+}
+```
+
+Use `.apiscope/local.json` for a machine-only override. Set its `proxy` to `null` to clear the home proxy. Sync uses this setting for HTTP sources and HTTP or HTTPS Git repositories. Git and SSH repositories do not use an HTTP proxy. Proxy environment variables are ignored.
+
 ### rfc
 
 read, search, and navigate RFC documents from the IETF.

@@ -4,7 +4,29 @@ import json
 
 import pytest
 
+from apiscope.add.constants import MESSAGE_TEMPLATES as ADD_MESSAGE_TEMPLATES
+from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
+from apiscope.list.constants import MESSAGE_TEMPLATES as LIST_MESSAGE_TEMPLATES
 from apiscope.output import OutputError, OutputFormat, Report, emit_report, render_report
+from apiscope.remove.constants import MESSAGE_TEMPLATES as REMOVE_MESSAGE_TEMPLATES
+from apiscope.sync.constants import MESSAGE_TEMPLATES as SYNC_MESSAGE_TEMPLATES
+
+
+@pytest.mark.parametrize(
+    "templates",
+    [
+        ROOT_MESSAGE_TEMPLATES,
+        ADD_MESSAGE_TEMPLATES,
+        LIST_MESSAGE_TEMPLATES,
+        REMOVE_MESSAGE_TEMPLATES,
+        SYNC_MESSAGE_TEMPLATES,
+    ],
+    ids=["root", "add", "list", "remove", "sync"],
+)
+def test_error_message_templates_do_not_contain_colons(templates: dict[str, str]) -> None:
+    invalid_keys = [key for key, value in templates.items() if ".error." in key and ":" in value]
+
+    assert invalid_keys == []
 
 
 def test_render_text_for_write_success_orders_scope_before_action() -> None:
@@ -151,14 +173,14 @@ def test_report_requires_read_data_and_extra_together() -> None:
 def test_render_error_requires_a_message_or_a_template() -> None:
     report = Report(status="error", scope="project", action="add", code="add.error.invalid")
 
-    with pytest.raises(OutputError, match="no message"):
+    with pytest.raises(OutputError, match="missing its message"):
         render_report(report)
 
 
 def test_render_error_rejects_a_missing_template_key() -> None:
     report = Report(status="error", scope="project", action="add", code="add.error.invalid")
 
-    with pytest.raises(OutputError, match="template is missing"):
+    with pytest.raises(OutputError, match="no message template"):
         render_report(report, message_templates={})
 
 

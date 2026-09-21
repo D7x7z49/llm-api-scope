@@ -11,9 +11,9 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "add.help.option.type": "the source document type",
     "add.help.option.ttl": "the source cache TTL in days",
     "add.error.runtime_context_unavailable": "runtime context is unavailable",
-    "add.error.invalid_options": "invalid source definition for {name}",
+    "add.error.invalid_options": ("source {name} has an invalid definition. check its type, location, and TTL"),
     "add.error.project_required": "a Git project is required unless --global is used",
     "add.error.duplicate_name": "source {name} already exists",
-    "add.error.persistence.read_failed": "cannot read configuration {path}",
-    "add.error.persistence.write_failed": "cannot update configuration {path}",
+    "add.error.persistence.read_failed": "cannot read the configuration at {path}",
+    "add.error.persistence.write_failed": "cannot update the configuration at {path}",
 }
