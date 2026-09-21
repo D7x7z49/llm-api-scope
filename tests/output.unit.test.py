@@ -1,15 +1,17 @@
 # tests/output.unit.test.py
 import io
 import json
+from typing import cast
 
 import pytest
 
 from apiscope.add.constants import MESSAGE_TEMPLATES as ADD_MESSAGE_TEMPLATES
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.list.constants import MESSAGE_TEMPLATES as LIST_MESSAGE_TEMPLATES
-from apiscope.output import OutputError, OutputFormat, Report, emit_report, render_report
+from apiscope.output import OutputError, OutputFormat, Report, ReportScope, ReportStatus, emit_report, render_report
 from apiscope.remove.constants import MESSAGE_TEMPLATES as REMOVE_MESSAGE_TEMPLATES
 from apiscope.sync.constants import MESSAGE_TEMPLATES as SYNC_MESSAGE_TEMPLATES
+from apiscope.view.constants import MESSAGE_TEMPLATES as VIEW_MESSAGE_TEMPLATES
 
 
 @pytest.mark.parametrize(
@@ -20,8 +22,9 @@ from apiscope.sync.constants import MESSAGE_TEMPLATES as SYNC_MESSAGE_TEMPLATES
         LIST_MESSAGE_TEMPLATES,
         REMOVE_MESSAGE_TEMPLATES,
         SYNC_MESSAGE_TEMPLATES,
+        VIEW_MESSAGE_TEMPLATES,
     ],
-    ids=["root", "add", "list", "remove", "sync"],
+    ids=["root", "add", "list", "remove", "sync", "view"],
 )
 def test_error_message_templates_do_not_contain_colons(templates: dict[str, str]) -> None:
     invalid_keys = [key for key, value in templates.items() if ".error." in key and ":" in value]
@@ -146,23 +149,30 @@ def test_emit_report_writes_one_line_to_the_given_stream() -> None:
 
 
 @pytest.mark.parametrize(
-    ("status", "scope", "kwargs", "message"),
+    ("status", "scope", "code", "report_message", "expected"),
     [
-        ("done", "project", {}, "report status"),
-        ("ok", "local", {}, "report scope"),
-        ("ok", "project", {"code": "add.error.invalid"}, "successful reports"),
-        ("ok", "project", {"message": "done"}, "successful reports"),
-        ("error", "project", {}, "error reports require"),
+        ("done", "project", None, None, "report status"),
+        ("ok", "local", None, None, "report scope"),
+        ("ok", "project", "add.error.invalid", None, "successful reports"),
+        ("ok", "project", None, "done", "successful reports"),
+        ("error", "project", None, None, "error reports require"),
     ],
 )
 def test_report_rejects_invalid_envelope_values(
     status: str,
     scope: str,
-    kwargs: dict[str, str],
-    message: str,
+    code: str | None,
+    report_message: str | None,
+    expected: str,
 ) -> None:
-    with pytest.raises((TypeError, ValueError), match=message):
-        Report(status=status, scope=scope, action="add", **kwargs)  # type: ignore[arg-type]
+    with pytest.raises((TypeError, ValueError), match=expected):
+        Report(
+            status=cast(ReportStatus, status),
+            scope=cast(ReportScope, scope),
+            action="add",
+            code=code,
+            message=report_message,
+        )
 
 
 def test_report_requires_read_data_and_extra_together() -> None:
