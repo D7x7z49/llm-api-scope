@@ -24,11 +24,23 @@ from apiscope.output import Report, ReportScope, emit_report
 from apiscope.schema import DocumentType, RuntimeSource
 from apiscope.sync._lib.errors import SourceError, SourceParseError
 from apiscope.sync._lib.registry import fetch_source, parse_source
+from apiscope.sync._lib.schema import ParsedSource
 from apiscope.sync.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.sync.context import SyncCommandContext
+from apiscope.sync.preflight import run_preflight
 from apiscope.sync.schema import SyncOptions
 
+# ==============================================================================
+# constants
+# ==============================================================================
+
+
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
+
+# ==============================================================================
+# app
+# ==============================================================================
+
 
 app = typer.Typer(
     name=COMMAND_NAME,
@@ -36,6 +48,11 @@ app = typer.Typer(
     subcommand_metavar="",
     context_settings={"allow_interspersed_args": True},
 )
+
+
+# ==============================================================================
+# types
+# ==============================================================================
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +67,19 @@ class SyncSummary:
     synced: int
     skipped: int
     failures: tuple[SyncFailure, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SyncTarget:
+    name: str
+    source: RuntimeSource
+    parsed: ParsedSource
+    inspection: CacheInspection
+
+
+# ==============================================================================
+# callback
+# ==============================================================================
 
 
 @app.callback(invoke_without_command=True)
@@ -112,6 +142,11 @@ def main_callback(
     )
 
 
+# ==============================================================================
+# sync orchestration
+# ==============================================================================
+
+
 def _run_sync(command_context: SyncCommandContext) -> SyncSummary:
     runtime = command_context.runtime
     options = command_context.options
@@ -119,20 +154,35 @@ def _run_sync(command_context: SyncCommandContext) -> SyncSummary:
     if options.name is not None and not selected:
         raise MessageError("sync.error.name_not_found", {"name": options.name})
 
-    synced = 0
-    skipped = 0
+    targets: list[SyncTarget] = []
     failures: list[SyncFailure] = []
     for name, source in selected:
         try:
-            result = _sync_source(runtime, options, name, source)
+            targets.append(_prepare_sync_target(runtime, name, source))
         except MessageError as error:
             failures.append(SyncFailure(name=name, error=error))
-            continue
-        if result == "synced":
-            synced += 1
-        else:
+
+    pending = [(target.name, target.source) for target in targets if not _should_skip(target.inspection, options)]
+    run_preflight(command_context, pending)
+
+    synced = 0
+    skipped = 0
+    for target in targets:
+        if _should_skip(target.inspection, options):
             skipped += 1
+            continue
+        try:
+            _sync_target(runtime, target)
+        except MessageError as error:
+            failures.append(SyncFailure(name=target.name, error=error))
+            continue
+        synced += 1
     return SyncSummary(total=len(selected), synced=synced, skipped=skipped, failures=tuple(failures))
+
+
+# ==============================================================================
+# source selection
+# ==============================================================================
 
 
 def _select_sources(
@@ -150,24 +200,41 @@ def _select_sources(
     return sorted(selected, key=lambda item: (item[1].doc_type, item[0]))
 
 
-def _sync_source(
+# ==============================================================================
+# cache synchronization
+# ==============================================================================
+
+
+def _prepare_sync_target(
     runtime: RuntimeContext,
-    options: SyncOptions,
     name: str,
     source: RuntimeSource,
-) -> str:
+) -> SyncTarget:
     try:
         base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
         parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
         cache_entry = cache_path(runtime.paths.home.cache, parsed.canonical)
         ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
-        inspection = inspect_cache(cache_entry, ttl_days=ttl_days)
-        if _should_skip(inspection, options):
-            return "skipped"
+        inspection = inspect_cache(
+            cache_entry,
+            ttl_days=ttl_days,
+            expected_source=parsed.canonical,
+            expected_doc_type=parsed.doc_type,
+        )
+    except SourceError as error:
+        raise _source_error_message(error) from error
+    except MessageError:
+        raise
+    except (OSError, TypeError, ValueError, ValidationError) as error:
+        raise MessageError("sync.error.cache_failed", {"name": name}) from error
+    return SyncTarget(name=name, source=source, parsed=parsed, inspection=inspection)
 
-        with staging_cache(runtime.paths.home.cache, parsed.canonical) as staging:
+
+def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
+    try:
+        with staging_cache(runtime.paths.home.cache, target.parsed.canonical) as staging:
             result = fetch_source(
-                parsed,
+                target.parsed,
                 destination=staging,
                 proxy=runtime.config.setting.local.proxy,
             )
@@ -175,8 +242,8 @@ def _sync_source(
                 staging,
                 CacheMetadata(
                     format_version=CACHE_FORMAT_VERSION,
-                    doc_type=parsed.doc_type,
-                    source=parsed.canonical,
+                    doc_type=target.parsed.doc_type,
+                    source=target.parsed.canonical,
                     fetched_at=result.fetched_at,
                     content_kind=result.content_kind,
                     content_name=result.content_name,
@@ -188,8 +255,12 @@ def _sync_source(
     except MessageError:
         raise
     except (OSError, TypeError, ValueError, ValidationError) as error:
-        raise MessageError("sync.error.cache_failed", {"name": name, "detail": str(error)}) from error
-    return "synced"
+        raise MessageError("sync.error.cache_failed", {"name": target.name}) from error
+
+
+# ==============================================================================
+# error translation
+# ==============================================================================
 
 
 def _source_error_message(error: SourceError) -> MessageError:
@@ -200,6 +271,11 @@ def _source_error_message(error: SourceError) -> MessageError:
         code = "sync.error.parse_failed" if isinstance(error, SourceParseError) else "sync.error.fetch_failed"
         values["reason"] = error.reason_code
     return MessageError(code, values)
+
+
+# ==============================================================================
+# report helpers
+# ==============================================================================
 
 
 def _should_skip(inspection: CacheInspection, options: SyncOptions) -> bool:

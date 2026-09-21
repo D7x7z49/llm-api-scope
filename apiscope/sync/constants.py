@@ -1,7 +1,17 @@
 # apiscope/sync/constants.py
 from typing import Final
 
+# ==============================================================================
+# command
+# ==============================================================================
+
+
 COMMAND_NAME: Final = "sync"
+
+# ==============================================================================
+# user-facing messages
+# ==============================================================================
+
 
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.help.command": "fetch registered sources into the cache",
@@ -10,6 +20,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.help.option.force": "refresh selected sources regardless of freshness",
     "sync.error.runtime_context_unavailable": "runtime context is unavailable",
     "sync.error.invalid_options": "invalid sync options",
+    "sync.error.preflight.git_missing": "cannot sync {target} because the Git executable is not available",
     "sync.error.range_conflict": "source name {name} cannot be combined with --source-type",
     "sync.error.name_not_found": "source {name} does not exist",
     "sync.error.parse_failed": "cannot parse source {source} because the parser reported {reason}",
@@ -51,6 +62,6 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
         "cannot fetch source {source} because Git reported a clone failure with {detail}"
     ),
     "sync.error.fetch.transport_failed": ("cannot fetch source {source} because the transport reported {detail}"),
-    "sync.error.cache_failed": "cannot update cache for {name} because the cache operation reported {detail}",
+    "sync.error.cache_failed": "cannot update cache for {name} because the cache operation failed",
     "sync.error.partial_failed": "sync failed for {failed} of {total} selected sources",
 }

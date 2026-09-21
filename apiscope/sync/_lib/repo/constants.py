@@ -3,6 +3,19 @@ from typing import Final
 
 from apiscope.schema import DocumentType
 
+# ==============================================================================
+# source
+# ==============================================================================
+
+
+SOURCE_TYPE: Final[DocumentType] = "repo"
+REMOTE_SCHEMES: Final[frozenset[str]] = frozenset({"file", "git", "http", "https", "ssh"})
+
+# ==============================================================================
+# git
+# ==============================================================================
+
+
 GIT_COMMAND: Final = "git"
 GIT_TIMEOUT_SECONDS: Final = 120.0
 GIT_PROXY_ENVIRONMENT_NAMES: Final[tuple[str, ...]] = (
@@ -17,5 +30,3 @@ GIT_PROXY_ENVIRONMENT_NAMES: Final[tuple[str, ...]] = (
     "GIT_PROXY_COMMAND",
 )
 GIT_PROXY_SCHEMES: Final[frozenset[str]] = frozenset({"http", "https"})
-REMOTE_SCHEMES: Final[frozenset[str]] = frozenset({"file", "git", "http", "https", "ssh"})
-SOURCE_TYPE: Final[DocumentType] = "repo"

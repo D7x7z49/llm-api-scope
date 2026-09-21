@@ -1,6 +1,7 @@
 # apiscope/sync/_lib/registry.py
 from pathlib import Path
 
+from apiscope.schema import DocumentType
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
 from apiscope.sync._lib.filesystem.parser import FilesystemParser
 from apiscope.sync._lib.llmstxt.fetcher import LlmstxtFetcher
@@ -12,7 +13,7 @@ from apiscope.sync._lib.repo.fetcher import RepoFetcher
 from apiscope.sync._lib.repo.parser import RepoParser
 from apiscope.sync._lib.rfc.fetcher import RfcFetcher
 from apiscope.sync._lib.rfc.parser import RfcParser
-from apiscope.sync._lib.schema import DocumentType, FetchResult, ParsedSource
+from apiscope.sync._lib.schema import FetchResult, ParsedSource
 
 _PARSERS: dict[DocumentType, SourceParser] = {
     "filesystem": FilesystemParser(),

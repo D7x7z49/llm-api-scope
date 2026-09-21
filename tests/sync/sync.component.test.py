@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from apiscope.main import app
+from apiscope.sync import preflight as sync_preflight
 from apiscope.sync._lib.repo import fetcher as repo_fetcher
 
 
@@ -78,6 +79,81 @@ def test_sync_uses_local_proxy_for_a_remote_source(
     assert httpx_client_options["proxy"] == proxy
     assert httpx_client_options["trust_env"] is False
     assert (isolated_home / ".apiscope" / "cache").is_dir()
+
+
+def test_sync_checks_git_before_fetching_repository_sources(
+    isolated_home: Path,
+    project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    added = runner.invoke(
+        app,
+        ["add", "docs", "https://example.test/docs.git", "--type", "repo"],
+        catch_exceptions=False,
+    )
+    monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
+
+    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+
+    cache = isolated_home / ".apiscope" / "cache"
+    assert added.exit_code == 0
+    assert result.exit_code == 1
+    assert "sync.error.preflight.git_missing" in result.output
+    assert "cannot sync docs because the Git executable is not available" in result.output
+    assert not list(cache.iterdir())
+
+
+def test_sync_checks_dependencies_before_a_mixed_range(
+    isolated_home: Path,
+    project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = project_cwd / "docs.txt"
+    source.write_text("hello\n", encoding="utf-8")
+    runner = CliRunner()
+    filesystem_added = runner.invoke(
+        app,
+        ["add", "docs", "docs.txt", "--type", "filesystem"],
+        catch_exceptions=False,
+    )
+    repo_added = runner.invoke(
+        app,
+        ["add", "repo", "https://example.test/docs.git", "--type", "repo"],
+        catch_exceptions=False,
+    )
+    monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
+
+    result = runner.invoke(app, ["sync"], catch_exceptions=False)
+
+    cache = isolated_home / ".apiscope" / "cache"
+    assert filesystem_added.exit_code == 0
+    assert repo_added.exit_code == 0
+    assert result.exit_code == 1
+    assert "sync.error.preflight.git_missing" in result.output
+    assert not list(cache.iterdir())
+
+
+def test_sync_does_not_check_git_for_a_filesystem_source(
+    isolated_home: Path,
+    project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = project_cwd / "docs.txt"
+    source.write_text("hello\n", encoding="utf-8")
+    runner = CliRunner()
+    added = runner.invoke(
+        app,
+        ["add", "docs", "docs.txt", "--type", "filesystem"],
+        catch_exceptions=False,
+    )
+    monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
+
+    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+
+    assert added.exit_code == 0
+    assert result.exit_code == 0
+    assert "[synced=1]" in result.output
 
 
 def test_sync_reports_an_unsupported_proxy_for_an_ssh_repo(

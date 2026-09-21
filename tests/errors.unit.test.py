@@ -1,4 +1,7 @@
 # tests/errors.unit.test.py
+from collections.abc import Mapping
+from typing import Any, cast
+
 import pytest
 
 from apiscope.errors import MessageError
@@ -29,4 +32,4 @@ def test_message_error_rejects_invalid_codes(code: str) -> None:
 
 def test_message_error_rejects_non_mapping_values() -> None:
     with pytest.raises(TypeError, match="provided as a mapping"):
-        MessageError("root.error.invalid", [])  # type: ignore[arg-type]
+        MessageError("root.error.invalid", cast(Mapping[str, Any], []))
