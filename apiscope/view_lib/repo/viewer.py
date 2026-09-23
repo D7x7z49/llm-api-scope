@@ -1,9 +1,9 @@
-# apiscope/view/_lib/repo/viewer.py
+# apiscope/view_lib/repo/viewer.py
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata
-from apiscope.view._lib.filesystem.viewer import build_filesystem_tree
-from apiscope.view._lib.tree import SourceTree
+from apiscope.view_lib.filesystem.viewer import build_filesystem_tree
+from apiscope.view_lib.tree import SourceTree
 
 
 class RepoViewer:

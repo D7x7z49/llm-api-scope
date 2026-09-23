@@ -366,3 +366,23 @@ def test_sync_rejects_a_name_with_a_range_option(
 
     assert result.exit_code == 1
     assert "sync.error.range_conflict" in result.output
+
+
+def test_sync_reports_a_malformed_port_with_a_namespaced_source_error(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    runner = CliRunner()
+    added = runner.invoke(
+        app,
+        ["add", "api", "https://example.test:invalid/openapi.json", "--type", "openapi"],
+        catch_exceptions=False,
+    )
+
+    result = runner.invoke(app, ["sync", "api"], catch_exceptions=False)
+
+    assert added.exit_code == 0
+    assert result.exit_code == 1
+    assert "sync.error.source.parse.location_invalid" in result.output
+    assert "cannot parse source" in result.output
+    assert "Traceback" not in result.output

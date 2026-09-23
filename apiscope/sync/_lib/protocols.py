@@ -5,10 +5,6 @@ from typing import Protocol
 from apiscope.sync._lib.schema import FetchResult, ParsedSource
 
 
-class SourceParser(Protocol):
-    def parse(self, source: str, *, base_dir: Path) -> ParsedSource: ...
-
-
 class SourceFetcher(Protocol):
     def fetch(
         self,

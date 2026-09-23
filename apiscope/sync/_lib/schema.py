@@ -3,33 +3,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeAlias
 
-from apiscope.schema import DocumentType
+from apiscope.source import LocalSource, RemoteSource, SourceIdentity, SourceLocation
 
 ContentKind = Literal["file", "directory"]
+ParsedSource: TypeAlias = SourceIdentity
 
-
-@dataclass(frozen=True, slots=True)
-class LocalSource:
-    path: Path
-
-
-@dataclass(frozen=True, slots=True)
-class RemoteSource:
-    url: str
-
-
-SourceLocation = LocalSource | RemoteSource
-
-
-@dataclass(frozen=True, slots=True)
-class ParsedSource:
-    doc_type: DocumentType
-    original: str
-    canonical: str
-    location: SourceLocation
+__all__ = ["ContentKind", "FetchResult", "LocalSource", "ParsedSource", "RemoteSource", "SourceLocation"]
 
 
 @dataclass(frozen=True, slots=True)

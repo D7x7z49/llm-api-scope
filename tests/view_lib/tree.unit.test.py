@@ -1,5 +1,5 @@
-# tests/view/_lib/tree.unit.test.py
-from apiscope.view._lib.tree import SourceTree, TreeNode
+# tests/view_lib/tree.unit.test.py
+from apiscope.view_lib.tree import SourceTree, TreeNode
 
 
 def test_index_width_is_selected_per_parent() -> None:

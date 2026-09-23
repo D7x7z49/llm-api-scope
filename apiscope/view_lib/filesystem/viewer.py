@@ -1,4 +1,4 @@
-# apiscope/view/_lib/filesystem/viewer.py
+# apiscope/view_lib/filesystem/viewer.py
 from __future__ import annotations
 
 import posixpath
@@ -6,8 +6,9 @@ import unicodedata
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata
-from apiscope.view._lib.errors import ViewProjectionError
-from apiscope.view._lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
 
 
 class FilesystemViewer:
@@ -23,14 +24,14 @@ def build_filesystem_tree(
 ) -> SourceTree:
     if metadata.content_kind == "file":
         if metadata.content_name is None:
-            raise ViewProjectionError("view.content_invalid")
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
         file_path = content / metadata.content_name
         if file_path.parent != content or not file_path.is_file():
-            raise ViewProjectionError("view.content_invalid")
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
         roots: tuple[TreeNode, ...] = (TreeNode(value=file_path.name, path=file_path.name),)
     else:
         if not content.is_dir():
-            raise ViewProjectionError("view.content_invalid")
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
         roots = tuple(_directory_nodes(content, exclude_git=exclude_git))
     return SourceTree(roots=roots, normalize_path=_normalize_filesystem_path)
 
@@ -69,5 +70,5 @@ def _normalize_filesystem_path(value: str) -> str:
         return ""
     normalized = posixpath.normpath(normalized)
     if normalized == "." or normalized.startswith("../") or normalized == ".." or normalized.startswith("/"):
-        raise ViewProjectionError("view.path_invalid", {"path": value})
+        raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
     return normalized

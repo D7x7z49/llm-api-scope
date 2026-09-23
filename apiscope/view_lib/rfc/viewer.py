@@ -1,4 +1,4 @@
-# apiscope/view/_lib/rfc/viewer.py
+# apiscope/view_lib/rfc/viewer.py
 from __future__ import annotations
 
 import re
@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata
-from apiscope.view._lib.errors import ViewProjectionError
-from apiscope.view._lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
 
 _NUMBERED_HEADING = re.compile(r"^(?P<number>\d+(?:\.\d+)*)\.\s+(?P<title>.+?)\s*$")
 _APPENDIX_HEADING = re.compile(r"^(?P<number>Appendix\s+[A-Z])\.?\s+(?P<title>.+?)\s*$", re.IGNORECASE)
@@ -39,7 +40,7 @@ class RfcViewer:
         try:
             raw = path.read_bytes()
         except OSError as error:
-            raise ViewProjectionError("view.content_invalid") from error
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID) from error
 
         if _looks_like_xml(raw, path):
             roots = _build_xml_tree(raw)
@@ -47,7 +48,7 @@ class RfcViewer:
             try:
                 text = raw.decode("utf-8", errors="replace")
             except UnicodeError as error:
-                raise ViewProjectionError("view.document_invalid") from error
+                raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
             roots = _build_text_tree(text)
         return SourceTree(roots=tuple(roots), normalize_path=_normalize_rfc_path)
 
@@ -56,7 +57,7 @@ def _build_xml_tree(raw: bytes) -> list[TreeNode]:
     try:
         root = ElementTree.fromstring(raw)
     except ElementTree.ParseError as error:
-        raise ViewProjectionError("view.document_invalid") from error
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
 
     roots: list[TreeNode] = [TreeNode(value="Overview", path="overview")]
     middle = _child(root, "middle")
@@ -221,10 +222,10 @@ def _looks_like_xml(raw: bytes, path: Path) -> bool:
 
 def _content_file(content: Path, metadata: CacheMetadata) -> Path:
     if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ViewProjectionError("view.document_invalid")
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
     path = content / metadata.content_name
     if path.parent != content or not path.is_file():
-        raise ViewProjectionError("view.content_invalid")
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
     return path
 
 
@@ -233,5 +234,5 @@ def _normalize_rfc_path(value: str) -> str:
     if not normalized:
         return ""
     if not normalized.startswith(("overview", "section/", "references/")):
-        raise ViewProjectionError("view.path_invalid", {"path": value})
+        raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
     return normalized

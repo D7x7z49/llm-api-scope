@@ -3,16 +3,16 @@ from pathlib import Path
 
 import pytest
 
+from apiscope.source import parse_source
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
-from apiscope.sync._lib.filesystem.parser import FilesystemParser
 
 
 def test_filesystem_fetcher_copies_a_file_and_returns_its_digest(tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     source.write_text("hello\n", encoding="utf-8")
     destination = tmp_path / "staging"
-    parsed = FilesystemParser().parse(str(source), base_dir=tmp_path)
+    parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
 
     result = FilesystemFetcher().fetch(parsed, destination=destination)
 
@@ -28,7 +28,7 @@ def test_filesystem_fetcher_copies_a_directory_tree(tmp_path: Path) -> None:
     (source / "index.txt").write_text("index\n", encoding="utf-8")
     (source / "nested" / "detail.txt").write_text("detail\n", encoding="utf-8")
     destination = tmp_path / "staging"
-    parsed = FilesystemParser().parse(str(source), base_dir=tmp_path)
+    parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
 
     result = FilesystemFetcher().fetch(parsed, destination=destination)
 
@@ -42,7 +42,7 @@ def test_filesystem_fetcher_copies_a_directory_tree(tmp_path: Path) -> None:
 def test_filesystem_fetcher_reports_a_missing_path(tmp_path: Path) -> None:
     source = tmp_path / "missing.txt"
     destination = tmp_path / "staging"
-    parsed = FilesystemParser().parse(str(source), base_dir=tmp_path)
+    parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
 
     with pytest.raises(SourceFetchError) as raised:
         FilesystemFetcher().fetch(parsed, destination=destination)

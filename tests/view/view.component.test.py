@@ -99,3 +99,23 @@ def test_view_reports_a_missing_cache(
     assert result.exit_code == 1
     assert "view.error.cache_missing" in result.output
     assert "sync it before retrying" in result.output
+
+
+def test_view_uses_the_projection_error_catalog_directly(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    source = project_cwd / "docs"
+    source.mkdir()
+    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    runner = CliRunner()
+
+    runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["view", "docs", "missing.md"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "view_lib.projection.path_not_found" in result.output
+    assert "cannot view path missing.md because it does not exist" in result.output
+    assert "view.error.path_not_found" not in result.output
+    assert "Traceback" not in result.output

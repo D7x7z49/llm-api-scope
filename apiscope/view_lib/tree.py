@@ -1,11 +1,12 @@
-# apiscope/view/_lib/tree.py
+# apiscope/view_lib/tree.py
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
-from apiscope.view._lib.errors import ViewProjectionError
+from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.errors import ProjectionError
 
 NodeKind = Literal["value", "key_value"]
 PathNormalizer = Callable[[str], str]
@@ -67,9 +68,9 @@ class SourceTree:
 
         matches = [node for node in indexed if node.path == normalized]
         if not matches:
-            raise ViewProjectionError("view.path_not_found", {"path": path})
+            raise ProjectionError(ProjectionReason.PATH_NOT_FOUND, {"path": path})
         if len(matches) > 1:
-            raise ViewProjectionError("view.path_ambiguous", {"path": path})
+            raise ProjectionError(ProjectionReason.PATH_AMBIGUOUS, {"path": path})
 
         selected = matches[0]
         return tuple(node for node in indexed if _is_descendant_or_self(node.address, selected.address))

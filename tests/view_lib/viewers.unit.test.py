@@ -1,14 +1,14 @@
-# tests/view/_lib/viewers.unit.test.py
+# tests/view_lib/viewers.unit.test.py
 from datetime import datetime, timezone
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata, ContentKind
 from apiscope.schema import DocumentType
-from apiscope.view._lib.filesystem.viewer import FilesystemViewer
-from apiscope.view._lib.llmstxt.viewer import LlmstxtViewer
-from apiscope.view._lib.openapi.viewer import OpenapiViewer
-from apiscope.view._lib.repo.viewer import RepoViewer
-from apiscope.view._lib.rfc.viewer import RfcViewer
+from apiscope.view_lib.filesystem.viewer import FilesystemViewer
+from apiscope.view_lib.llmstxt.viewer import LlmstxtViewer
+from apiscope.view_lib.openapi.viewer import OpenapiViewer
+from apiscope.view_lib.repo.viewer import RepoViewer
+from apiscope.view_lib.rfc.viewer import RfcViewer
 
 
 def _metadata(doc_type: DocumentType, *, kind: ContentKind = "file", name: str | None = "document") -> CacheMetadata:

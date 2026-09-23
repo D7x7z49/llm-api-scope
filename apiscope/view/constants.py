@@ -23,10 +23,5 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "view.error.source_invalid": "cannot view source {name} because its definition is invalid",
     "view.error.cache_missing": "cannot view source {name} because its cache is missing. sync it before retrying",
     "view.error.cache_invalid": "cannot view source {name} because its cache is invalid. sync it before retrying",
-    "view.error.content_invalid": "cannot view source {name} because its cached content is invalid",
-    "view.error.document_invalid": "cannot view source {name} because its cached document is invalid",
     "view.error.projection_failed": "cannot view source {name} because its structure cannot be projected",
-    "view.error.path_invalid": "cannot view path {path} because the path is invalid",
-    "view.error.path_not_found": "cannot view path {path} because it does not exist in source {name}",
-    "view.error.path_ambiguous": "cannot view path {path} because it matches more than one source node",
 }

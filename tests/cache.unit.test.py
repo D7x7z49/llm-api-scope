@@ -6,14 +6,14 @@ import pytest
 
 from apiscope import cache as cache_module
 from apiscope.cache import CACHE_FORMAT_VERSION, CacheMetadata, cache_path, inspect_cache, staging_cache, write_metadata
+from apiscope.source import parse_source
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
-from apiscope.sync._lib.filesystem.parser import FilesystemParser
 
 
 def test_cache_promotes_metadata_and_content_atomically(tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     source.write_text("hello\n", encoding="utf-8")
-    parsed = FilesystemParser().parse(str(source), base_dir=tmp_path)
+    parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
     cache_root = tmp_path / "cache"
 
     with staging_cache(cache_root, parsed.canonical) as staging:

@@ -8,24 +8,27 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
-from apiscope.cache import CacheInspection, cache_path, inspect_cache
+from apiscope.cache import CacheInspection
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
+from apiscope.content import load_content
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, ReportScope, emit_report
 from apiscope.schema import RuntimeSource
-from apiscope.view._lib.errors import ViewProjectionError, ViewSourceError
-from apiscope.view._lib.registry import build_view, parse_source
-from apiscope.view._lib.tree import IndexedNode
+from apiscope.source import SourceResolutionError, parse_source
 from apiscope.view.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.view.schema import ViewOptions
+from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
+from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.registry import build_tree
+from apiscope.view_lib.tree import IndexedNode
 
 # ==============================================================================
 # constants
 # ==============================================================================
 
 
-_MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
+_MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **VIEW_LIB_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
 # ==============================================================================
 # app
@@ -107,28 +110,23 @@ def _run_view(runtime: RuntimeContext, options: ViewOptions, source: RuntimeSour
     base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
     try:
         parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
-    except ViewSourceError as error:
+    except SourceResolutionError as error:
         raise MessageError("view.error.source_invalid", {"name": options.name}) from error
 
-    entry = cache_path(runtime.paths.home.cache, parsed.canonical)
     ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
-    inspection = inspect_cache(
-        entry,
-        ttl_days=ttl_days,
-        expected_source=parsed.canonical,
-        expected_doc_type=parsed.doc_type,
-    )
+    snapshot = load_content(runtime.paths.home.cache, parsed, ttl_days=ttl_days)
+    inspection = snapshot.inspection
     _require_cache(options.name, inspection)
     metadata = inspection.metadata
     if metadata is None:
         raise MessageError("view.error.cache_invalid", {"name": options.name})
 
     try:
-        tree = build_view(source.doc_type, entry / "content", metadata)
+        tree = build_tree(source.doc_type, snapshot.content, metadata)
         nodes = tree.select(options.path)
-    except ViewProjectionError as error:
-        raise _projection_message(options, error) from error
-    except (OSError, TypeError, ValueError) as error:
+    except ProjectionError as error:
+        raise MessageError(error.reason_code, error.values) from error
+    except OSError as error:
         raise MessageError("view.error.projection_failed", {"name": options.name}) from error
 
     return ViewResult(
@@ -147,28 +145,6 @@ def _require_cache(name: str, inspection: CacheInspection) -> None:
         raise MessageError("view.error.cache_missing", {"name": name})
     if inspection.state == "invalid" or inspection.metadata is None:
         raise MessageError("view.error.cache_invalid", {"name": name})
-
-
-# ==============================================================================
-# error translation
-# ==============================================================================
-
-
-def _projection_message(options: ViewOptions, error: ViewProjectionError) -> MessageError:
-    values = dict(error.values)
-    values.setdefault("name", options.name)
-    code = error.reason_code
-    if code == "view.path_invalid":
-        return MessageError("view.error.path_invalid", values)
-    if code == "view.path_not_found":
-        return MessageError("view.error.path_not_found", values)
-    if code == "view.path_ambiguous":
-        return MessageError("view.error.path_ambiguous", values)
-    if code == "view.content_invalid":
-        return MessageError("view.error.content_invalid", values)
-    if code == "view.document_invalid":
-        return MessageError("view.error.document_invalid", values)
-    return MessageError("view.error.projection_failed", values)
 
 
 # ==============================================================================

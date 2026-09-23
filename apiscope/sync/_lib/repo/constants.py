@@ -1,16 +1,6 @@
 # apiscope/sync/_lib/repo/constants.py
 from typing import Final
 
-from apiscope.schema import DocumentType
-
-# ==============================================================================
-# source
-# ==============================================================================
-
-
-SOURCE_TYPE: Final[DocumentType] = "repo"
-REMOTE_SCHEMES: Final[frozenset[str]] = frozenset({"file", "git", "http", "https", "ssh"})
-
 # ==============================================================================
 # git
 # ==============================================================================

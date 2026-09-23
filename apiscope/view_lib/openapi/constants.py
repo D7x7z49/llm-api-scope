@@ -1,4 +1,4 @@
-# apiscope/view/_lib/openapi/constants.py
+# apiscope/view_lib/openapi/constants.py
 from typing import Final
 
 # ==============================================================================

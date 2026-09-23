@@ -7,10 +7,3 @@ from typing import Final
 
 
 DEFAULT_CONTENT_NAME: Final = "document"
-
-# ==============================================================================
-# source
-# ==============================================================================
-
-
-SOURCE_TYPE: Final = "filesystem"

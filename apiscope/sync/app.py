@@ -269,7 +269,8 @@ def _source_error_message(error: SourceError) -> MessageError:
     values["source"] = error.source
     if code not in MESSAGE_TEMPLATES:
         code = "sync.error.parse_failed" if isinstance(error, SourceParseError) else "sync.error.fetch_failed"
-        values["reason"] = error.reason_code
+        if not isinstance(error, SourceParseError):
+            values["reason"] = error.reason_code
     return MessageError(code, values)
 
 

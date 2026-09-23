@@ -23,23 +23,27 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.preflight.git_missing": "cannot sync {target} because the Git executable is not available",
     "sync.error.range_conflict": "source name {name} cannot be combined with --source-type",
     "sync.error.name_not_found": "source {name} does not exist",
-    "sync.error.parse_failed": "cannot parse source {source} because the parser reported {reason}",
-    "sync.error.parse.source_empty": "cannot parse source {source} because the source is empty",
-    "sync.error.parse.unsupported_scheme": ("cannot parse source {source} because scheme {scheme} is not supported"),
-    "sync.error.parse.remote_host_missing": ("cannot parse source {source} because the remote source has no host"),
-    "sync.error.parse.credentials_unsupported": (
+    "sync.error.parse_failed": "cannot parse source {source} because its location is invalid",
+    "sync.error.source.parse.source_empty": "cannot parse source {source} because the source is empty",
+    "sync.error.source.parse.unsupported_scheme": (
+        "cannot parse source {source} because scheme {scheme} is not supported"
+    ),
+    "sync.error.source.parse.remote_host_missing": (
+        "cannot parse source {source} because the remote source has no host"
+    ),
+    "sync.error.source.parse.credentials_unsupported": (
         "cannot parse source {source} because source credentials are not supported"
     ),
-    "sync.error.parse.fragments_unsupported": (
+    "sync.error.source.parse.fragments_unsupported": (
         "cannot parse source {source} because source fragments are not supported"
     ),
-    "sync.error.parse.filesystem_path_required": (
+    "sync.error.source.parse.filesystem_path_required": (
         "cannot parse source {source} because a filesystem source must be a path"
     ),
-    "sync.error.parse.filesystem_path_invalid": (
+    "sync.error.source.parse.filesystem_path_invalid": (
         "cannot parse source {source} because the filesystem path is invalid ({detail})"
     ),
-    "sync.error.parse.location_invalid": (
+    "sync.error.source.parse.location_invalid": (
         "cannot parse source {source} because the source location is invalid ({detail})"
     ),
     "sync.error.fetch_failed": "cannot fetch source {source} because the fetcher reported {reason}",

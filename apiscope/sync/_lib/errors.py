@@ -12,10 +12,6 @@ class ReasonError(ValueError):
         super().__init__(reason_code)
 
 
-class SourceLocationError(ReasonError):
-    pass
-
-
 class TransportError(ReasonError):
     pass
 

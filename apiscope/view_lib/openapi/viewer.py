@@ -1,4 +1,4 @@
-# apiscope/view/_lib/openapi/viewer.py
+# apiscope/view_lib/openapi/viewer.py
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -9,9 +9,10 @@ from typing import Any
 import yaml
 
 from apiscope.cache import CacheMetadata
-from apiscope.view._lib.errors import ViewProjectionError
-from apiscope.view._lib.openapi.constants import METHOD_ORDER
-from apiscope.view._lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.openapi.constants import METHOD_ORDER
+from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
 
 _METHOD_RANK = {method: rank for rank, method in enumerate(METHOD_ORDER)}
 
@@ -30,7 +31,7 @@ class OpenapiViewer:
         document = _load_document(_content_file(content, metadata))
         paths = document.get("paths", {})
         if not isinstance(paths, Mapping):
-            raise ViewProjectionError("view.document_invalid")
+            raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
 
         path_roots: dict[str, _MutableNode] = {}
         for path in sorted((key for key in paths if isinstance(key, str))):
@@ -137,10 +138,10 @@ def _operation_hint(operation: Mapping[str, Any], method: str) -> str:
 
 def _content_file(content: Path, metadata: CacheMetadata) -> Path:
     if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ViewProjectionError("view.document_invalid")
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
     path = content / metadata.content_name
     if path.parent != content or not path.is_file():
-        raise ViewProjectionError("view.content_invalid")
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
     return path
 
 
@@ -148,9 +149,9 @@ def _load_document(path: Path) -> Mapping[str, Any]:
     try:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, yaml.YAMLError) as error:
-        raise ViewProjectionError("view.document_invalid") from error
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
     if not isinstance(document, Mapping):
-        raise ViewProjectionError("view.document_invalid")
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
     return document
 
 
@@ -159,5 +160,5 @@ def _normalize_openapi_path(value: str) -> str:
     if not normalized:
         return ""
     if not normalized.startswith("/"):
-        raise ViewProjectionError("view.path_invalid", {"path": value})
+        raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
     return normalized.rstrip("/") or "/"

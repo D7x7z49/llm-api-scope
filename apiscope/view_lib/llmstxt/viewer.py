@@ -1,4 +1,4 @@
-# apiscope/view/_lib/llmstxt/viewer.py
+# apiscope/view_lib/llmstxt/viewer.py
 from __future__ import annotations
 
 import re
@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata
-from apiscope.view._lib.errors import ViewProjectionError
-from apiscope.view._lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
 
 _H1 = re.compile(r"^\s*#\s+(?!#)(?P<title>\S.*)$")
 _H2 = re.compile(r"^\s*##\s+(?!#)(?P<title>\S.*)$")
@@ -30,7 +31,7 @@ class LlmstxtViewer:
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError) as error:
-            raise ViewProjectionError("view.document_invalid") from error
+            raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
 
         sections: list[_Section] = []
         section_counts: dict[str, int] = {}
@@ -76,10 +77,10 @@ class LlmstxtViewer:
 
 def _content_file(content: Path, metadata: CacheMetadata) -> Path:
     if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ViewProjectionError("view.document_invalid")
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
     path = content / metadata.content_name
     if path.parent != content or not path.is_file():
-        raise ViewProjectionError("view.content_invalid")
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
     return path
 
 
@@ -89,4 +90,4 @@ def _normalize_llmstxt_path(value: str) -> str:
         return ""
     if normalized == "overview" or normalized.startswith("section/"):
         return normalized
-    raise ViewProjectionError("view.path_invalid", {"path": value})
+    raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
