@@ -97,7 +97,12 @@ def _xml_references(element: ElementTree.Element, *, fallback: str) -> TreeNode:
                 path=f"references/{title}/{key}",
             )
         )
-    return TreeNode(value=title, children=tuple(children), path=f"references/{title}" or fallback)
+    return TreeNode(
+        value=title,
+        children=tuple(children),
+        path=f"references/{title}" or fallback,
+        node_type="ordinary",
+    )
 
 
 def _build_text_tree(text: str) -> list[TreeNode]:
@@ -134,7 +139,7 @@ def _build_text_tree(text: str) -> list[TreeNode]:
     for index, (line_number, label, _) in enumerate(reference_headings):
         end = reference_headings[index + 1][0] if index + 1 < len(reference_headings) else len(lines)
         citations = tuple(_text_citations(lines[line_number + 1 : end], label))
-        roots.append(TreeNode(value=label, children=citations, path=f"references/{label}"))
+        roots.append(TreeNode(value=label, children=citations, path=f"references/{label}", node_type="ordinary"))
     return roots
 
 

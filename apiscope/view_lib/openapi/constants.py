@@ -15,4 +15,5 @@ METHOD_ORDER: Final[tuple[str, ...]] = (
     "head",
     "patch",
     "trace",
+    "query",
 )

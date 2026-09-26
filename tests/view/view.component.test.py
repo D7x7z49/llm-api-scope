@@ -29,9 +29,9 @@ def test_view_shows_a_cached_filesystem_tree(
     assert result.output == (
         "[ok] [scope=project] [action=view] [name=docs] [path=.]\n\n"
         "---\n\n"
-        "- [1] api\n"
-        "- [1.1] overview.md\n"
-        "- [2] README.md\n"
+        "- [1] api/ [path=api]\n"
+        "  - [1.1] overview.md [path=api/overview.md]\n"
+        "- [2] README.md [path=README.md]\n"
         "\n---\n\n"
         "{\n"
         '  "entries": 3,\n'
@@ -60,6 +60,11 @@ def test_view_path_filter_keeps_the_complete_tree_index(
     assert "- [1.1] overview.md" in result.output
     assert "README.md" not in result.output
 
+    combined = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
+    assert combined.exit_code == 0
+    assert "- [1.1] overview.md" in combined.output
+    assert "README.md" not in combined.output
+
 
 def test_view_json_contains_the_same_semantic_nodes(
     isolated_home: Path,
@@ -80,7 +85,7 @@ def test_view_json_contains_the_same_semantic_nodes(
         "scope": "project",
         "action": "view",
         "meta": {"name": "docs", "path": "."},
-        "data": [{"index": "1", "kind": "value", "value": "README.md"}],
+        "data": [{"index": "1", "kind": "value", "node_type": "leaf", "value": "README.md", "path": "README.md"}],
         "extra": {"entries": 1, "cache": "fresh", "index": "temporary"},
     }
 
@@ -116,6 +121,8 @@ def test_view_uses_the_projection_error_catalog_directly(
 
     assert result.exit_code == 1
     assert "view_lib.projection.path_not_found" in result.output
-    assert "cannot view path missing.md because it does not exist" in result.output
+    assert "route missing.md does not exist" in result.output
+    assert "longest valid prefix: ." in result.output
+    assert "available routes: README.md [1]" in result.output
     assert "view.error.path_not_found" not in result.output
     assert "Traceback" not in result.output

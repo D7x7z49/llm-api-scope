@@ -49,6 +49,7 @@ def _directory_nodes(directory: Path, *, exclude_git: bool, prefix: str = "") ->
                     value=child.name,
                     path=relative,
                     children=tuple(_directory_nodes(child, exclude_git=exclude_git, prefix=relative)),
+                    node_type="ordinary",
                 )
             )
         else:

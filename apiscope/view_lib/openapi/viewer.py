@@ -23,7 +23,7 @@ class _MutableNode:
     path: str | None = None
     hint: str | None = None
     is_method: bool = False
-    children: dict[str, _MutableNode] = field(default_factory=dict)
+    children: dict[tuple[str, str], _MutableNode] = field(default_factory=dict)
 
 
 class OpenapiViewer:
@@ -33,7 +33,7 @@ class OpenapiViewer:
         if not isinstance(paths, Mapping):
             raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
 
-        path_roots: dict[str, _MutableNode] = {}
+        path_roots: dict[tuple[str, str], _MutableNode] = {}
         for path in sorted((key for key in paths if isinstance(key, str))):
             item = paths[path]
             path_item = item if isinstance(item, Mapping) else {}
@@ -42,20 +42,21 @@ class OpenapiViewer:
         roots = [_to_tree_node(node) for node in _sort_nodes(path_roots.values())]
         webhooks = document.get("webhooks")
         if isinstance(webhooks, Mapping) and webhooks:
-            webhook_root = _MutableNode("webhooks")
+            webhook_root = _MutableNode("webhooks", path="webhooks")
             for name in sorted((key for key in webhooks if isinstance(key, str))):
                 item = webhooks[name]
                 path_item = item if isinstance(item, Mapping) else {}
-                webhook = _MutableNode(name, path=f"webhooks/{name}")
+                webhook_path = f"webhooks/{name}"
+                webhook = _MutableNode(name, path=webhook_path)
                 webhook.hint = _path_hint(path_item)
-                _add_operations(webhook, path_item)
-                webhook_root.children[name] = webhook
+                _add_operations(webhook, path_item, target_path=webhook_path)
+                webhook_root.children[("webhook", name)] = webhook
             roots.append(_to_tree_node(webhook_root))
 
         return SourceTree(roots=tuple(roots), normalize_path=_normalize_openapi_path)
 
 
-def _add_path(roots: dict[str, _MutableNode], path: str, path_item: Mapping[str, Any]) -> None:
+def _add_path(roots: dict[tuple[str, str], _MutableNode], path: str, path_item: Mapping[str, Any]) -> None:
     segments = _path_segments(path)
     if not segments:
         return
@@ -65,37 +66,64 @@ def _add_path(roots: dict[str, _MutableNode], path: str, path_item: Mapping[str,
     node: _MutableNode | None = None
     for segment in segments:
         full_segments.append(segment)
-        node = current.setdefault(segment, _MutableNode(segment))
+        node = current.setdefault(("path", segment), _MutableNode(segment))
+        if node.path is None:
+            node.path = _path_prefix(full_segments)
         current = node.children
 
     if node is None:
         return
     node.path = path
     node.hint = _path_hint(path_item)
-    _add_operations(node, path_item)
+    _add_operations(node, path_item, target_path=path)
 
 
-def _add_operations(node: _MutableNode, path_item: Mapping[str, Any]) -> None:
+def _add_operations(node: _MutableNode, path_item: Mapping[str, Any], *, target_path: str) -> None:
     for method in METHOD_ORDER:
         operation = path_item.get(method)
         if not isinstance(operation, Mapping):
             continue
         label = method.upper()
-        operation_node = _MutableNode(label, is_method=True)
+        operation_node = _MutableNode(
+            label,
+            path=_operation_path(target_path, label),
+            is_method=True,
+        )
         operation_node.hint = _operation_hint(operation, method)
-        node.children[label] = operation_node
+        node.children[("method", label)] = operation_node
+
+    additional_operations = path_item.get("additionalOperations")
+    if not isinstance(additional_operations, Mapping):
+        return
+    for method in sorted(key for key in additional_operations if isinstance(key, str)):
+        operation = additional_operations[method]
+        if not isinstance(operation, Mapping) or method.lower() in _METHOD_RANK:
+            continue
+        operation_node = _MutableNode(
+            method,
+            path=_operation_path(target_path, method),
+            is_method=True,
+        )
+        operation_node.hint = _operation_hint(operation, method)
+        node.children[("method", method)] = operation_node
 
 
 def _to_tree_node(node: _MutableNode) -> TreeNode:
     children = tuple(_to_tree_node(child) for child in _sort_nodes(node.children.values()))
     if node.hint is None:
-        return TreeNode(value=node.label, children=children, path=node.path)
+        return TreeNode(
+            value=node.label,
+            children=children,
+            path=node.path,
+            node_type="leaf" if node.is_method else "ordinary",
+        )
     return TreeNode(
         value=node.hint,
         kind="key_value",
         key=node.label,
         children=children,
         path=node.path,
+        node_type="leaf" if node.is_method else "ordinary",
     )
 
 
@@ -108,6 +136,18 @@ def _sort_nodes(nodes: Any) -> list[_MutableNode]:
             node.label,
         ),
     )
+
+
+def _path_prefix(segments: list[str]) -> str:
+    if segments == ["/"]:
+        return "/"
+    return "/" + "/".join(segment.lstrip("/") for segment in segments)
+
+
+def _operation_path(path: str, method: str) -> str:
+    if path == "/":
+        return f"/{method}"
+    return f"{path.rstrip('/')}/{method}"
 
 
 def _path_segments(path: str) -> list[str]:
@@ -159,6 +199,11 @@ def _normalize_openapi_path(value: str) -> str:
     normalized = root_path(value)
     if not normalized:
         return ""
-    if not normalized.startswith("/"):
-        raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
+    return _normalize_path_item_target(normalized)
+
+
+def _normalize_path_item_target(path: str) -> str:
+    if path == "webhooks" or path.startswith("webhooks/"):
+        return path.rstrip("/") or "webhooks"
+    normalized = path if path.startswith("/") else f"/{path}"
     return normalized.rstrip("/") or "/"

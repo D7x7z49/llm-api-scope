@@ -70,7 +70,13 @@ class LlmstxtViewer:
         if has_overview:
             roots.append(TreeNode(value="Overview", path="overview"))
         roots.extend(
-            TreeNode(value=section.title, children=tuple(section.links), path=section.path) for section in sections
+            TreeNode(
+                value=section.title,
+                children=tuple(section.links),
+                path=section.path,
+                node_type="ordinary",
+            )
+            for section in sections
         )
         return SourceTree(roots=tuple(roots), normalize_path=_normalize_llmstxt_path)
 

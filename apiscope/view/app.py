@@ -18,6 +18,7 @@ from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
 from apiscope.view.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.view.schema import ViewOptions
+from apiscope.view_lib.address import split_address
 from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
 from apiscope.view_lib.errors import ProjectionError
 from apiscope.view_lib.registry import build_tree
@@ -69,6 +70,8 @@ def main_callback(
         raise MessageError("view.error.runtime_context_unavailable")
 
     try:
+        if path is None:
+            name, path = split_address(name, runtime_context.config.source)
         options = ViewOptions(name=name, path=path)
         source = runtime_context.config.source.get(options.name)
         if source is None:
@@ -157,10 +160,15 @@ def _render_body(nodes: tuple[IndexedNode, ...]) -> str:
         return "(no entries)"
     lines: list[str] = []
     for node in nodes:
+        indentation = "  " * (len(node.address) - 1)
+        path = "" if node.path is None else f" [path={node.path}]"
+        label = node.key if node.kind == "key_value" else node.value
+        if node.node_type == "ordinary":
+            label = f"{label}/"
         if node.kind == "key_value":
-            lines.append(f"- [{node.index}] {node.key}: {node.value}")
+            lines.append(f"{indentation}- [{node.index}] {label}: {node.value}{path}")
         else:
-            lines.append(f"- [{node.index}] {node.value}")
+            lines.append(f"{indentation}- [{node.index}] {label}{path}")
     return "\n".join(lines)
 
 
