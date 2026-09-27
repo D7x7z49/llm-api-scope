@@ -3,18 +3,19 @@ import pytest
 
 from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
-from apiscope.view_lib.tree import SourceTree, TreeNode
+from apiscope.view_lib.schema import TreeNode
+from apiscope.view_lib.tree import SourceTree
 
 
 def test_index_width_is_selected_per_parent() -> None:
     tree = SourceTree(
         roots=(
             TreeNode(
-                value="docs",
+                key="docs",
                 path="docs",
-                children=tuple(TreeNode(value=f"page-{index}") for index in range(10)),
+                children=tuple(TreeNode(key=f"page-{index}") for index in range(10)),
             ),
-            TreeNode(value="readme.md", path="readme.md"),
+            TreeNode(key="readme.md", path="readme.md"),
         ),
         normalize_path=lambda value: "" if value == "." else value,
     )
@@ -37,7 +38,7 @@ def test_index_width_is_selected_per_parent() -> None:
 
 def test_resolve_finds_a_stable_source_path() -> None:
     tree = SourceTree(
-        roots=(TreeNode(value="readme.md", path="docs/readme.md"),),
+        roots=(TreeNode(key="readme.md", path="docs/readme.md"),),
         normalize_path=lambda value: value,
     )
 
@@ -49,7 +50,7 @@ def test_resolve_finds_a_stable_source_path() -> None:
 
 def test_resolve_index_selects_the_view_node() -> None:
     tree = SourceTree(
-        roots=(TreeNode(value="docs", path="docs", children=(TreeNode(value="guide.md", path="docs/guide.md"),)),),
+        roots=(TreeNode(key="docs", path="docs", children=(TreeNode(key="guide.md", path="docs/guide.md"),)),),
         normalize_path=lambda value: value,
     )
 
@@ -63,14 +64,14 @@ def test_missing_route_reports_longest_prefix_and_available_children() -> None:
     tree = SourceTree(
         roots=(
             TreeNode(
-                value="docs",
+                key="docs",
                 path="docs",
                 children=(
                     TreeNode(
-                        value="api",
+                        key="api",
                         path="docs/api",
                         node_type="ordinary",
-                        children=(TreeNode(value="guide.md", path="docs/api/guide.md"),),
+                        children=(TreeNode(key="guide.md", path="docs/api/guide.md"),),
                     ),
                 ),
             ),
@@ -85,16 +86,15 @@ def test_missing_route_reports_longest_prefix_and_available_children() -> None:
     assert caught.value.values == {
         "path": "docs/api/missing.md",
         "prefix": "docs/api",
-        "routes": [{"index": "1.1.1", "route": "docs/api/guide.md", "label": "guide.md"}],
-        "routes_text": "docs/api/guide.md [1.1.1]",
+        "nodes": [{"index": "1", "key": "guide.md", "node_type": "leaf"}],
     }
 
 
 def test_ambiguous_route_lists_candidates_and_indexes() -> None:
     tree = SourceTree(
         roots=(
-            TreeNode(value="first", path="same"),
-            TreeNode(value="second", path="same"),
+            TreeNode(key="first", path="same"),
+            TreeNode(key="second", path="same"),
         ),
         normalize_path=lambda value: value,
     )
@@ -112,7 +112,7 @@ def test_ambiguous_route_lists_candidates_and_indexes() -> None:
 
 def test_empty_ordinary_node_is_not_a_leaf() -> None:
     tree = SourceTree(
-        roots=(TreeNode(value="empty", path="empty", node_type="ordinary"),),
+        roots=(TreeNode(key="empty", path="empty", node_type="ordinary"),),
         normalize_path=lambda value: value,
     )
 
@@ -120,19 +120,48 @@ def test_empty_ordinary_node_is_not_a_leaf() -> None:
     assert tree.children_of(tree.resolve_index("1")) == ()
 
 
-def test_filter_keeps_indexes_from_the_complete_tree() -> None:
+def test_select_relays_out_indexes_for_a_partial_scope() -> None:
     tree = SourceTree(
         roots=(
             TreeNode(
-                value="docs",
+                key="docs",
                 path="docs",
-                children=(TreeNode(value="api.md", path="docs/api.md"),),
+                children=(
+                    TreeNode(key="api.md", path="docs/api.md"),
+                    TreeNode(key="guide.md", path="docs/guide.md"),
+                ),
             ),
-            TreeNode(value="readme.md", path="readme.md"),
+            TreeNode(key="readme.md", path="readme.md"),
         ),
         normalize_path=lambda value: "" if value == "." else value,
     )
 
     selected = tree.select("docs")
 
-    assert [(node.index, node.value) for node in selected] == [("1", "docs"), ("1.1", "api.md")]
+    assert [(node.index, node.key) for node in selected] == [
+        ("1", "docs"),
+        ("1.1", "api.md"),
+        ("1.2", "guide.md"),
+    ]
+
+
+def test_select_relays_out_indexes_below_a_leaf_scope() -> None:
+    tree = SourceTree(
+        roots=(TreeNode(key="docs", path="docs", children=(TreeNode(key="guide.md", path="docs/guide.md"),)),),
+        normalize_path=lambda value: "" if value == "." else value,
+    )
+
+    selected = tree.select("docs/guide.md")
+
+    assert [(node.index, node.key) for node in selected] == [("1", "guide.md")]
+
+
+def test_tree_rejects_duplicate_sibling_keys() -> None:
+    with pytest.raises(ProjectionError) as caught:
+        SourceTree(
+            roots=(TreeNode(key="same", path="a"), TreeNode(key="same", path="b")),
+            normalize_path=lambda value: value,
+        )
+
+    assert caught.value.reason_code == ProjectionReason.DUPLICATE_KEY
+    assert caught.value.values == {"key": "same"}

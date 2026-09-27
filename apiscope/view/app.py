@@ -12,17 +12,21 @@ from apiscope.cache import CacheInspection
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.content import load_content
 from apiscope.context import RuntimeContext
-from apiscope.errors import MessageError
+from apiscope.errors import MessageError, MessageHintError
 from apiscope.output import Report, ReportScope, emit_report
 from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
 from apiscope.view.constants import COMMAND_NAME, MESSAGE_TEMPLATES
+from apiscope.view.context import ViewCommandContext
+from apiscope.view.preflight import run_preflight
 from apiscope.view.schema import ViewOptions
 from apiscope.view_lib.address import split_address
 from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
+from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.hint import render_route_hint
 from apiscope.view_lib.registry import build_tree
-from apiscope.view_lib.tree import IndexedNode
+from apiscope.view_lib.schema import IndexedNode
 
 # ==============================================================================
 # constants
@@ -73,13 +77,18 @@ def main_callback(
         if path is None:
             name, path = split_address(name, runtime_context.config.source)
         options = ViewOptions(name=name, path=path)
+        command_context = ViewCommandContext(runtime=runtime_context, options=options)
+        run_preflight(command_context)
         source = runtime_context.config.source.get(options.name)
         if source is None:
             raise MessageError("view.error.name_not_found", {"name": options.name})
-        result = _run_view(runtime_context, options, source)
+        result = _run_view(command_context, source)
     except ValidationError as error:
         message = MessageError("view.error.invalid_options")
         _emit_error(runtime_context, message)
+        raise typer.Exit(code=1) from error
+    except ProjectionError as error:
+        _emit_error(runtime_context, _projection_message(error, name=options.name))
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -109,7 +118,9 @@ def main_callback(
 # ==============================================================================
 
 
-def _run_view(runtime: RuntimeContext, options: ViewOptions, source: RuntimeSource) -> ViewResult:
+def _run_view(command_context: ViewCommandContext, source: RuntimeSource) -> ViewResult:
+    runtime = command_context.runtime
+    options = command_context.options
     base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
     try:
         parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
@@ -127,8 +138,6 @@ def _run_view(runtime: RuntimeContext, options: ViewOptions, source: RuntimeSour
     try:
         tree = build_tree(source.doc_type, snapshot.content, metadata)
         nodes = tree.select(options.path)
-    except ProjectionError as error:
-        raise MessageError(error.reason_code, error.values) from error
     except OSError as error:
         raise MessageError("view.error.projection_failed", {"name": options.name}) from error
 
@@ -160,15 +169,8 @@ def _render_body(nodes: tuple[IndexedNode, ...]) -> str:
         return "(no entries)"
     lines: list[str] = []
     for node in nodes:
-        indentation = "  " * (len(node.address) - 1)
-        path = "" if node.path is None else f" [path={node.path}]"
-        label = node.key if node.kind == "key_value" else node.value
-        if node.node_type == "ordinary":
-            label = f"{label}/"
-        if node.kind == "key_value":
-            lines.append(f"{indentation}- [{node.index}] {label}: {node.value}{path}")
-        else:
-            lines.append(f"{indentation}- [{node.index}] {label}{path}")
+        description = f": {node.description}" if node.description else ""
+        lines.append(f"- [{node.index}] {node.key}{description}")
     return "\n".join(lines)
 
 
@@ -190,15 +192,31 @@ def _scope(runtime: RuntimeContext) -> ReportScope:
     return "project"
 
 
+def _projection_message(error: ProjectionError, *, name: str) -> MessageError:
+    if error.reason_code == ProjectionReason.PATH_NOT_FOUND:
+        prefix = str(error.values.get("prefix") or ".")
+        nodes = error.values.get("nodes") or []
+        address = name if prefix in {"", "."} else f"{name}/{prefix}"
+        return MessageHintError(error.reason_code, error.values, hint_address=address, hint_nodes=nodes)
+    return MessageError(error.reason_code, error.values)
+
+
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
+    extra: dict[str, object] | None = None
+    body: str | None = None
+    if isinstance(error, MessageHintError):
+        extra = {"address": error.hint_address, "nodes": list(error.hint_nodes)}
+        body = render_route_hint(error.hint_address, error.hint_nodes)
     emit_report(
         Report(
             status="error",
             scope=_scope(runtime),
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            extra=extra,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.values,
+        body=body,
     )

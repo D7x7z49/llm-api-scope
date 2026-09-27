@@ -83,9 +83,10 @@ class Report:
             raise TypeError("report data must be a list")
         if self.extra is not None and not isinstance(self.extra, Mapping):
             raise TypeError("report extra must be a mapping")
-        if (self.data is None) != (self.extra is None):
-            raise ValueError("report data and extra must be provided together")
-        if self.status == "error" and (self.data is not None or self.extra is not None):
+        if self.status == "ok":
+            if (self.data is None) != (self.extra is None):
+                raise ValueError("report data and extra must be provided together")
+        elif self.data is not None:
             raise ValueError("error reports cannot contain read data")
 
         if self.data is not None:
@@ -192,6 +193,16 @@ def _render_text(
     foot: str | None,
 ) -> str:
     head = _render_head(report, message)
+    if report.status == "error":
+        if report.extra is None:
+            if body is not None or foot is not None:
+                raise OutputError("root.error.output.write_sections")
+            return head
+        if foot is not None:
+            raise OutputError("root.error.output.write_sections")
+        hint = body if body is not None else _render_section_foot(report.extra)
+        return f"{head}\n\n---\n\n{hint}"
+
     if report.data is None:
         if body is not None or foot is not None:
             raise OutputError("root.error.output.write_sections")
@@ -236,7 +247,8 @@ def _render_json(report: Report, message: str | None) -> str:
     payload["meta"] = dict(_ordered_items(report.meta, _META_FIELD_ORDER))
     if report.data is not None:
         payload["data"] = report.data
-        payload["extra"] = dict(_ordered_items(report.extra or {}, _EXTRA_FIELD_ORDER))
+    if report.extra is not None:
+        payload["extra"] = dict(_ordered_items(report.extra, _EXTRA_FIELD_ORDER))
     if message is not None:
         payload["message"] = message
     return _dump_json(payload)

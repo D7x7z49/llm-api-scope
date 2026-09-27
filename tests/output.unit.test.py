@@ -12,6 +12,7 @@ from apiscope.output import OutputError, OutputFormat, Report, ReportScope, Repo
 from apiscope.remove.constants import MESSAGE_TEMPLATES as REMOVE_MESSAGE_TEMPLATES
 from apiscope.sync.constants import MESSAGE_TEMPLATES as SYNC_MESSAGE_TEMPLATES
 from apiscope.view.constants import MESSAGE_TEMPLATES as VIEW_MESSAGE_TEMPLATES
+from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
 
 
 @pytest.mark.parametrize(
@@ -23,11 +24,12 @@ from apiscope.view.constants import MESSAGE_TEMPLATES as VIEW_MESSAGE_TEMPLATES
         REMOVE_MESSAGE_TEMPLATES,
         SYNC_MESSAGE_TEMPLATES,
         VIEW_MESSAGE_TEMPLATES,
+        VIEW_LIB_MESSAGE_TEMPLATES,
     ],
-    ids=["root", "add", "list", "remove", "sync", "view"],
+    ids=["root", "add", "list", "remove", "sync", "view", "view_lib"],
 )
-def test_error_message_templates_do_not_contain_colons(templates: dict[str, str]) -> None:
-    invalid_keys = [key for key, value in templates.items() if ".error." in key and ":" in value]
+def test_message_templates_do_not_contain_colons(templates: dict[str, str]) -> None:
+    invalid_keys = [key for key, value in templates.items() if ":" in value]
 
     assert invalid_keys == []
 
@@ -192,6 +194,71 @@ def test_render_error_rejects_a_missing_template_key() -> None:
 
     with pytest.raises(OutputError, match="no message template"):
         render_report(report, message_templates={})
+
+
+def test_render_text_for_error_with_extra_shows_head_and_hint() -> None:
+    report = Report(
+        status="error",
+        scope="project",
+        action="view",
+        code="view_lib.projection.path_not_found",
+        meta={"path": "docs/x"},
+        extra={"address": "docs", "routes": [{"index": "1", "key": "api", "node_type": "ordinary"}]},
+    )
+    templates = {"view_lib.projection.path_not_found": "route {path} does not exist"}
+
+    actual = render_report(report, message_templates=templates, body="docs\n- [/][1] api")
+
+    assert actual == (
+        "[error] [scope=project] [action=view] [code=view_lib.projection.path_not_found] "
+        "[path=docs%2Fx]: route docs/x does not exist\n\n---\n\ndocs\n- [/][1] api"
+    )
+
+
+def test_render_text_for_error_without_extra_stays_head_only() -> None:
+    report = Report(
+        status="error",
+        scope="project",
+        action="view",
+        code="view.error.cache_missing",
+        meta={"name": "docs"},
+    )
+    templates = {"view.error.cache_missing": "cache is missing"}
+
+    actual = render_report(report, message_templates=templates)
+
+    assert actual == (
+        "[error] [scope=project] [action=view] [code=view.error.cache_missing] [name=docs]: cache is missing"
+    )
+
+
+def test_render_json_for_error_with_extra_includes_extra() -> None:
+    report = Report(
+        status="error",
+        scope="project",
+        action="view",
+        code="view_lib.projection.path_not_found",
+        meta={"path": "docs/x"},
+        extra={"address": "docs", "routes": []},
+        message="route does not exist",
+    )
+
+    actual = json.loads(render_report(report, output_format="json"))
+
+    assert actual == {
+        "status": "error",
+        "scope": "project",
+        "action": "view",
+        "code": "view_lib.projection.path_not_found",
+        "meta": {"path": "docs/x"},
+        "extra": {"address": "docs", "routes": []},
+        "message": "route does not exist",
+    }
+
+
+def test_report_rejects_read_data_on_an_error() -> None:
+    with pytest.raises(ValueError, match="error reports cannot contain read data"):
+        Report(status="error", scope="project", action="view", code="view.error.invalid", data=[])
 
 
 def test_text_tags_encode_values_that_conflict_with_the_report_syntax() -> None:

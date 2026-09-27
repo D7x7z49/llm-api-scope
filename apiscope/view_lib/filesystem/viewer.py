@@ -8,7 +8,8 @@ from pathlib import Path
 from apiscope.cache import CacheMetadata
 from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
-from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.schema import TreeNode
+from apiscope.view_lib.tree import SourceTree, root_path
 
 
 class FilesystemViewer:
@@ -28,15 +29,30 @@ def build_filesystem_tree(
         file_path = content / metadata.content_name
         if file_path.parent != content or not file_path.is_file():
             raise ProjectionError(ProjectionReason.CONTENT_INVALID)
-        roots: tuple[TreeNode, ...] = (TreeNode(value=file_path.name, path=file_path.name),)
+        roots: tuple[TreeNode, ...] = (TreeNode(key=file_path.name, path=file_path.name),)
     else:
         if not content.is_dir():
             raise ProjectionError(ProjectionReason.CONTENT_INVALID)
-        roots = tuple(_directory_nodes(content, exclude_git=exclude_git))
+        root = content.resolve()
+        roots = tuple(
+            _directory_nodes(
+                content,
+                exclude_git=exclude_git,
+                root=root,
+                visited={root},
+            )
+        )
     return SourceTree(roots=roots, normalize_path=_normalize_filesystem_path)
 
 
-def _directory_nodes(directory: Path, *, exclude_git: bool, prefix: str = "") -> list[TreeNode]:
+def _directory_nodes(
+    directory: Path,
+    *,
+    exclude_git: bool,
+    root: Path,
+    visited: set[Path],
+    prefix: str = "",
+) -> list[TreeNode]:
     children = [child for child in directory.iterdir() if not (exclude_git and child.name == ".git")]
     children.sort(key=lambda child: _sort_key(_relative_path(child, prefix)))
 
@@ -44,17 +60,40 @@ def _directory_nodes(directory: Path, *, exclude_git: bool, prefix: str = "") ->
     for child in children:
         relative = _relative_path(child, prefix)
         if child.is_dir():
+            target = _resolved_directory(child, root)
+            if target is None or target in visited:
+                nodes.append(TreeNode(key=child.name, path=relative))
+                continue
+            visited.add(target)
             nodes.append(
                 TreeNode(
-                    value=child.name,
+                    key=child.name,
                     path=relative,
-                    children=tuple(_directory_nodes(child, exclude_git=exclude_git, prefix=relative)),
+                    children=tuple(
+                        _directory_nodes(
+                            child,
+                            exclude_git=exclude_git,
+                            root=root,
+                            visited=visited,
+                            prefix=relative,
+                        )
+                    ),
                     node_type="ordinary",
                 )
             )
         else:
-            nodes.append(TreeNode(value=child.name, path=relative))
+            nodes.append(TreeNode(key=child.name, path=relative))
     return nodes
+
+
+def _resolved_directory(path: Path, root: Path) -> Path | None:
+    try:
+        target = path.resolve()
+    except OSError:
+        return None
+    if target != root and root not in target.parents:
+        return None
+    return target
 
 
 def _relative_path(path: Path, prefix: str) -> str:

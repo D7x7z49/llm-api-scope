@@ -12,7 +12,8 @@ from apiscope.cache import CacheMetadata
 from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
 from apiscope.view_lib.openapi.constants import METHOD_ORDER
-from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.schema import TreeNode
+from apiscope.view_lib.tree import SourceTree, root_path
 
 _METHOD_RANK = {method: rank for rank, method in enumerate(METHOD_ORDER)}
 
@@ -57,6 +58,13 @@ class OpenapiViewer:
 
 
 def _add_path(roots: dict[tuple[str, str], _MutableNode], path: str, path_item: Mapping[str, Any]) -> None:
+    if path == "/":
+        root_node = roots.setdefault(("path", "/"), _MutableNode("/"))
+        root_node.path = "/"
+        root_node.hint = _path_hint(path_item)
+        _add_operations(root_node, path_item, target_path="/")
+        return
+
     segments = _path_segments(path)
     if not segments:
         return
@@ -73,9 +81,9 @@ def _add_path(roots: dict[tuple[str, str], _MutableNode], path: str, path_item: 
 
     if node is None:
         return
-    node.path = path
+    node.path = _path_prefix(full_segments)
     node.hint = _path_hint(path_item)
-    _add_operations(node, path_item, target_path=path)
+    _add_operations(node, path_item, target_path=node.path)
 
 
 def _add_operations(node: _MutableNode, path_item: Mapping[str, Any], *, target_path: str) -> None:
@@ -89,7 +97,7 @@ def _add_operations(node: _MutableNode, path_item: Mapping[str, Any], *, target_
             path=_operation_path(target_path, label),
             is_method=True,
         )
-        operation_node.hint = _operation_hint(operation, method)
+        operation_node.hint = _operation_hint(operation)
         node.children[("method", label)] = operation_node
 
     additional_operations = path_item.get("additionalOperations")
@@ -104,23 +112,15 @@ def _add_operations(node: _MutableNode, path_item: Mapping[str, Any], *, target_
             path=_operation_path(target_path, method),
             is_method=True,
         )
-        operation_node.hint = _operation_hint(operation, method)
+        operation_node.hint = _operation_hint(operation)
         node.children[("method", method)] = operation_node
 
 
 def _to_tree_node(node: _MutableNode) -> TreeNode:
     children = tuple(_to_tree_node(child) for child in _sort_nodes(node.children.values()))
-    if node.hint is None:
-        return TreeNode(
-            value=node.label,
-            children=children,
-            path=node.path,
-            node_type="leaf" if node.is_method else "ordinary",
-        )
     return TreeNode(
-        value=node.hint,
-        kind="key_value",
         key=node.label,
+        description=node.hint,
         children=children,
         path=node.path,
         node_type="leaf" if node.is_method else "ordinary",
@@ -139,25 +139,17 @@ def _sort_nodes(nodes: Any) -> list[_MutableNode]:
 
 
 def _path_prefix(segments: list[str]) -> str:
-    if segments == ["/"]:
-        return "/"
-    return "/" + "/".join(segment.lstrip("/") for segment in segments)
+    return "/".join(segments)
 
 
 def _operation_path(path: str, method: str) -> str:
     if path == "/":
         return f"/{method}"
-    return f"{path.rstrip('/')}/{method}"
+    return f"{path}/{method}"
 
 
 def _path_segments(path: str) -> list[str]:
-    if path == "/":
-        return ["/"]
-    parts = [part for part in path.split("/") if part]
-    if not parts:
-        return []
-    parts[0] = f"/{parts[0]}"
-    return parts
+    return [part for part in path.split("/") if part]
 
 
 def _path_hint(path_item: Mapping[str, Any]) -> str | None:
@@ -168,12 +160,12 @@ def _path_hint(path_item: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _operation_hint(operation: Mapping[str, Any], method: str) -> str:
+def _operation_hint(operation: Mapping[str, Any]) -> str | None:
     for field_name in ("summary", "operationId"):
         value = operation.get(field_name)
         if isinstance(value, str) and value.strip():
             return value.strip()
-    return f"{method} operation"
+    return None
 
 
 def _content_file(content: Path, metadata: CacheMetadata) -> Path:
@@ -205,5 +197,4 @@ def _normalize_openapi_path(value: str) -> str:
 def _normalize_path_item_target(path: str) -> str:
     if path == "webhooks" or path.startswith("webhooks/"):
         return path.rstrip("/") or "webhooks"
-    normalized = path if path.startswith("/") else f"/{path}"
-    return normalized.rstrip("/") or "/"
+    return path.rstrip("/")

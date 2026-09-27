@@ -4,14 +4,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urljoin, urlsplit
 
 from apiscope.cache import CacheMetadata
-from apiscope.view_lib.constants import ProjectionReason
+from apiscope.view_lib.constants import OUTPUT_TEMPLATES, NodeLabel, ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
-from apiscope.view_lib.tree import SourceTree, TreeNode, root_path
+from apiscope.view_lib.schema import TreeNode
+from apiscope.view_lib.tree import SourceTree, root_path
 
-_H1 = re.compile(r"^\s*#\s+(?!#)(?P<title>\S.*)$")
-_H2 = re.compile(r"^\s*##\s+(?!#)(?P<title>\S.*)$")
 _LINK = re.compile(
     r"^\s*[-*]\s+\[(?P<title>[^\]]+)\]\((?P<url>[^)]+)\)"
     r"(?:\s*:\s*(?P<description>.*))?\s*$"
@@ -19,10 +19,15 @@ _LINK = re.compile(
 
 
 @dataclass(slots=True)
-class _Section:
-    title: str
-    path: str
-    links: list[TreeNode] = field(default_factory=list)
+class _Link:
+    target: str
+    description: str
+
+
+@dataclass(slots=True)
+class _Directory:
+    children: dict[str, _Directory] = field(default_factory=dict)
+    link: _Link | None = None
 
 
 class LlmstxtViewer:
@@ -33,52 +38,101 @@ class LlmstxtViewer:
         except (OSError, UnicodeError) as error:
             raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
 
-        sections: list[_Section] = []
-        section_counts: dict[str, int] = {}
-        current: _Section | None = None
+        links: dict[str, _Link] = {}
         for line in lines:
-            heading = _H2.match(line)
-            if heading is not None:
-                title = heading.group("title").strip()
-                occurrence = section_counts.get(title, 0) + 1
-                section_counts[title] = occurrence
-                section_path = f"section/{title}" if occurrence == 1 else f"section/{title}#{occurrence}"
-                current = _Section(title=title, path=section_path)
-                sections.append(current)
+            match = _LINK.match(line)
+            if match is None:
                 continue
+            title = match.group("title").strip()
+            target = _resolve_target(metadata.source, match.group("url").strip())
+            route = _route_path(metadata.source, target)
+            note = (match.group("description") or "").strip()
+            links.setdefault(
+                route,
+                _Link(target=target, description=_link_description(title or target, note)),
+            )
 
-            if current is None:
-                continue
-            link = _LINK.match(line)
-            if link is None:
-                continue
-            title = link.group("title").strip()
-            url = link.group("url").strip()
-            description = (link.group("description") or "").strip()
-            value = url if not description else f"{url} — {description}"
-            current.links.append(
+        roots: list[TreeNode] = []
+        if lines:
+            roots.append(TreeNode(key=OUTPUT_TEMPLATES[NodeLabel.OVERVIEW], path="overview"))
+        roots.extend(_route_nodes(_build_directories(links)))
+        return SourceTree(roots=tuple(roots), normalize_path=_normalize_llmstxt_path)
+
+
+def _link_description(title: str, note: str) -> str:
+    label = f"[{title}]"
+    return f"{label} {note}" if note else label
+
+
+def _build_directories(links: dict[str, _Link]) -> _Directory:
+    root = _Directory()
+    for route, link in links.items():
+        current = root
+        for segment in route.split("/"):
+            current = current.children.setdefault(segment, _Directory())
+        current.link = link
+    return root
+
+
+def _route_nodes(directory: _Directory, prefix: str = "") -> list[TreeNode]:
+    nodes: list[TreeNode] = []
+    for segment in sorted(directory.children):
+        child = directory.children[segment]
+        route = f"{prefix}/{segment}" if prefix else segment
+        if child.children:
+            nodes.append(
                 TreeNode(
-                    value=value,
-                    kind="key_value",
-                    key=title or url,
-                    path=f"{current.path}/{len(current.links) + 1}",
+                    key=segment,
+                    children=tuple(_route_nodes(child, route)),
+                    path=route,
+                    node_type="ordinary",
                 )
             )
-
-        has_overview = any(_H1.match(line) is not None for line in lines) or bool(lines)
-        roots: list[TreeNode] = []
-        if has_overview:
-            roots.append(TreeNode(value="Overview", path="overview"))
-        roots.extend(
-            TreeNode(
-                value=section.title,
-                children=tuple(section.links),
-                path=section.path,
-                node_type="ordinary",
+        elif child.link is not None:
+            nodes.append(
+                TreeNode(
+                    key=segment,
+                    description=child.link.description,
+                    path=route,
+                    source_target=child.link.target,
+                )
             )
-            for section in sections
-        )
-        return SourceTree(roots=tuple(roots), normalize_path=_normalize_llmstxt_path)
+    return nodes
+
+
+def _resolve_target(source: str, link: str) -> str:
+    try:
+        target = urljoin(source, link)
+        parts = urlsplit(target)
+    except ValueError as error:
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+    if parts.username is not None or parts.password is not None:
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
+    return target
+
+
+def _route_path(source: str, target: str) -> str:
+    try:
+        source_parts = urlsplit(source)
+        target_parts = urlsplit(target)
+    except ValueError as error:
+        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+    path = target_parts.path
+    same_origin = (
+        source_parts.scheme.lower() == target_parts.scheme.lower()
+        and source_parts.netloc.lower() == target_parts.netloc.lower()
+        and bool(target_parts.netloc)
+    )
+
+    if target_parts.netloc and not same_origin:
+        path = f"{target_parts.netloc}/{path.lstrip('/')}"
+    else:
+        base = source_parts.path.rpartition("/")[0].rstrip("/")
+        if base and (path == base or path.startswith(f"{base}/")):
+            path = path[len(base) :]
+
+    route = path.strip("/")
+    return route or "index"
 
 
 def _content_file(content: Path, metadata: CacheMetadata) -> Path:
@@ -91,9 +145,7 @@ def _content_file(content: Path, metadata: CacheMetadata) -> Path:
 
 
 def _normalize_llmstxt_path(value: str) -> str:
-    normalized = root_path(value)
+    normalized = root_path(value).strip("/")
     if not normalized:
         return ""
-    if normalized == "overview" or normalized.startswith("section/"):
-        return normalized
-    raise ProjectionError(ProjectionReason.PATH_INVALID, {"path": value})
+    return normalized
