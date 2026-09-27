@@ -11,6 +11,7 @@ repos:
     hooks:
       - id: fix-headers
         files: ^(apiscope|test|tests|scripts|docs)/
+        exclude: ^tests/fixtures/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

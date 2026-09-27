@@ -10,6 +10,8 @@ from apiscope.list.app import app as list_app
 from apiscope.list.constants import COMMAND_NAME as LIST_COMMAND_NAME
 from apiscope.output import OutputFormat, Report, emit_report
 from apiscope.preflight import PreflightError, run_preflight
+from apiscope.read.app import app as read_app
+from apiscope.read.constants import COMMAND_NAME as READ_COMMAND_NAME
 from apiscope.remove.app import app as remove_app
 from apiscope.remove.constants import COMMAND_NAME as REMOVE_COMMAND_NAME
 from apiscope.sync.app import app as sync_app
@@ -30,6 +32,7 @@ app = typer.Typer(
 
 app.add_typer(add_app, name=ADD_COMMAND_NAME)
 app.add_typer(remove_app, name=REMOVE_COMMAND_NAME)
+app.add_typer(read_app, name=READ_COMMAND_NAME)
 app.add_typer(list_app, name=LIST_COMMAND_NAME)
 app.add_typer(sync_app, name=SYNC_COMMAND_NAME)
 app.add_typer(view_app, name=VIEW_COMMAND_NAME)
