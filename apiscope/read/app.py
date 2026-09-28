@@ -159,12 +159,13 @@ def _select_node(
     if options.index is None:
         node: IndexedNode | None
         if route not in {"", "."}:
-            node = scoped_nodes[0]
+            node = tree.resolve(route)
+            children = tree.children_of(node, scoped_nodes)
         else:
             indexed = tree.indexed()
             node = indexed[0] if len(indexed) == 1 else None
+            children = scoped_nodes if node is None else ()
         if node is None or not node.is_leaf:
-            children = tree.children_of(node, scoped_nodes)
             target = (node.path or node.key) if node is not None else options.address
             raise MessageHintError(
                 "read.error.target_not_leaf",
@@ -176,11 +177,6 @@ def _select_node(
 
     node = next((candidate for candidate in scoped_nodes if candidate.index == options.index), None)
     if node is None:
-        if any(candidate.index == options.index for candidate in tree.indexed()):
-            raise MessageError(
-                "read.error.index_outside_address",
-                {"address": options.address, "index": options.index},
-            )
         raise MessageError("view_lib.projection.index_not_found", {"index": options.index})
     if not node.is_leaf:
         children = tree.children_of(node, scoped_nodes)

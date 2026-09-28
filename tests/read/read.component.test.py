@@ -134,7 +134,7 @@ def test_read_prompts_for_routes_when_address_selects_an_openapi_branch(
     view = runner.invoke(app, ["--json", "view", "pets"], catch_exceptions=False)
     assert view.exit_code == 0
     view_target = next(item["path"] for item in json.loads(view.output)["data"] if item.get("path") == "pets")
-    result = runner.invoke(app, ["--json", "read", "pets/pets", "1"], catch_exceptions=False)
+    result = runner.invoke(app, ["--json", "read", "pets/pets"], catch_exceptions=False)
 
     assert result.exit_code == 1
     payload = json.loads(result.output)
@@ -153,20 +153,11 @@ def test_read_returns_one_openapi_operation_from_a_view_index(
     runner = CliRunner()
 
     _register_and_sync(runner, "pets", "openapi.yaml", doc_type="openapi")
-    view = runner.invoke(app, ["--json", "view", "pets"], catch_exceptions=False)
+    view = runner.invoke(app, ["--json", "view", "pets/pets"], catch_exceptions=False)
     assert view.exit_code == 0
     view_data = json.loads(view.output)["data"]
     operation_node = next(item for item in view_data if item.get("path") == "pets/GET")
     operation_target = operation_node["path"]
-    operation_view = runner.invoke(
-        app,
-        ["--json", "view", "pets/pets/GET"],
-        catch_exceptions=False,
-    )
-    assert operation_view.exit_code == 0
-    operation_view_data = json.loads(operation_view.output)["data"]
-    assert [item["path"] for item in operation_view_data] == [operation_target]
-    assert operation_view_data[0]["index"] == "1"
     result = runner.invoke(app, ["--json", "read", "pets/pets", operation_node["index"]], catch_exceptions=False)
 
     assert result.exit_code == 0
@@ -268,7 +259,7 @@ def test_read_supports_a_single_file_source(
     assert json.loads(result.output)["data"][0]["content"] == "readme\n"
 
 
-def test_read_index_must_belong_to_the_address_subtree(
+def test_read_index_must_exist_in_the_address_scope(
     isolated_home: Path,
     project_cwd: Path,
 ) -> None:
@@ -279,13 +270,17 @@ def test_read_index_must_belong_to_the_address_subtree(
     runner = CliRunner()
 
     _register_and_sync(runner, "docs", "docs")
-    result = runner.invoke(app, ["--json", "read", "docs/api", "2"], catch_exceptions=False)
+    outside = runner.invoke(app, ["--json", "read", "docs/api", "2"], catch_exceptions=False)
+    parent = runner.invoke(app, ["--json", "read", "docs/api", "1.1"], catch_exceptions=False)
 
-    assert result.exit_code == 1
-    payload = json.loads(result.output)
-    assert payload["code"] == "read.error.index_outside_address"
-    assert payload["meta"] == {}
-    assert payload["message"] == "tree index 2 is outside address docs/api"
+    assert outside.exit_code == 1
+    outside_payload = json.loads(outside.output)
+    assert outside_payload["code"] == "view_lib.projection.index_not_found"
+    assert outside_payload["meta"] == {}
+    assert outside_payload["message"] == "tree index 2 does not exist"
+
+    assert parent.exit_code == 1
+    assert json.loads(parent.output)["code"] == "view_lib.projection.index_not_found"
 
 
 def test_read_prompts_for_routes_instead_of_reading_a_directory(
@@ -350,9 +345,9 @@ def test_read_returns_one_rfc_txt_page(
     runner = CliRunner()
 
     _register_and_sync(runner, "rfc", "rfc.txt", doc_type="rfc")
-    page_view = runner.invoke(app, ["--json", "view", "rfc/page/2"], catch_exceptions=False)
-    page_index = json.loads(page_view.output)["data"][0]["index"]
-    result = runner.invoke(app, ["--json", "read", "rfc/page/2", page_index], catch_exceptions=False)
+    page_view = runner.invoke(app, ["--json", "view", "rfc/page"], catch_exceptions=False)
+    page_index = next(item["index"] for item in json.loads(page_view.output)["data"] if item["path"] == "page/2")
+    result = runner.invoke(app, ["--json", "read", "rfc/page", page_index], catch_exceptions=False)
 
     assert result.exit_code == 0
     payload = json.loads(result.output)

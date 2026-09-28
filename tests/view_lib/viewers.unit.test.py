@@ -133,7 +133,7 @@ webhooks:
 
     tree = OpenapiViewer().build(content, _metadata("openapi", name="openapi.yaml"))
 
-    assert tree.select("pets/")[0].path == "pets"
+    assert tree.resolve("pets/").path == "pets"
     assert [(node.index, node.description, node.key) for node in tree.indexed()] == [
         ("1", "pet collection", "pets"),
         ("1.1", "list pets", "GET"),
@@ -169,9 +169,8 @@ def test_openapi_viewer_indexes_structural_prefixes(tmp_path: Path) -> None:
     selected = tree.select("pets")
 
     assert [(node.index, node.path, node.node_type) for node in selected] == [
-        ("1", "pets", "ordinary"),
-        ("1.1", "pets/{petId}", "ordinary"),
-        ("1.1.1", "pets/{petId}/GET", "leaf"),
+        ("1", "pets/{petId}", "ordinary"),
+        ("1.1", "pets/{petId}/GET", "leaf"),
     ]
     with pytest.raises(ProjectionError) as caught:
         tree.select("pets/{petId}/DELETE")

@@ -27,18 +27,18 @@ class SourceTree:
             raise ProjectionError(ProjectionReason.PATH_NOT_FOUND, self._missing_path_values(path, normalized))
         return self._resolve_normalized(path, normalized, self.indexed())
 
-    def select(self, path: str | None) -> tuple[IndexedNode, ...]:
+    def select(self, path: str | None, *, depth: int | None = None) -> tuple[IndexedNode, ...]:
         indexed = self.indexed()
         if path is None:
-            return indexed
+            return _within_depth(indexed, (), depth)
 
         normalized = self.normalize_path(path)
         if not normalized:
-            return indexed
+            return _within_depth(indexed, (), depth)
 
         selected = self._resolve_normalized(path, normalized, indexed)
         scoped = tuple(node for node in indexed if _is_descendant_or_self(node.address, selected.address))
-        return _reindex(scoped, selected.address)
+        return _reindex_members(_within_depth(scoped, selected.address, depth), selected.address)
 
     def children_of(
         self,
@@ -122,7 +122,7 @@ def _flatten(nodes: tuple[IndexedBranch, ...]) -> list[IndexedNode]:
     return flattened
 
 
-def _reindex(nodes: tuple[IndexedNode, ...], scope_address: tuple[int, ...]) -> tuple[IndexedNode, ...]:
+def _reindex_members(nodes: tuple[IndexedNode, ...], scope_address: tuple[int, ...]) -> tuple[IndexedNode, ...]:
     if not nodes:
         return ()
 
@@ -139,13 +139,12 @@ def _reindex(nodes: tuple[IndexedNode, ...], scope_address: tuple[int, ...]) -> 
     result: list[IndexedNode] = []
     for node in nodes:
         depth = len(node.address) - scope_depth
-        if depth == 0:
-            index = "1"
-        else:
-            parent = node.address[: scope_depth + depth - 1]
-            width = len(str(counts[parent]))
-            segment = str(node.address[scope_depth + depth - 1]).zfill(width)
-            index = f"{indexes[parent]}.{segment}"
+        if depth <= 0:
+            continue
+        parent = node.address[: scope_depth + depth - 1]
+        width = len(str(counts[parent]))
+        segment = str(node.address[scope_depth + depth - 1]).zfill(width)
+        index = segment if depth == 1 else f"{indexes[parent]}.{segment}"
         indexes[node.address] = index
         result.append(
             IndexedNode(
@@ -159,6 +158,17 @@ def _reindex(nodes: tuple[IndexedNode, ...], scope_address: tuple[int, ...]) -> 
             )
         )
     return tuple(result)
+
+
+def _within_depth(
+    nodes: Iterable[IndexedNode],
+    anchor_address: tuple[int, ...],
+    depth: int | None,
+) -> tuple[IndexedNode, ...]:
+    if depth is None:
+        return tuple(nodes)
+    limit = len(anchor_address) + depth
+    return tuple(node for node in nodes if len(node.address) <= limit)
 
 
 def hint_nodes(children: Iterable[IndexedNode]) -> list[dict[str, object]]:

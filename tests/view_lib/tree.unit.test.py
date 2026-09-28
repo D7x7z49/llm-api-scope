@@ -108,9 +108,8 @@ def test_select_relays_out_indexes_for_a_partial_scope() -> None:
     selected = tree.select("docs")
 
     assert [(node.index, node.key) for node in selected] == [
-        ("1", "docs"),
-        ("1.1", "api.md"),
-        ("1.2", "guide.md"),
+        ("1", "api.md"),
+        ("2", "guide.md"),
     ]
 
 
@@ -120,9 +119,39 @@ def test_select_relays_out_indexes_below_a_leaf_scope() -> None:
         normalize_path=lambda value: "" if value == "." else value,
     )
 
-    selected = tree.select("docs/guide.md")
+    assert tree.select("docs/guide.md") == ()
 
-    assert [(node.index, node.key) for node in selected] == [("1", "guide.md")]
+
+def test_select_caps_the_body_at_a_depth() -> None:
+    tree = SourceTree(
+        roots=(
+            TreeNode(
+                key="docs",
+                path="docs",
+                children=(
+                    TreeNode(
+                        key="api",
+                        path="docs/api",
+                        children=(TreeNode(key="guide.md", path="docs/api/guide.md"),),
+                    ),
+                    TreeNode(key="readme.md", path="docs/readme.md"),
+                ),
+            ),
+        ),
+        normalize_path=lambda value: "" if value == "." else value,
+    )
+
+    assert [(node.index, node.key) for node in tree.select(None, depth=1)] == [("1", "docs")]
+    assert [(node.index, node.key) for node in tree.select("docs", depth=1)] == [
+        ("1", "api"),
+        ("2", "readme.md"),
+    ]
+    assert [(node.index, node.key) for node in tree.select("docs", depth=2)] == [
+        ("1", "api"),
+        ("1.1", "guide.md"),
+        ("2", "readme.md"),
+    ]
+    assert tree.select("docs", depth=0) == ()
 
 
 def test_tree_rejects_duplicate_sibling_keys() -> None:

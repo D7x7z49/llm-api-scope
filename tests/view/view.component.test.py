@@ -35,8 +35,7 @@ def test_view_shows_a_cached_filesystem_tree(
         "\n---\n\n"
         "{\n"
         '  "entries": 3,\n'
-        '  "cache": "fresh",\n'
-        '  "index": "temporary"\n'
+        '  "cache": "fresh"\n'
         "}\n"
     )
 
@@ -56,13 +55,13 @@ def test_view_path_filter_relays_out_the_index(
     result = runner.invoke(app, ["view", "docs", "api"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert "- [1] api" in result.output
-    assert "- [1.1] overview.md" in result.output
+    assert "- [1] overview.md" in result.output
+    assert "[path=api]" in result.output
     assert "README.md" not in result.output
 
     combined = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
     assert combined.exit_code == 0
-    assert "- [1.1] overview.md" in combined.output
+    assert "- [1] overview.md" in combined.output
     assert "README.md" not in combined.output
 
 
@@ -86,8 +85,28 @@ def test_view_json_contains_the_same_semantic_nodes(
         "action": "view",
         "meta": {"name": "docs", "path": "."},
         "data": [{"index": "1", "key": "README.md", "node_type": "leaf", "path": "README.md"}],
-        "extra": {"entries": 1, "cache": "fresh", "index": "temporary"},
+        "extra": {"entries": 1, "cache": "fresh"},
     }
+
+
+def test_view_depth_caps_the_body(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    source = project_cwd / "docs"
+    (source / "api").mkdir(parents=True)
+    (source / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
+    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    runner = CliRunner()
+
+    runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["--json", "view", "docs", "--depth", "1"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert [item["key"] for item in payload["data"]] == ["api", "README.md"]
+    assert payload["meta"] == {"name": "docs", "path": ".", "depth": 1}
 
 
 def test_view_reports_a_missing_cache(

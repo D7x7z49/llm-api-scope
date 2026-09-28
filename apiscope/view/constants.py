@@ -17,6 +17,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "view.help.command": "show the structure of a cached source",
     "view.help.argument.name": "the registered source name or combined address",
     "view.help.argument.path": "the route to display; omit it when using a combined address",
+    "view.help.option.depth": "levels to show below the scope; the default is unlimited",
     "view.error.runtime_context_unavailable": "runtime context is unavailable",
     "view.error.invalid_options": "invalid view options",
     "view.error.name_not_found": "source {name} does not exist",

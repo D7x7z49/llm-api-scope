@@ -44,6 +44,7 @@ app = typer.Typer(
     name=COMMAND_NAME,
     help=MESSAGE_TEMPLATES["view.help.command"],
     subcommand_metavar="",
+    context_settings={"allow_interspersed_args": True},
 )
 
 
@@ -55,6 +56,7 @@ app = typer.Typer(
 @dataclass(frozen=True, slots=True)
 class ViewResult:
     cache_state: str
+    anchor: IndexedNode | None
     nodes: tuple[IndexedNode, ...]
 
 
@@ -68,6 +70,7 @@ def main_callback(
     ctx: typer.Context,
     name: str = typer.Argument(..., help=MESSAGE_TEMPLATES["view.help.argument.name"]),
     path: str | None = typer.Argument(None, help=MESSAGE_TEMPLATES["view.help.argument.path"]),
+    depth: int | None = typer.Option(None, "--depth", min=0, help=MESSAGE_TEMPLATES["view.help.option.depth"]),
 ) -> None:
     runtime_context = ctx.find_object(RuntimeContext)
     if runtime_context is None:
@@ -76,7 +79,7 @@ def main_callback(
     try:
         if path is None:
             name, path = split_address(name, runtime_context.config.source)
-        options = ViewOptions(name=name, path=path)
+        options = ViewOptions(name=name, path=path, depth=depth)
         command_context = ViewCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)
         source = runtime_context.config.source.get(options.name)
@@ -94,22 +97,24 @@ def main_callback(
         _emit_error(runtime_context, error)
         raise typer.Exit(code=1) from error
 
+    meta: dict[str, object] = {"name": options.name, "path": options.path or "."}
+    if result.anchor is not None and result.anchor.description:
+        meta["description"] = result.anchor.description
+    if options.depth is not None:
+        meta["depth"] = options.depth
+    extra = {"entries": len(result.nodes), "cache": result.cache_state}
     emit_report(
         Report(
             status="ok",
             scope=_scope(runtime_context),
             action=COMMAND_NAME,
-            meta={"name": options.name, "path": options.path or "."},
+            meta=meta,
             data=[node.as_data() for node in result.nodes],
-            extra={
-                "entries": len(result.nodes),
-                "cache": result.cache_state,
-                "index": "temporary",
-            },
+            extra=extra,
         ),
         output_format=runtime_context.options.output_format,
         body=_render_body(result.nodes),
-        foot=_render_foot(result),
+        foot=_render_foot(extra),
     )
 
 
@@ -137,12 +142,16 @@ def _run_view(command_context: ViewCommandContext, source: RuntimeSource) -> Vie
 
     try:
         tree = build_tree(source.doc_type, snapshot.content, metadata)
-        nodes = tree.select(options.path)
+        anchor = None
+        if options.path is not None and tree.normalize_path(options.path):
+            anchor = tree.resolve(options.path)
+        nodes = tree.select(options.path, depth=options.depth)
     except OSError as error:
         raise MessageError("view.error.projection_failed", {"name": options.name}) from error
 
     return ViewResult(
         cache_state=inspection.state,
+        anchor=anchor,
         nodes=nodes,
     )
 
@@ -174,16 +183,8 @@ def _render_body(nodes: tuple[IndexedNode, ...]) -> str:
     return "\n".join(lines)
 
 
-def _render_foot(result: ViewResult) -> str:
-    return json.dumps(
-        {
-            "entries": len(result.nodes),
-            "cache": result.cache_state,
-            "index": "temporary",
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
+def _render_foot(extra: dict[str, object]) -> str:
+    return json.dumps(extra, ensure_ascii=False, indent=2)
 
 
 def _scope(runtime: RuntimeContext) -> ReportScope:

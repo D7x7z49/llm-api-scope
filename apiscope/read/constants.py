@@ -24,7 +24,6 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "read.error.cache_missing": "cannot read source {name} because its cache is missing. sync it before retrying",
     "read.error.cache_invalid": "cannot read source {name} because its cache is invalid. sync it before retrying",
     "read.error.target_invalid": "cannot read target {target} because it is invalid",
-    "read.error.index_outside_address": "tree index {index} is outside address {address}",
     "read.error.target_not_leaf": "{target} is an ordinary node, not a leaf",
     "read.error.content_invalid": "cannot read source {name} because its cached content is invalid",
 }
