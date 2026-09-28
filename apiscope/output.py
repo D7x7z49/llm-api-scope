@@ -101,7 +101,19 @@ class Report:
 # ==============================================================================
 
 
-_META_FIELD_ORDER = ("name", "path", "description", "depth", "type", "config", "query", "filter", "count")
+_META_FIELD_ORDER = (
+    "name",
+    "path",
+    "description",
+    "depth",
+    "type",
+    "config",
+    "query",
+    "filter",
+    "limit",
+    "offset",
+    "count",
+)
 _EXTRA_FIELD_ORDER = ("count", "total", "next", "warnings")
 _SAFE_TOKEN_PATTERN = r"^[A-Za-z0-9_.-]+$"
 _SAFE_FIELD_PATTERN = r"^[a-z][a-z0-9_]*$"

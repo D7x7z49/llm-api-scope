@@ -88,7 +88,7 @@ def test_list_all_groups_effective_sources_by_type(
         "[rfc]\n"
         "- [rfc-http] https://example.test/rfc.txt\n\n"
         "---\n\n"
-        "count 2\n"
+        "count 2 total 2\n"
     )
 
 
@@ -123,7 +123,7 @@ def test_list_filters_one_type_in_json(
                 "source": "https://example.test/openapi.json",
             }
         ],
-        "extra": {"count": 1},
+        "extra": {"count": 1, "total": 1},
     }
 
 
@@ -176,7 +176,7 @@ def test_list_uses_the_merged_project_registry(
             {"name": "project-only", "type": "openapi", "source": "./project-api.json"},
             {"name": "global-only", "type": "repo", "source": "./global"},
         ],
-        "extra": {"count": 4},
+        "extra": {"count": 4, "total": 4},
     }
 
 
@@ -194,7 +194,7 @@ def test_list_reports_an_empty_project_registry(
 
     assert result.exit_code == 0
     assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all]\n\n---\n\n(no sources)\n\n---\n\ncount 0\n"
+        "[ok] [scope=project] [action=list] [filter=all]\n\n---\n\n(no sources)\n\n---\n\ncount 0 total 0\n"
     )
 
 
@@ -220,5 +220,129 @@ def test_list_global_reads_only_the_home_registry(
 
     assert result.exit_code == 0
     assert result.output == (
-        "[ok] [scope=home] [action=list] [filter=all]\n\n---\n\n[filesystem]\n- [docs] ./docs\n\n---\n\ncount 1\n"
+        "[ok] [scope=home] [action=list] [filter=all]\n\n"
+        "---\n\n"
+        "[filesystem]\n"
+        "- [docs] ./docs\n\n"
+        "---\n\n"
+        "count 1 total 1\n"
     )
+
+
+# window the source list
+
+
+def test_list_windows_the_sources_by_limit(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    _write_config(
+        git_project / ".apiscope" / "config.json",
+        {
+            "source": {
+                "petstore": {"doc_type": "openapi", "doc_src": "./openapi.json"},
+                "rfc-http": {"doc_type": "rfc", "doc_src": "./rfc.txt"},
+            },
+        },
+    )
+
+    result = CliRunner().invoke(app, ["list", "all", "--limit", "1"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert result.output == (
+        "[ok] [scope=project] [action=list] [filter=all] [limit=1]\n\n"
+        "---\n\n"
+        "[openapi]\n"
+        "- [petstore] ./openapi.json\n\n"
+        "---\n\n"
+        "count 1 total 2 next 1\n"
+    )
+
+
+def test_list_windows_the_sources_by_offset(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    _write_config(
+        git_project / ".apiscope" / "config.json",
+        {
+            "source": {
+                "petstore": {"doc_type": "openapi", "doc_src": "./openapi.json"},
+                "rfc-http": {"doc_type": "rfc", "doc_src": "./rfc.txt"},
+            },
+        },
+    )
+
+    result = CliRunner().invoke(app, ["list", "all", "--offset", "1"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert result.output == (
+        "[ok] [scope=project] [action=list] [filter=all] [offset=1]\n\n"
+        "---\n\n"
+        "[rfc]\n"
+        "- [rfc-http] ./rfc.txt\n\n"
+        "---\n\n"
+        "count 1 total 2\n"
+    )
+
+
+def test_list_reports_an_empty_window(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    _write_config(
+        git_project / ".apiscope" / "config.json",
+        {
+            "source": {
+                "petstore": {"doc_type": "openapi", "doc_src": "./openapi.json"},
+            },
+        },
+    )
+
+    result = CliRunner().invoke(app, ["list", "all", "--offset", "5"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert result.output == (
+        "[ok] [scope=project] [action=list] [filter=all] [offset=5]\n\n"
+        "---\n\n"
+        "(no items in this window)\n\n"
+        "---\n\n"
+        "count 0 total 1\n"
+    )
+
+
+def test_list_window_in_json(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    _write_config(
+        git_project / ".apiscope" / "config.json",
+        {
+            "source": {
+                "petstore": {"doc_type": "openapi", "doc_src": "./openapi.json"},
+                "rfc-http": {"doc_type": "rfc", "doc_src": "./rfc.txt"},
+            },
+        },
+    )
+
+    result = CliRunner().invoke(app, ["--json", "list", "all", "--limit", "1", "--offset", "1"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "status": "ok",
+        "scope": "project",
+        "action": "list",
+        "meta": {"filter": "all", "limit": 1, "offset": 1},
+        "data": [
+            {"name": "rfc-http", "type": "rfc", "source": "./rfc.txt"},
+        ],
+        "extra": {"count": 1, "total": 2},
+    }
