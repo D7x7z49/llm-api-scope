@@ -4,7 +4,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CacheMetadata, resolve_content_file
 from apiscope.read_lib.constants import ReadReason
 from apiscope.read_lib.errors import ReadError
 from apiscope.read_lib.schema import ReadResult
@@ -24,11 +24,13 @@ class RfcReader:
     ) -> ReadResult:
         if not target.is_leaf or target.path is None:
             raise ReadError(ReadReason.TARGET_NOT_LEAF, {"target": target.path or target.index})
-        path = _content_file(content, metadata)
+        path = resolve_content_file(content, metadata)
+        if path is None:
+            raise ReadError(ReadReason.CONTENT_INVALID)
         try:
             raw = path.read_bytes()
         except OSError as error:
-            raise ReadError(ReadReason.READ_FAILED, {"target": target.path}) from error
+            raise ReadError(ReadReason.CONTENT_INVALID, {"target": target.path}) from error
 
         if _looks_like_xml(raw, path):
             return _read_xml(raw, target.path)
@@ -90,17 +92,3 @@ def _text_result(target: str, text: str, media_type: str) -> ReadResult:
 
 def _looks_like_xml(raw: bytes, path: Path) -> bool:
     return path.suffix.lower() in {".xml", ".rfcxml"} or raw.lstrip().startswith(b"<rfc")
-
-
-def _content_file(content: Path, metadata: CacheMetadata) -> Path:
-    if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    try:
-        root = content.resolve(strict=True)
-        path = (root / metadata.content_name).resolve(strict=True)
-        path.relative_to(root)
-    except (OSError, RuntimeError, ValueError) as error:
-        raise ReadError(ReadReason.CONTENT_INVALID) from error
-    if not path.is_file():
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    return path

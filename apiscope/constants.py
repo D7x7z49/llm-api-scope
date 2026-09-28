@@ -1,5 +1,6 @@
 # apiscope/constants.py
 
+from enum import StrEnum
 from typing import Final
 
 # ===============================================================================
@@ -89,4 +90,41 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "root.error.output.serialization_failed": "report contains a value that cannot be serialized",
     "root.error.errors.invalid_code": "error codes must use dotted lower-case keys",
     "root.error.errors.invalid_values": "error values must be provided as a mapping",
+}
+
+# ==============================================================================
+# report invariants
+# ==============================================================================
+
+
+class ReportInvariant(StrEnum):
+    STATUS_INVALID = "root.report.status_invalid"
+    SCOPE_INVALID = "root.report.scope_invalid"
+    ACTION_INVALID = "root.report.action_invalid"
+    META_NOT_MAPPING = "root.report.meta_not_mapping"
+    CODE_INVALID = "root.report.code_invalid"
+    SUCCESS_WITH_CODE = "root.report.success_with_code"
+    SUCCESS_WITH_MESSAGE = "root.report.success_with_message"
+    ERROR_WITHOUT_CODE = "root.report.error_without_code"
+    DATA_NOT_LIST = "root.report.data_not_list"
+    EXTRA_NOT_MAPPING = "root.report.extra_not_mapping"
+    DATA_EXTRA_PAIR = "root.report.data_extra_pair"
+    ERROR_WITH_DATA = "root.report.error_with_data"
+    FIELD_NAME_UNSAFE = "root.report.field_name_unsafe"
+
+
+REPORT_INVARIANT_MESSAGES: Final[dict[str, str]] = {
+    ReportInvariant.STATUS_INVALID: "report status must be ok or error",
+    ReportInvariant.SCOPE_INVALID: "report scope must be home or project",
+    ReportInvariant.ACTION_INVALID: "report action must be a safe non-empty token",
+    ReportInvariant.META_NOT_MAPPING: "report meta must be a mapping",
+    ReportInvariant.CODE_INVALID: "report code must be a safe non-empty token",
+    ReportInvariant.SUCCESS_WITH_CODE: "successful reports cannot contain a code",
+    ReportInvariant.SUCCESS_WITH_MESSAGE: "successful reports cannot contain a message",
+    ReportInvariant.ERROR_WITHOUT_CODE: "error reports require a code",
+    ReportInvariant.DATA_NOT_LIST: "report data must be a list",
+    ReportInvariant.EXTRA_NOT_MAPPING: "report extra must be a mapping",
+    ReportInvariant.DATA_EXTRA_PAIR: "report data and extra must be provided together",
+    ReportInvariant.ERROR_WITH_DATA: "error reports cannot contain read data",
+    ReportInvariant.FIELD_NAME_UNSAFE: "report field name is unsafe {name!r}",
 }

@@ -48,8 +48,9 @@ def test_filesystem_viewer_builds_a_sorted_directory_tree(tmp_path: Path) -> Non
         ("2", "z"),
         ("2.1", "last.md"),
     ]
-    assert tree.resolve_index("1").node_type == "ordinary"
-    assert tree.resolve_index("1.1").node_type == "leaf"
+    nodes = {node.index: node for node in tree.indexed()}
+    assert nodes["1"].node_type == "ordinary"
+    assert nodes["1.1"].node_type == "leaf"
 
 
 def test_filesystem_viewer_keeps_empty_directories_ordinary(tmp_path: Path) -> None:
@@ -58,7 +59,7 @@ def test_filesystem_viewer_keeps_empty_directories_ordinary(tmp_path: Path) -> N
 
     tree = FilesystemViewer().build(content, _metadata("filesystem", kind="directory", name=None))
 
-    assert tree.resolve_index("1").node_type == "ordinary"
+    assert tree.indexed()[0].node_type == "ordinary"
 
 
 def test_filesystem_viewer_does_not_follow_a_self_link(tmp_path: Path) -> None:

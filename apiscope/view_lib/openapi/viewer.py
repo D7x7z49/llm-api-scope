@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CacheMetadata, resolve_content_file
 from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
 from apiscope.view_lib.openapi.constants import METHOD_ORDER
@@ -29,10 +29,13 @@ class _MutableNode:
 
 class OpenapiViewer:
     def build(self, content: Path, metadata: CacheMetadata) -> SourceTree:
-        document = _load_document(_content_file(content, metadata))
+        content_path = resolve_content_file(content, metadata)
+        if content_path is None:
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
+        document = _load_document(content_path)
         paths = document.get("paths", {})
         if not isinstance(paths, Mapping):
-            raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
 
         path_roots: dict[tuple[str, str], _MutableNode] = {}
         for path in sorted((key for key in paths if isinstance(key, str))):
@@ -168,22 +171,13 @@ def _operation_hint(operation: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _content_file(content: Path, metadata: CacheMetadata) -> Path:
-    if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
-    path = content / metadata.content_name
-    if path.parent != content or not path.is_file():
-        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
-    return path
-
-
 def _load_document(path: Path) -> Mapping[str, Any]:
     try:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, yaml.YAMLError) as error:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID) from error
     if not isinstance(document, Mapping):
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
     return document
 
 

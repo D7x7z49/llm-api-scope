@@ -11,6 +11,7 @@ from re import fullmatch
 from typing import Any, Literal, TextIO
 from urllib.parse import quote
 
+from apiscope.constants import REPORT_INVARIANT_MESSAGES, ReportInvariant
 from apiscope.errors import MessageError
 
 # ==============================================================================
@@ -55,13 +56,13 @@ class Report:
 
     def __post_init__(self) -> None:
         if self.status not in {"ok", "error"}:
-            raise ValueError("report status must be ok or error")
+            raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.STATUS_INVALID])
         if self.scope not in {"home", "project"}:
-            raise ValueError("report scope must be home or project")
+            raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.SCOPE_INVALID])
         if not self.action or _is_unsafe_token(self.action):
-            raise ValueError("report action must be a safe non-empty token")
+            raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.ACTION_INVALID])
         if not isinstance(self.meta, Mapping):
-            raise TypeError("report meta must be a mapping")
+            raise TypeError(REPORT_INVARIANT_MESSAGES[ReportInvariant.META_NOT_MAPPING])
         normalized_meta = dict(self.meta)
         for key in normalized_meta:
             _validate_field_name(key)
@@ -69,25 +70,25 @@ class Report:
 
         if self.code is not None:
             if not self.code or _is_unsafe_token(self.code):
-                raise ValueError("report code must be a safe non-empty token")
+                raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.CODE_INVALID])
 
         if self.status == "ok":
             if self.code is not None:
-                raise ValueError("successful reports cannot contain a code")
+                raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.SUCCESS_WITH_CODE])
             if self.message is not None:
-                raise ValueError("successful reports cannot contain a message")
+                raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.SUCCESS_WITH_MESSAGE])
         elif self.code is None:
-            raise ValueError("error reports require a code")
+            raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.ERROR_WITHOUT_CODE])
 
         if self.data is not None and not isinstance(self.data, list):
-            raise TypeError("report data must be a list")
+            raise TypeError(REPORT_INVARIANT_MESSAGES[ReportInvariant.DATA_NOT_LIST])
         if self.extra is not None and not isinstance(self.extra, Mapping):
-            raise TypeError("report extra must be a mapping")
+            raise TypeError(REPORT_INVARIANT_MESSAGES[ReportInvariant.EXTRA_NOT_MAPPING])
         if self.status == "ok":
             if (self.data is None) != (self.extra is None):
-                raise ValueError("report data and extra must be provided together")
+                raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.DATA_EXTRA_PAIR])
         elif self.data is not None:
-            raise ValueError("error reports cannot contain read data")
+            raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.ERROR_WITH_DATA])
 
         if self.data is not None:
             object.__setattr__(self, "data", list(self.data))
@@ -266,7 +267,7 @@ def _ordered_items(values: Mapping[str, Any], preferred: tuple[str, ...]) -> lis
 
 def _validate_field_name(name: str) -> None:
     if not isinstance(name, str) or fullmatch(_SAFE_FIELD_PATTERN, name) is None:
-        raise ValueError(f"report field name is unsafe {name!r}")
+        raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.FIELD_NAME_UNSAFE].format(name=name))
 
 
 def _is_unsafe_token(value: str) -> bool:

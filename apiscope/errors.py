@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from re import fullmatch
 from typing import Any
 
@@ -27,17 +27,3 @@ class MessageError(RuntimeError):
             return template.format(**self.values)
         except (KeyError, ValueError):
             return self.code
-
-
-class MessageHintError(MessageError):
-    def __init__(
-        self,
-        code: str,
-        values: Mapping[str, Any] | None = None,
-        *,
-        hint_address: str,
-        hint_nodes: Iterable[Mapping[str, object]],
-    ) -> None:
-        super().__init__(code, values)
-        self.hint_address = hint_address
-        self.hint_nodes = tuple(hint_nodes)

@@ -70,6 +70,23 @@ def cache_path(cache_root: Path, canonical_source: str) -> Path:
 
 
 # ==============================================================================
+# content
+# ==============================================================================
+
+
+def resolve_content_file(content: Path, metadata: CacheMetadata) -> Path | None:
+    if metadata.content_kind != "file" or metadata.content_name is None:
+        return None
+    try:
+        root = content.resolve(strict=True)
+        path = (root / metadata.content_name).resolve(strict=True)
+        path.relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return path if path.is_file() else None
+
+
+# ==============================================================================
 # inspection
 # ==============================================================================
 

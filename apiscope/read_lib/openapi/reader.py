@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CacheMetadata, resolve_content_file
 from apiscope.read_lib.constants import ReadReason
 from apiscope.read_lib.errors import ReadError
 from apiscope.read_lib.openapi.constants import STANDARD_METHODS
@@ -29,7 +29,10 @@ class OpenapiReader:
         method = target.key
         item_target = _path_item_for_operation(target.path, method)
         collection_name, item_name = _path_item_target(item_target)
-        document = _load_document(_content_file(content, metadata))
+        path = resolve_content_file(content, metadata)
+        if path is None:
+            raise ReadError(ReadReason.CONTENT_INVALID)
+        document = _load_document(path)
         if collection_name not in document:
             raise ReadError(ReadReason.TARGET_NOT_FOUND, {"target": target.path})
         path_items = document[collection_name]
@@ -93,20 +96,6 @@ def _select_operation(path_item: Mapping[str, Any], method: str, target: str) ->
         else:
             selected_item[key] = value
     return selected_item
-
-
-def _content_file(content: Path, metadata: CacheMetadata) -> Path:
-    if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    try:
-        root = content.resolve(strict=True)
-        path = (root / metadata.content_name).resolve(strict=True)
-        path.relative_to(root)
-    except (OSError, RuntimeError, ValueError) as error:
-        raise ReadError(ReadReason.CONTENT_INVALID) from error
-    if not path.is_file():
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    return path
 
 
 def _load_document(path: Path) -> Mapping[str, Any]:

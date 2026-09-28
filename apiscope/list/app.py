@@ -60,7 +60,7 @@ def main_callback(
         ),
         output_format=runtime_context.options.output_format,
         body=_render_body(items),
-        foot=f"count {len(items)}",
+        foot=MESSAGE_TEMPLATES["list.foot.count"].format(count=len(items)),
     )
 
 
@@ -86,7 +86,7 @@ def _render_body(items: list[tuple[str, RuntimeSource]]) -> str:
         groups.setdefault(source.doc_type, []).append((name, source))
 
     if not groups:
-        return "(no sources)"
+        return MESSAGE_TEMPLATES["list.body.empty"]
 
     blocks: list[str] = []
     for doc_type, group in groups.items():

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CacheMetadata, resolve_content_file
 from apiscope.view_lib.constants import OUTPUT_TEMPLATES, NodeLabel, ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
 from apiscope.view_lib.schema import TreeNode
@@ -32,11 +32,13 @@ class _Directory:
 
 class LlmstxtViewer:
     def build(self, content: Path, metadata: CacheMetadata) -> SourceTree:
-        path = _content_file(content, metadata)
+        path = resolve_content_file(content, metadata)
+        if path is None:
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID)
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError) as error:
-            raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+            raise ProjectionError(ProjectionReason.CONTENT_INVALID) from error
 
         links: dict[str, _Link] = {}
         for line in lines:
@@ -105,9 +107,9 @@ def _resolve_target(source: str, link: str) -> str:
         target = urljoin(source, link)
         parts = urlsplit(target)
     except ValueError as error:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID) from error
     if parts.username is not None or parts.password is not None:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
     return target
 
 
@@ -116,7 +118,7 @@ def _route_path(source: str, target: str) -> str:
         source_parts = urlsplit(source)
         target_parts = urlsplit(target)
     except ValueError as error:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID) from error
+        raise ProjectionError(ProjectionReason.CONTENT_INVALID) from error
     path = target_parts.path
     same_origin = (
         source_parts.scheme.lower() == target_parts.scheme.lower()
@@ -133,15 +135,6 @@ def _route_path(source: str, target: str) -> str:
 
     route = path.strip("/")
     return route or "index"
-
-
-def _content_file(content: Path, metadata: CacheMetadata) -> Path:
-    if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ProjectionError(ProjectionReason.DOCUMENT_INVALID)
-    path = content / metadata.content_name
-    if path.parent != content or not path.is_file():
-        raise ProjectionError(ProjectionReason.CONTENT_INVALID)
-    return path
 
 
 def _normalize_llmstxt_path(value: str) -> str:

@@ -24,4 +24,5 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "view.error.cache_missing": "cannot view source {name} because its cache is missing. sync it before retrying",
     "view.error.cache_invalid": "cannot view source {name} because its cache is invalid. sync it before retrying",
     "view.error.projection_failed": "cannot view source {name} because its structure cannot be projected",
+    "view.body.empty": "(no entries)",
 }

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CacheMetadata, resolve_content_file
 from apiscope.read_lib.constants import ReadReason
 from apiscope.read_lib.errors import ReadError
 from apiscope.read_lib.schema import ReadKind, ReadResult
@@ -72,7 +72,9 @@ class LlmstxtReader:
 
 
 def _read_index(content: Path, metadata: CacheMetadata, target: str) -> ReadResult:
-    path = _content_file(content, metadata)
+    path = resolve_content_file(content, metadata)
+    if path is None:
+        raise ReadError(ReadReason.CONTENT_INVALID, {"target": target})
     try:
         raw = path.read_bytes()
         text = raw.decode("utf-8")
@@ -125,17 +127,3 @@ def _response_result(
         size=len(raw),
         retrieval="network",
     )
-
-
-def _content_file(content: Path, metadata: CacheMetadata) -> Path:
-    if metadata.content_kind != "file" or metadata.content_name is None:
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    try:
-        root = content.resolve(strict=True)
-        path = (root / metadata.content_name).resolve(strict=True)
-        path.relative_to(root)
-    except (OSError, RuntimeError, ValueError) as error:
-        raise ReadError(ReadReason.CONTENT_INVALID) from error
-    if not path.is_file():
-        raise ReadError(ReadReason.CONTENT_INVALID)
-    return path

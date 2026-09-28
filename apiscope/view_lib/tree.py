@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from apiscope.view_lib.constants import OUTPUT_TEMPLATES, ProjectionReason, ViewOutput
+from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
 from apiscope.view_lib.schema import IndexedNode, PathNormalizer, TreeNode
 
@@ -26,13 +26,6 @@ class SourceTree:
         if not normalized:
             raise ProjectionError(ProjectionReason.PATH_NOT_FOUND, self._missing_path_values(path, normalized))
         return self._resolve_normalized(path, normalized, self.indexed())
-
-    def resolve_index(self, index: str, scope: str | None = None) -> IndexedNode:
-        nodes = self.select(scope) if scope is not None else self.indexed()
-        for node in nodes:
-            if node.index == index:
-                return node
-        raise ProjectionError(ProjectionReason.INDEX_NOT_FOUND, {"index": index})
 
     def select(self, path: str | None) -> tuple[IndexedNode, ...]:
         indexed = self.indexed()
@@ -70,38 +63,7 @@ class SourceTree:
         matches = [node for node in indexed if node.path == normalized]
         if not matches:
             raise ProjectionError(ProjectionReason.PATH_NOT_FOUND, self._missing_path_values(path, normalized, indexed))
-        if len(matches) > 1:
-            raise ProjectionError(ProjectionReason.PATH_AMBIGUOUS, self._ambiguous_path_values(path, matches, indexed))
         return matches[0]
-
-    def _ambiguous_path_values(
-        self,
-        path: str,
-        matches: list[IndexedNode],
-        indexed: tuple[IndexedNode, ...],
-    ) -> dict[str, object]:
-        parent_address = matches[0].address[:-1]
-        while parent_address and any(node.address[: len(parent_address)] != parent_address for node in matches[1:]):
-            parent_address = parent_address[:-1]
-        parent = next((node for node in indexed if node.address == parent_address), None)
-        routes = [
-            {
-                "index": node.index,
-                "route": node.path or node.key,
-                "label": node.key,
-                "node_type": node.node_type,
-            }
-            for node in matches
-        ]
-        routes_text = (
-            ", ".join(f"{item['route']} [{item['index']}]" for item in routes) or OUTPUT_TEMPLATES[ViewOutput.NO_ROUTES]
-        )
-        return {
-            "path": path,
-            "prefix": "." if parent is None else parent.path or parent.key,
-            "routes": routes,
-            "routes_text": routes_text,
-        }
 
     def _missing_path_values(
         self,

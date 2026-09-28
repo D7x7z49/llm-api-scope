@@ -12,7 +12,7 @@ from apiscope.cache import CacheInspection
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.content import load_content
 from apiscope.context import RuntimeContext
-from apiscope.errors import MessageError, MessageHintError
+from apiscope.errors import MessageError
 from apiscope.output import Report, ReportScope, emit_report
 from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
@@ -23,7 +23,7 @@ from apiscope.view.schema import ViewOptions
 from apiscope.view_lib.address import split_address
 from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
 from apiscope.view_lib.constants import ProjectionReason
-from apiscope.view_lib.errors import ProjectionError
+from apiscope.view_lib.errors import MessageHintError, ProjectionError
 from apiscope.view_lib.hint import render_route_hint
 from apiscope.view_lib.registry import build_tree
 from apiscope.view_lib.schema import IndexedNode
@@ -166,7 +166,7 @@ def _require_cache(name: str, inspection: CacheInspection) -> None:
 
 def _render_body(nodes: tuple[IndexedNode, ...]) -> str:
     if not nodes:
-        return "(no entries)"
+        return MESSAGE_TEMPLATES["view.body.empty"]
     lines: list[str] = []
     for node in nodes:
         description = f": {node.description}" if node.description else ""
