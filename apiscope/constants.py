@@ -10,10 +10,16 @@ from typing import Final
 APISCOPE_HOME_ENV: Final = "APISCOPE_HOME"
 
 # ===============================================================================
+# application
+# ===============================================================================
+
+APP_NAME: Final = "apiscope"
+
+# ===============================================================================
 # application layout
 # ===============================================================================
 
-APP_DIRECTORY: Final = ".apiscope"
+APP_DIRECTORY: Final = f".{APP_NAME}"
 CACHE_DIRECTORY: Final = "cache"
 
 # ===============================================================================
@@ -43,7 +49,7 @@ GITIGNORE_FILENAME: Final = ".gitignore"
 # project ignore policy
 # ===============================================================================
 
-APISCOPE_IGNORE_RULE: Final = ".apiscope/"
+APISCOPE_IGNORE_RULE: Final = f"{APP_DIRECTORY}/"
 
 # ===============================================================================
 # home layout version
