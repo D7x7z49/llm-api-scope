@@ -111,9 +111,8 @@ def build_paths(home: HomePaths, project_root: Path | None) -> Paths:
 # ==============================================================================
 
 
-def ensure_version_file(path: Path) -> None:
+def read_version_file(path: Path) -> None:
     if not path.exists():
-        _atomic_write_text(path, f"{HOME_LAYOUT_VERSION}\n")
         return
 
     try:
@@ -123,6 +122,13 @@ def ensure_version_file(path: Path) -> None:
 
     if version != HOME_LAYOUT_VERSION:
         raise ConfigError("root.error.config.unsupported_home_layout", {"path": str(path)})
+
+
+def ensure_version_file(path: Path) -> None:
+    if not path.exists():
+        _atomic_write_text(path, f"{HOME_LAYOUT_VERSION}\n")
+        return
+    read_version_file(path)
 
 
 def ensure_schema_file(path: Path, model: type[BaseModel]) -> None:
@@ -141,6 +147,24 @@ def ensure_schema_file(path: Path, model: type[BaseModel]) -> None:
     _atomic_write_text(path, content)
 
 
+def load_config_file(
+    path: Path,
+    model: type[BaseModel],
+    *,
+    schema_ref: str = CONFIG_SCHEMA_REF,
+) -> BaseModel:
+    if not path.exists():
+        return _default_config(model, schema_ref)
+
+    try:
+        content = path.read_text(encoding="utf-8")
+        return model.model_validate_json(content)
+    except OSError as error:
+        raise ConfigError("root.error.config.read_failed", {"path": str(path)}) from error
+    except (ValidationError, ValueError) as error:
+        raise ConfigError("root.error.config.invalid", {"path": str(path)}) from error
+
+
 def ensure_config_file(
     path: Path,
     model: type[BaseModel],
@@ -151,14 +175,7 @@ def ensure_config_file(
         _atomic_write_text(
             path, _default_config(model, schema_ref).model_dump_json(by_alias=True, exclude_unset=True, indent=2) + "\n"
         )
-
-    try:
-        content = path.read_text(encoding="utf-8")
-        return model.model_validate_json(content)
-    except OSError as error:
-        raise ConfigError("root.error.config.read_failed", {"path": str(path)}) from error
-    except (ValidationError, ValueError) as error:
-        raise ConfigError("root.error.config.invalid", {"path": str(path)}) from error
+    return load_config_file(path, model, schema_ref=schema_ref)
 
 
 # ==============================================================================

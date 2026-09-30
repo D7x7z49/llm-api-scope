@@ -36,7 +36,7 @@ def test_callback_prepares_context_for_a_project(
 ) -> None:
     monkeypatch.chdir(git_project)
 
-    result = CliRunner().invoke(app, [], catch_exceptions=False)
+    result = CliRunner().invoke(app, ["sync"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
@@ -53,8 +53,25 @@ def test_global_option_skips_project_preparation(
 ) -> None:
     monkeypatch.chdir(git_project)
 
-    result = CliRunner().invoke(app, ["--global"], catch_exceptions=False)
+    result = CliRunner().invoke(app, ["--global", "sync"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
+    assert not (git_project / ".apiscope").exists()
+
+
+# read commands stay read-only
+
+
+def test_read_command_does_not_prepare_assets(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+
+    result = CliRunner().invoke(app, ["list", "all"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert not (isolated_home / ".apiscope").exists()
     assert not (git_project / ".apiscope").exists()

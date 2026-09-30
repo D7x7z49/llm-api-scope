@@ -11,7 +11,7 @@ from apiscope.constants import (
     LOCAL_CONFIG_SCHEMA_REF,
 )
 from apiscope.context import BasePaths, RootOptions, RuntimeContext
-from apiscope.preflight import PreflightError, find_project_root, run_preflight
+from apiscope.preflight import PreflightError, find_project_root, run_preflight, run_read_preflight
 from apiscope.schema import LocalSetting, PublicSetting, RuntimeConfig, RuntimeSetting
 
 
@@ -178,3 +178,35 @@ def test_run_preflight_preserves_an_invalid_config_and_reports_its_path(
         run_preflight(cwd=tmp_path)
 
     assert config.read_text(encoding="utf-8") == invalid_content
+
+
+def test_run_read_preflight_does_not_create_assets(
+    isolated_home: Path,
+    git_project: Path,
+) -> None:
+    context = run_read_preflight(cwd=git_project)
+    expected_config = RuntimeConfig(
+        source={},
+        setting=RuntimeSetting(public=PublicSetting(), local=LocalSetting()),
+    ).model_dump(mode="json")
+
+    assert not (isolated_home.resolve() / ".apiscope").exists()
+    assert not (git_project / ".apiscope").exists()
+    assert context.config.model_dump(mode="json") == expected_config
+
+
+def test_run_read_preflight_loads_existing_assets(
+    isolated_home: Path,
+    git_project: Path,
+) -> None:
+    run_preflight(cwd=git_project)
+
+    context = run_read_preflight(cwd=git_project)
+
+    assert context.paths.project is not None
+    assert context.paths.home.config.is_file()
+    assert context.paths.project.config.is_file()
+    assert context.config.model_dump(mode="json") == RuntimeConfig(
+        source={},
+        setting=RuntimeSetting(public=PublicSetting(), local=LocalSetting()),
+    ).model_dump(mode="json")

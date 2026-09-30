@@ -9,7 +9,7 @@ from apiscope.context import RootOptions
 from apiscope.list.app import app as list_app
 from apiscope.list.constants import COMMAND_NAME as LIST_COMMAND_NAME
 from apiscope.output import OutputFormat, Report, emit_report
-from apiscope.preflight import PreflightError, run_preflight
+from apiscope.preflight import PreflightError, run_preflight, run_read_preflight
 from apiscope.read.app import app as read_app
 from apiscope.read.constants import COMMAND_NAME as READ_COMMAND_NAME
 from apiscope.remove.app import app as remove_app
@@ -37,6 +37,9 @@ app.add_typer(list_app, name=LIST_COMMAND_NAME)
 app.add_typer(sync_app, name=SYNC_COMMAND_NAME)
 app.add_typer(view_app, name=VIEW_COMMAND_NAME)
 
+# write commands prepare assets; read commands only load and project
+_WRITE_COMMANDS = {ADD_COMMAND_NAME, REMOVE_COMMAND_NAME, SYNC_COMMAND_NAME}
+
 # ==============================================================================
 # callback
 # ==============================================================================
@@ -60,7 +63,10 @@ def main_callback(
     output_format = OutputFormat.JSON if json_output else OutputFormat.TEXT
     root_options = RootOptions(global_only=global_only, output_format=output_format)
     try:
-        runtime_context = run_preflight(options=root_options)
+        if ctx.invoked_subcommand in _WRITE_COMMANDS:
+            runtime_context = run_preflight(options=root_options)
+        else:
+            runtime_context = run_read_preflight(options=root_options)
     except PreflightError as error:
         emit_report(
             Report(
