@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.skill.constants import MESSAGE_TEMPLATES as SKILL_MESSAGE_TEMPLATES
 from apiscope.skill.constants import SKILL_NAME
 from apiscope.skill.install.constants import (
@@ -71,7 +71,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta={"name": SKILL_NAME, "path": str(resolved)},
         ),
@@ -107,17 +107,11 @@ def _resolve_target(target: str | None) -> Path:
     return Path(target or DEFAULT_INSTALL_TARGET).expanduser()
 
 
-def _scope(runtime_context: RuntimeContext) -> ReportScope:
-    if runtime_context.options.global_only or runtime_context.paths.project is None:
-        return "home"
-    return "project"
-
-
 def _emit_error(runtime_context: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             code=error.code,
             meta=error.values,

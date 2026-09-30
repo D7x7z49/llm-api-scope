@@ -16,7 +16,7 @@ from apiscope.constants import CONFIG_SCHEMA_REF
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.remove.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.remove.context import RemoveCommandContext
 from apiscope.remove.preflight import run_preflight
@@ -60,7 +60,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta={"name": options.name},
         ),
@@ -96,15 +96,11 @@ def _config_target(runtime: RuntimeContext) -> tuple[Path, type[BaseModel]]:
     return runtime.paths.project.config, ProjectConfigFile
 
 
-def _scope(runtime: RuntimeContext) -> ReportScope:
-    return "home" if runtime.options.global_only else "project"
-
-
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime),
+            scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
             meta=error.values,

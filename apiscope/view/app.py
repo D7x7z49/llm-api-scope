@@ -13,7 +13,7 @@ from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.content import load_content
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
 from apiscope.view.constants import COMMAND_NAME, MESSAGE_TEMPLATES
@@ -101,7 +101,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta=meta,
             data=[node.as_data() for node in result.nodes],
@@ -190,12 +190,6 @@ def _render_foot(extra: dict[str, object]) -> str:
     return json.dumps(extra, ensure_ascii=False, indent=2)
 
 
-def _scope(runtime: RuntimeContext) -> ReportScope:
-    if runtime.options.global_only or runtime.paths.project is None:
-        return "home"
-    return "project"
-
-
 def _projection_message(error: ProjectionError, *, name: str) -> MessageError:
     if error.reason_code == ProjectionReason.PATH_NOT_FOUND:
         prefix = str(error.values.get("prefix") or ".")
@@ -214,7 +208,7 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime),
+            scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
             extra=extra,

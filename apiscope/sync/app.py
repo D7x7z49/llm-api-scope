@@ -23,7 +23,7 @@ from apiscope.cache import (
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
 from apiscope.sync._lib.errors import SourceError, SourceParseError
 from apiscope.sync._lib.registry import fetch_source, parse_source
@@ -126,7 +126,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta={
                 "target": _target(options),
@@ -301,17 +301,11 @@ def _target(options: SyncOptions) -> str:
     return SOURCE_SELECTOR_ALL
 
 
-def _scope(runtime: RuntimeContext) -> ReportScope:
-    if runtime.options.global_only or runtime.paths.project is None:
-        return "home"
-    return "project"
-
-
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime),
+            scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
             meta=error.values,

@@ -14,7 +14,7 @@ from apiscope.list.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.list.context import ListCommandContext
 from apiscope.list.preflight import run_preflight
 from apiscope.list.schema import ListOptions
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
@@ -58,7 +58,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta=_meta(options),
             data=[_report_item(name, source) for name, source in window],
@@ -163,17 +163,11 @@ def _format_source(value: str) -> str:
     return quote(value, safe=_SOURCE_SAFE_CHARS)
 
 
-def _scope(runtime: RuntimeContext) -> ReportScope:
-    if runtime.options.global_only or runtime.paths.project is None:
-        return "home"
-    return "project"
-
-
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime),
+            scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
             meta=error.values,

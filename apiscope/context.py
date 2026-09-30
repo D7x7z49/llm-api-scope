@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from apiscope.output import OutputFormat
-from apiscope.schema import RuntimeConfig
+from apiscope.schema import ConfigScope, RuntimeConfig
 
 # ==============================================================================
 # path values
@@ -65,3 +65,9 @@ class RuntimeContext:
     paths: Paths
     config: RuntimeConfig
     options: RootOptions
+
+    @property
+    def scope(self) -> ConfigScope:
+        if self.options.global_only or self.paths.project is None:
+            return ConfigScope.HOME
+        return ConfigScope.PROJECT

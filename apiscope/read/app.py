@@ -13,7 +13,7 @@ from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.content import load_content
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
-from apiscope.output import Report, ReportScope, emit_report
+from apiscope.output import Report, emit_report
 from apiscope.read.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.read.context import ReadCommandContext
 from apiscope.read.preflight import run_preflight
@@ -86,7 +86,7 @@ def main_callback(
     emit_report(
         Report(
             status="ok",
-            scope=_scope(runtime_context),
+            scope=runtime_context.scope,
             action=COMMAND_NAME,
             meta={"name": name, "target": result.target},
             data=content.as_data(),
@@ -212,12 +212,6 @@ def _projection_message(error: ProjectionError, *, name: str, address: str) -> M
     return MessageError(error.reason_code, values)
 
 
-def _scope(runtime: RuntimeContext) -> ReportScope:
-    if runtime.options.global_only or runtime.paths.project is None:
-        return "home"
-    return "project"
-
-
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     extra: dict[str, object] | None = None
     body: str | None = None
@@ -227,7 +221,7 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
     emit_report(
         Report(
             status="error",
-            scope=_scope(runtime),
+            scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
             extra=extra,

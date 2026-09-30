@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from apiscope.constants import REPORT_INVARIANT_MESSAGES, ReportInvariant
 from apiscope.errors import MessageError
+from apiscope.schema import ConfigScope
 
 # ==============================================================================
 # types
@@ -20,7 +21,6 @@ from apiscope.errors import MessageError
 
 
 ReportStatus = Literal["ok", "error"]
-ReportScope = Literal["home", "project"]
 MessageTemplates = Mapping[str, str]
 
 
@@ -46,7 +46,7 @@ class OutputError(MessageError):
 @dataclass(frozen=True, slots=True)
 class Report:
     status: ReportStatus
-    scope: ReportScope
+    scope: ConfigScope
     action: str
     meta: Mapping[str, Any] = field(default_factory=dict)
     code: str | None = None
@@ -57,7 +57,7 @@ class Report:
     def __post_init__(self) -> None:
         if self.status not in {"ok", "error"}:
             raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.STATUS_INVALID])
-        if self.scope not in {"home", "project"}:
+        if not isinstance(self.scope, ConfigScope):
             raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.SCOPE_INVALID])
         if not self.action or _is_unsafe_token(self.action):
             raise ValueError(REPORT_INVARIANT_MESSAGES[ReportInvariant.ACTION_INVALID])

@@ -119,7 +119,7 @@ def test_remove_requires_a_project_without_global_mode(
 
     assert result.exit_code == 1
     assert result.output == (
-        "[error] [scope=project] [action=remove] [code=remove.error.project_required]: "
+        "[error] [scope=home] [action=remove] [code=remove.error.project_required]: "
         "a Git project is required unless --global is used\n"
     )
 

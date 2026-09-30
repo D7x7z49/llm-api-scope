@@ -8,7 +8,7 @@ import pytest
 from apiscope.add.constants import MESSAGE_TEMPLATES as ADD_MESSAGE_TEMPLATES
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.list.constants import MESSAGE_TEMPLATES as LIST_MESSAGE_TEMPLATES
-from apiscope.output import OutputError, OutputFormat, Report, ReportScope, ReportStatus, emit_report, render_report
+from apiscope.output import ConfigScope, OutputError, OutputFormat, Report, ReportStatus, emit_report, render_report
 from apiscope.remove.constants import MESSAGE_TEMPLATES as REMOVE_MESSAGE_TEMPLATES
 from apiscope.sync.constants import MESSAGE_TEMPLATES as SYNC_MESSAGE_TEMPLATES
 from apiscope.view.constants import MESSAGE_TEMPLATES as VIEW_MESSAGE_TEMPLATES
@@ -37,7 +37,7 @@ def test_message_templates_do_not_contain_colons(templates: dict[str, str]) -> N
 def test_render_text_for_write_success_orders_scope_before_action() -> None:
     report = Report(
         status="ok",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="add",
         meta={"type": "openapi", "name": "petstore"},
     )
@@ -50,7 +50,7 @@ def test_render_text_for_write_success_orders_scope_before_action() -> None:
 def test_render_text_for_error_uses_the_message_template_key_as_code() -> None:
     report = Report(
         status="error",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="add",
         code="add.error.duplicate_name",
         meta={"name": "petstore"},
@@ -68,7 +68,7 @@ def test_render_text_for_error_uses_the_message_template_key_as_code() -> None:
 def test_render_json_for_write_success_omits_message_and_read_fields() -> None:
     report = Report(
         status="ok",
-        scope="home",
+        scope=ConfigScope.HOME,
         action="remove",
         meta={"name": "petstore"},
     )
@@ -86,7 +86,7 @@ def test_render_json_for_write_success_omits_message_and_read_fields() -> None:
 def test_render_json_for_read_success_contains_data_and_extra() -> None:
     report = Report(
         status="ok",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="list",
         meta={"filter": "openapi"},
         data=[{"name": "petstore", "type": "openapi"}],
@@ -108,7 +108,7 @@ def test_render_json_for_read_success_contains_data_and_extra() -> None:
 def test_render_json_for_error_includes_code_and_message() -> None:
     report = Report(
         status="error",
-        scope="home",
+        scope=ConfigScope.HOME,
         action="remove",
         code="remove.error.name_not_found",
         meta={"name": "petstore"},
@@ -130,7 +130,7 @@ def test_render_json_for_error_includes_code_and_message() -> None:
 def test_render_text_for_read_success_has_head_body_and_foot() -> None:
     report = Report(
         status="ok",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="list",
         data=[{"name": "petstore"}],
         extra={"count": 1},
@@ -142,7 +142,7 @@ def test_render_text_for_read_success_has_head_body_and_foot() -> None:
 
 
 def test_emit_report_writes_one_line_to_the_given_stream() -> None:
-    report = Report(status="ok", scope="home", action="add")
+    report = Report(status="ok", scope=ConfigScope.HOME, action="add")
     stream = io.StringIO()
 
     emit_report(report, stream=stream)
@@ -153,11 +153,11 @@ def test_emit_report_writes_one_line_to_the_given_stream() -> None:
 @pytest.mark.parametrize(
     ("status", "scope", "code", "report_message", "expected"),
     [
-        ("done", "project", None, None, "report status"),
+        ("done", ConfigScope.PROJECT, None, None, "report status"),
         ("ok", "local", None, None, "report scope"),
-        ("ok", "project", "add.error.invalid", None, "successful reports"),
-        ("ok", "project", None, "done", "successful reports"),
-        ("error", "project", None, None, "error reports require"),
+        ("ok", ConfigScope.PROJECT, "add.error.invalid", None, "successful reports"),
+        ("ok", ConfigScope.PROJECT, None, "done", "successful reports"),
+        ("error", ConfigScope.PROJECT, None, None, "error reports require"),
     ],
 )
 def test_report_rejects_invalid_envelope_values(
@@ -170,7 +170,7 @@ def test_report_rejects_invalid_envelope_values(
     with pytest.raises((TypeError, ValueError), match=expected):
         Report(
             status=cast(ReportStatus, status),
-            scope=cast(ReportScope, scope),
+            scope=cast(ConfigScope, scope),
             action="add",
             code=code,
             message=report_message,
@@ -179,18 +179,18 @@ def test_report_rejects_invalid_envelope_values(
 
 def test_report_requires_read_data_and_extra_together() -> None:
     with pytest.raises(ValueError, match="data and extra"):
-        Report(status="ok", scope="project", action="list", data=[])
+        Report(status="ok", scope=ConfigScope.PROJECT, action="list", data=[])
 
 
 def test_render_error_requires_a_message_or_a_template() -> None:
-    report = Report(status="error", scope="project", action="add", code="add.error.invalid")
+    report = Report(status="error", scope=ConfigScope.PROJECT, action="add", code="add.error.invalid")
 
     with pytest.raises(OutputError, match="missing its message"):
         render_report(report)
 
 
 def test_render_error_rejects_a_missing_template_key() -> None:
-    report = Report(status="error", scope="project", action="add", code="add.error.invalid")
+    report = Report(status="error", scope=ConfigScope.PROJECT, action="add", code="add.error.invalid")
 
     with pytest.raises(OutputError, match="no message template"):
         render_report(report, message_templates={})
@@ -199,7 +199,7 @@ def test_render_error_rejects_a_missing_template_key() -> None:
 def test_render_text_for_error_with_extra_shows_head_and_hint() -> None:
     report = Report(
         status="error",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="view",
         code="view_lib.projection.path_not_found",
         meta={"path": "docs/x"},
@@ -218,7 +218,7 @@ def test_render_text_for_error_with_extra_shows_head_and_hint() -> None:
 def test_render_text_for_error_without_extra_stays_head_only() -> None:
     report = Report(
         status="error",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="view",
         code="view.error.cache_missing",
         meta={"name": "docs"},
@@ -235,7 +235,7 @@ def test_render_text_for_error_without_extra_stays_head_only() -> None:
 def test_render_json_for_error_with_extra_includes_extra() -> None:
     report = Report(
         status="error",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="view",
         code="view_lib.projection.path_not_found",
         meta={"path": "docs/x"},
@@ -258,13 +258,13 @@ def test_render_json_for_error_with_extra_includes_extra() -> None:
 
 def test_report_rejects_read_data_on_an_error() -> None:
     with pytest.raises(ValueError, match="error reports cannot contain read data"):
-        Report(status="error", scope="project", action="view", code="view.error.invalid", data=[])
+        Report(status="error", scope=ConfigScope.PROJECT, action="view", code="view.error.invalid", data=[])
 
 
 def test_text_tags_encode_values_that_conflict_with_the_report_syntax() -> None:
     report = Report(
         status="ok",
-        scope="project",
+        scope=ConfigScope.PROJECT,
         action="add",
         meta={"name": "pet store:blue"},
     )
