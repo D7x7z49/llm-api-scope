@@ -1,7 +1,7 @@
 # apiscope/schema.py
 
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model
 from pydantic_core import MISSING
@@ -12,6 +12,9 @@ from pydantic_core import MISSING
 
 
 DocumentType = Literal["filesystem", "repo", "openapi", "rfc", "llmstxt"]
+
+SOURCE_SELECTOR_ALL: Final = "all"
+SourceSelector = Literal["all"] | DocumentType
 
 
 class StrictSchemaModel(BaseModel):

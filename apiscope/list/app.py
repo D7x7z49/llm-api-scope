@@ -13,9 +13,9 @@ from apiscope.errors import MessageError
 from apiscope.list.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.list.context import ListCommandContext
 from apiscope.list.preflight import run_preflight
-from apiscope.list.schema import ListOptions, ListSelector
+from apiscope.list.schema import ListOptions
 from apiscope.output import Report, ReportScope, emit_report
-from apiscope.schema import DocumentType, RuntimeSource
+from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 _SOURCE_SAFE_CHARS = "-._~/:?#[]@!$&'()*+,;=%"
@@ -40,7 +40,7 @@ def main_callback(
         raise MessageError("list.error.runtime_context_unavailable")
 
     try:
-        options = ListOptions(selector=cast(ListSelector, selector), limit=limit, offset=offset)
+        options = ListOptions(selector=cast(SourceSelector, selector), limit=limit, offset=offset)
         command_context = ListCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)
         items = _select_sources(runtime_context.config.source, options.selector)
@@ -72,9 +72,13 @@ def main_callback(
 
 def _select_sources(
     sources: Mapping[str, RuntimeSource],
-    selector: ListSelector,
+    selector: SourceSelector,
 ) -> list[tuple[str, RuntimeSource]]:
-    selected = [(name, source) for name, source in sources.items() if selector == "all" or source.doc_type == selector]
+    selected = [
+        (name, source)
+        for name, source in sources.items()
+        if selector == SOURCE_SELECTOR_ALL or source.doc_type == selector
+    ]
     return sorted(selected, key=lambda item: (item[1].doc_type, item[0]))
 
 

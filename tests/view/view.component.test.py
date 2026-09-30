@@ -20,7 +20,7 @@ def test_view_shows_a_cached_filesystem_tree(
     runner = CliRunner()
 
     added = runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    synced = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "docs"], catch_exceptions=False)
 
     assert added.exit_code == 0
@@ -51,7 +51,7 @@ def test_view_path_filter_relays_out_the_index(
     runner = CliRunner()
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
 
     assert result.exit_code == 0
@@ -70,7 +70,7 @@ def test_view_json_contains_the_same_semantic_nodes(
     runner = CliRunner()
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["--json", "view", "docs"], catch_exceptions=False)
 
     assert result.exit_code == 0
@@ -95,7 +95,7 @@ def test_view_depth_caps_the_body(
     runner = CliRunner()
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["--json", "view", "docs", "--depth", "1"], catch_exceptions=False)
 
     assert result.exit_code == 0
@@ -130,7 +130,7 @@ def test_view_uses_the_projection_error_catalog_directly(
     runner = CliRunner()
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "docs/missing.md"], catch_exceptions=False)
 
     assert result.exit_code == 1
@@ -154,7 +154,7 @@ def test_view_route_error_shows_the_valid_address_and_same_level(
     runner = CliRunner()
 
     runner.invoke(app, ["add", "pets", "openapi.yaml", "--type", "openapi"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "pets"], catch_exceptions=False)
+    runner.invoke(app, ["sync", "all", "pets"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "pets/pets/x"], catch_exceptions=False)
 
     assert result.exit_code == 1

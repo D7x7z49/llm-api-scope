@@ -442,7 +442,7 @@ def test_sync_skips_a_failed_llmstxt_page(
     runner = CliRunner()
 
     added = runner.invoke(app, ["add", "docs", "llms.txt", "--type", "llmstxt"], catch_exceptions=False)
-    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     view = runner.invoke(app, ["--json", "view", "docs"], catch_exceptions=False)
 
     assert added.exit_code == 0
@@ -476,6 +476,6 @@ def _register_and_sync(
     doc_type: str = "filesystem",
 ) -> None:
     added = runner.invoke(app, ["add", name, source, "--type", doc_type], catch_exceptions=False)
-    synced = runner.invoke(app, ["sync", name], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "all", name], catch_exceptions=False)
     assert added.exit_code == 0
     assert synced.exit_code == 0

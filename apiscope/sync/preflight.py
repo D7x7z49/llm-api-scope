@@ -5,7 +5,7 @@ import shutil
 from collections.abc import Sequence
 
 from apiscope.errors import MessageError
-from apiscope.schema import RuntimeSource
+from apiscope.schema import SOURCE_SELECTOR_ALL, RuntimeSource
 from apiscope.sync._lib.repo.constants import GIT_COMMAND
 from apiscope.sync.context import SyncCommandContext
 
@@ -27,6 +27,6 @@ def _target(command_context: SyncCommandContext) -> str:
     options = command_context.options
     if options.name is not None:
         return options.name
-    if options.source_type is not None:
-        return f"{options.source_type} sources"
+    if options.selector != SOURCE_SELECTOR_ALL:
+        return f"{options.selector} sources"
     return "selected sources"

@@ -1,10 +1,10 @@
 # apiscope/sync/schema.py
 from pydantic import Field
 
-from apiscope.schema import DocumentType, StrictSchemaModel
+from apiscope.schema import SourceSelector, StrictSchemaModel
 
 
 class SyncOptions(StrictSchemaModel):
+    selector: SourceSelector
     name: str | None = Field(default=None, min_length=1)
-    source_type: DocumentType | None = None
     force: bool = False

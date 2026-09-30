@@ -1,15 +1,11 @@
 # apiscope/list/schema.py
 
-from typing import Literal
-
 from pydantic import Field
 
-from apiscope.schema import DocumentType, StrictSchemaModel
-
-ListSelector = Literal["all"] | DocumentType
+from apiscope.schema import SourceSelector, StrictSchemaModel
 
 
 class ListOptions(StrictSchemaModel):
-    selector: ListSelector
+    selector: SourceSelector
     limit: int | None = Field(default=None, ge=1)
     offset: int = Field(default=0, ge=0)

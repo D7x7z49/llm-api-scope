@@ -21,7 +21,7 @@ from apiscope.remove.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.remove.context import RemoveCommandContext
 from apiscope.remove.preflight import run_preflight
 from apiscope.remove.schema import RemoveOptions
-from apiscope.schema import GlobalConfigFile, ProjectConfigFile
+from apiscope.schema import SOURCE_SELECTOR_ALL, GlobalConfigFile, ProjectConfigFile
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -43,7 +43,7 @@ def main_callback(
         raise MessageError("remove.error.runtime_context_unavailable")
 
     try:
-        if name == "all":
+        if name == SOURCE_SELECTOR_ALL:
             raise MessageError("remove.error.reserved_name", {"name": name})
         options = RemoveOptions(name=name)
         command_context = RemoveCommandContext(runtime=runtime_context, options=options)

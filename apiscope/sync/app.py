@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import cast, get_args
 
 import typer
 from pydantic import ValidationError
@@ -24,7 +24,7 @@ from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, ReportScope, emit_report
-from apiscope.schema import DocumentType, RuntimeSource
+from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
 from apiscope.sync._lib.errors import SourceError, SourceParseError
 from apiscope.sync._lib.registry import fetch_source, parse_source
 from apiscope.sync._lib.schema import ParsedSource
@@ -39,6 +39,8 @@ from apiscope.sync.schema import SyncOptions
 
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
+
+_SELECTORS = frozenset({SOURCE_SELECTOR_ALL, *get_args(DocumentType)})
 
 # ==============================================================================
 # app
@@ -88,12 +90,8 @@ class SyncTarget:
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
+    selector: str = typer.Argument(..., help=MESSAGE_TEMPLATES["sync.help.argument.selector"]),
     name: str | None = typer.Argument(None, help=MESSAGE_TEMPLATES["sync.help.argument.name"]),
-    source_type: str | None = typer.Option(
-        None,
-        "--source-type",
-        help=MESSAGE_TEMPLATES["sync.help.option.source_type"],
-    ),
     force: bool = typer.Option(False, "--force", help=MESSAGE_TEMPLATES["sync.help.option.force"]),
 ) -> None:
     runtime_context = ctx.find_object(RuntimeContext)
@@ -101,13 +99,9 @@ def main_callback(
         raise MessageError("sync.error.runtime_context_unavailable")
 
     try:
-        options = SyncOptions(
-            name=name,
-            source_type=cast(DocumentType, source_type) if source_type is not None else None,
-            force=force,
-        )
-        if options.name is not None and options.source_type is not None:
-            raise MessageError("sync.error.range_conflict", {"name": options.name})
+        if selector not in _SELECTORS:
+            raise MessageError("sync.error.invalid_selector", {"selector": selector})
+        options = SyncOptions(selector=cast(SourceSelector, selector), name=name, force=force)
         command_context = SyncCommandContext(runtime=runtime_context, options=options)
         summary = _run_sync(command_context)
     except ValidationError as error:
@@ -194,11 +188,18 @@ def _select_sources(
 ) -> list[tuple[str, RuntimeSource]]:
     if options.name is not None:
         source = sources.get(options.name)
-        return [] if source is None else [(options.name, source)]
+        if source is None:
+            return []
+        if options.selector != SOURCE_SELECTOR_ALL and source.doc_type != options.selector:
+            raise MessageError(
+                "sync.error.selector_conflict",
+                {"name": options.name, "selector": options.selector},
+            )
+        return [(options.name, source)]
     selected = [
         (name, source)
         for name, source in sources.items()
-        if options.source_type is None or source.doc_type == options.source_type
+        if options.selector == SOURCE_SELECTOR_ALL or source.doc_type == options.selector
     ]
     return sorted(selected, key=lambda item: (item[1].doc_type, item[0]))
 
@@ -295,9 +296,9 @@ def _should_skip(inspection: CacheInspection, options: SyncOptions) -> bool:
 def _target(options: SyncOptions) -> str:
     if options.name is not None:
         return options.name
-    if options.source_type is not None:
-        return f"type:{options.source_type}"
-    return "all"
+    if options.selector != SOURCE_SELECTOR_ALL:
+        return f"type:{options.selector}"
+    return SOURCE_SELECTOR_ALL
 
 
 def _scope(runtime: RuntimeContext) -> ReportScope:

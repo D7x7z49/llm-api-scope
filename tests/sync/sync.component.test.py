@@ -34,7 +34,7 @@ def test_sync_fetches_a_filesystem_source(
     )
     assert added.exit_code == 0
 
-    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert "[action=sync]" in result.output
@@ -72,7 +72,7 @@ def test_sync_uses_local_proxy_for_a_remote_source(
         return httpx.Response(200, request=request, content=b"openapi")
 
     install_httpx_mock_client(handler)
-    result = runner.invoke(app, ["sync", "api"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "api"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert result.exit_code == 0
@@ -94,7 +94,7 @@ def test_sync_checks_git_before_fetching_repository_sources(
     )
     monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
 
-    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
 
     cache = isolated_home / ".apiscope" / "cache"
     assert added.exit_code == 0
@@ -124,7 +124,7 @@ def test_sync_checks_dependencies_before_a_mixed_range(
     )
     monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
 
-    result = runner.invoke(app, ["sync"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all"], catch_exceptions=False)
 
     cache = isolated_home / ".apiscope" / "cache"
     assert filesystem_added.exit_code == 0
@@ -149,7 +149,7 @@ def test_sync_does_not_check_git_for_a_filesystem_source(
     )
     monkeypatch.setattr(sync_preflight.shutil, "which", lambda command: None)
 
-    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert result.exit_code == 0
@@ -180,7 +180,7 @@ def test_sync_reports_an_unsupported_proxy_for_an_ssh_repo(
     )
     monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
 
-    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert result.exit_code == 1
@@ -200,8 +200,8 @@ def test_sync_default_range_skips_a_fresh_source(
         ["add", "docs", "docs.txt", "--type", "filesystem"],
         catch_exceptions=False,
     )
-    first = runner.invoke(app, ["sync"], catch_exceptions=False)
-    second = runner.invoke(app, ["sync"], catch_exceptions=False)
+    first = runner.invoke(app, ["sync", "all"], catch_exceptions=False)
+    second = runner.invoke(app, ["sync", "all"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert first.exit_code == 0
@@ -222,14 +222,14 @@ def test_sync_default_range_skips_an_expired_source(
         ["add", "docs", "docs.txt", "--type", "filesystem"],
         catch_exceptions=False,
     )
-    first = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    first = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     cache_entry = _only_cache_entry(isolated_home)
     metadata_path = cache_entry / "metadata.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     metadata["fetched_at"] = "2000-01-01T00:00:00Z"
     metadata_path.write_text(json.dumps(metadata) + "\n", encoding="utf-8")
 
-    result = runner.invoke(app, ["sync"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert first.exit_code == 0
@@ -250,8 +250,8 @@ def test_sync_force_refreshes_a_fresh_source(
         ["add", "docs", "docs.txt", "--type", "filesystem"],
         catch_exceptions=False,
     )
-    first = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
-    result = runner.invoke(app, ["sync", "docs", "--force"], catch_exceptions=False)
+    first = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs", "--force"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert first.exit_code == 0
@@ -272,9 +272,9 @@ def test_failed_force_refresh_keeps_the_previous_cache(
         ["add", "docs", "docs.txt", "--type", "filesystem"],
         catch_exceptions=False,
     )
-    first = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
+    first = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     source.unlink()
-    result = runner.invoke(app, ["sync", "docs", "--force"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "docs", "--force"], catch_exceptions=False)
 
     cache_entry = _only_cache_entry(isolated_home)
     assert added.exit_code == 0
@@ -303,7 +303,7 @@ def test_sync_filters_sources_by_type_before_fetching(
         catch_exceptions=False,
     )
 
-    result = runner.invoke(app, ["sync", "--source-type", "filesystem"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "filesystem"], catch_exceptions=False)
 
     assert filesystem_added.exit_code == 0
     assert openapi_added.exit_code == 0
@@ -331,7 +331,7 @@ def test_sync_reports_a_partial_failure_after_syncing_valid_sources(
         catch_exceptions=False,
     )
 
-    result = runner.invoke(app, ["sync"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all"], catch_exceptions=False)
 
     assert valid_added.exit_code == 0
     assert missing_added.exit_code == 0
@@ -347,25 +347,40 @@ def test_sync_reports_a_missing_name(
     isolated_home: Path,
     project_cwd: Path,
 ) -> None:
-    result = CliRunner().invoke(app, ["sync", "missing"], catch_exceptions=False)
+    result = CliRunner().invoke(app, ["sync", "all", "missing"], catch_exceptions=False)
 
     assert result.exit_code == 1
     assert "sync.error.name_not_found" in result.output
     assert "source missing does not exist" in result.output
 
 
-def test_sync_rejects_a_name_with_a_range_option(
+def test_sync_rejects_an_unknown_selector(
     isolated_home: Path,
     project_cwd: Path,
 ) -> None:
-    result = CliRunner().invoke(
+    result = CliRunner().invoke(app, ["sync", "markdown"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert "sync.error.invalid_selector" in result.output
+    assert "sync selector markdown is invalid" in result.output
+
+
+def test_sync_rejects_a_name_outside_the_selector(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    runner = CliRunner()
+    added = runner.invoke(
         app,
-        ["sync", "docs", "--source-type", "filesystem"],
+        ["add", "docs", "docs.txt", "--type", "filesystem"],
         catch_exceptions=False,
     )
 
+    result = runner.invoke(app, ["sync", "openapi", "docs"], catch_exceptions=False)
+
+    assert added.exit_code == 0
     assert result.exit_code == 1
-    assert "sync.error.range_conflict" in result.output
+    assert "sync.error.selector_conflict" in result.output
 
 
 def test_sync_reports_a_malformed_port_with_a_namespaced_source_error(
@@ -379,7 +394,7 @@ def test_sync_reports_a_malformed_port_with_a_namespaced_source_error(
         catch_exceptions=False,
     )
 
-    result = runner.invoke(app, ["sync", "api"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "all", "api"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert result.exit_code == 1

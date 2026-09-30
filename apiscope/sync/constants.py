@@ -15,13 +15,14 @@ COMMAND_NAME: Final = "sync"
 
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.help.command": "fetch registered sources into the cache",
-    "sync.help.argument.name": "the source name; omit it to inspect the selected range",
-    "sync.help.option.source_type": "limit the range to one source type",
+    "sync.help.argument.selector": "choose one of all, filesystem, repo, openapi, rfc, or llmstxt",
+    "sync.help.argument.name": "narrow the range to one source name",
     "sync.help.option.force": "refresh selected sources regardless of freshness",
     "sync.error.runtime_context_unavailable": "runtime context is unavailable",
     "sync.error.invalid_options": "invalid sync options",
     "sync.error.preflight.git_missing": "cannot sync {target} because the Git executable is not available",
-    "sync.error.range_conflict": "source name {name} cannot be combined with --source-type",
+    "sync.error.invalid_selector": "sync selector {selector} is invalid. choose all or a supported document type",
+    "sync.error.selector_conflict": "source name {name} does not match selector {selector}",
     "sync.error.name_not_found": "source {name} does not exist",
     "sync.error.parse_failed": "cannot parse source {source} because its location is invalid",
     "sync.error.source.parse.source_empty": "cannot parse source {source} because the source is empty",

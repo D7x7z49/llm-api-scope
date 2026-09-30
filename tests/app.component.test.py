@@ -36,7 +36,7 @@ def test_callback_prepares_context_for_a_project(
 ) -> None:
     monkeypatch.chdir(git_project)
 
-    result = CliRunner().invoke(app, ["sync"], catch_exceptions=False)
+    result = CliRunner().invoke(app, ["sync", "all"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
@@ -53,7 +53,7 @@ def test_global_option_skips_project_preparation(
 ) -> None:
     monkeypatch.chdir(git_project)
 
-    result = CliRunner().invoke(app, ["--global", "sync"], catch_exceptions=False)
+    result = CliRunner().invoke(app, ["--global", "sync", "all"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
