@@ -5,7 +5,17 @@ from pathlib import Path
 import pytest
 
 from apiscope import cache as cache_module
-from apiscope.cache import CACHE_FORMAT_VERSION, CacheMetadata, cache_path, inspect_cache, staging_cache, write_metadata
+from apiscope.cache import (
+    CACHE_CONTENT_DIRECTORY,
+    CACHE_FORMAT_VERSION,
+    CacheMetadata,
+    build_manifest,
+    cache_path,
+    inspect_cache,
+    staging_cache,
+    write_manifest,
+    write_metadata,
+)
 from apiscope.source import parse_source
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
 
@@ -119,3 +129,63 @@ def test_staging_cache_restores_the_previous_entry_after_promotion_failure(
     assert (entry / "sentinel.txt").read_text(encoding="utf-8") == "old\n"
     assert not any(path.name.endswith(".backup") for path in cache_root.iterdir())
     assert not any(path.name.startswith(f".{entry.name}.") for path in cache_root.iterdir())
+
+
+def test_manifest_lists_files_and_directories(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    (content / "api").mkdir(parents=True)
+    (content / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
+    (content / "README.md").write_text("readme\n", encoding="utf-8")
+
+    manifest = build_manifest(content)
+
+    assert set(manifest) == {".", "README.md", "api", "api/overview.md"}
+    assert manifest["README.md"] != manifest["api"]
+
+
+def test_cache_rejects_a_directory_entry_without_a_manifest(tmp_path: Path) -> None:
+    cache_root = tmp_path / "cache"
+    entry = cache_path(cache_root, "file:///docs")
+    (entry / CACHE_CONTENT_DIRECTORY / "api").mkdir(parents=True)
+    (entry / CACHE_CONTENT_DIRECTORY / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
+    write_metadata(
+        entry,
+        CacheMetadata(
+            format_version=CACHE_FORMAT_VERSION,
+            doc_type="filesystem",
+            source="file:///docs",
+            fetched_at=datetime.now(timezone.utc),
+            content_kind="directory",
+            content_name=None,
+            content_digest="digest",
+        ),
+    )
+
+    inspection = inspect_cache(entry, ttl_days=7)
+
+    assert inspection.state == "invalid"
+
+
+def test_cache_accepts_a_directory_entry_with_a_manifest(tmp_path: Path) -> None:
+    cache_root = tmp_path / "cache"
+    entry = cache_path(cache_root, "file:///docs")
+    content = entry / CACHE_CONTENT_DIRECTORY
+    (content / "api").mkdir(parents=True)
+    (content / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
+    write_manifest(entry, build_manifest(content))
+    write_metadata(
+        entry,
+        CacheMetadata(
+            format_version=CACHE_FORMAT_VERSION,
+            doc_type="filesystem",
+            source="file:///docs",
+            fetched_at=datetime.now(timezone.utc),
+            content_kind="directory",
+            content_name=None,
+            content_digest="digest",
+        ),
+    )
+
+    inspection = inspect_cache(entry, ttl_days=7)
+
+    assert inspection.state == "fresh"

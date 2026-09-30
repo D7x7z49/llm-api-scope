@@ -9,12 +9,15 @@ import typer
 from pydantic import ValidationError
 
 from apiscope.cache import (
+    CACHE_CONTENT_DIRECTORY,
     CACHE_FORMAT_VERSION,
     CacheInspection,
     CacheMetadata,
+    build_manifest,
     cache_path,
     inspect_cache,
     staging_cache,
+    write_manifest,
     write_metadata,
 )
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
@@ -238,6 +241,8 @@ def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
                 destination=staging,
                 proxy=runtime.config.setting.local.proxy,
             )
+            if result.content_kind == "directory":
+                write_manifest(staging, build_manifest(staging / CACHE_CONTENT_DIRECTORY))
             write_metadata(
                 staging,
                 CacheMetadata(

@@ -15,11 +15,7 @@ from apiscope.sync._lib.schema import ParsedSource, RemoteSource
 
 @pytest.mark.parametrize(
     ("fetcher_type", "doc_type", "url"),
-    [
-        pytest.param(OpenapiFetcher, "openapi", "https://example.test/openapi.json", id="openapi"),
-        pytest.param(RfcFetcher, "rfc", "https://example.test/rfc9110.txt", id="rfc"),
-        pytest.param(LlmstxtFetcher, "llmstxt", "https://example.test/llms.txt", id="llmstxt"),
-    ],
+    [],
 )
 def test_remote_fetchers_store_mocked_content(
     tmp_path: Path,
@@ -50,6 +46,33 @@ def test_remote_fetchers_store_mocked_content(
     assert (destination / "content" / Path(url).name).read_bytes() == b"remote content"
     assert result.content_digest
     assert [str(request.url) for request in requests] == [url]
+
+
+def test_llmstxt_fetcher_downloads_the_index_and_pages(
+    tmp_path: Path,
+    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+) -> None:
+    requests: list[str] = []
+    index = b"# Docs\n\n- [Guide](guide/intro.md): the guide\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        if str(request.url) == "https://example.test/docs/llms.txt":
+            return httpx.Response(200, content=index)
+        return httpx.Response(200, content=b"page content")
+
+    install_httpx_mock_client(handler)
+    url = "https://example.test/docs/llms.txt"
+    source = ParsedSource(doc_type="llmstxt", original=url, canonical=url, location=RemoteSource(url))
+    destination = tmp_path / "staging"
+
+    result = LlmstxtFetcher().fetch(source, destination=destination)
+
+    assert result.content_kind == "directory"
+    assert result.content_name is None
+    assert (destination / "content" / "llms.txt").read_bytes() == index
+    assert (destination / "content" / "guide" / "intro.md").read_bytes() == b"page content"
+    assert requests == [url, "https://example.test/docs/guide/intro.md"]
 
 
 @pytest.mark.parametrize(

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import tempfile
+from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -24,6 +26,7 @@ from apiscope.schema import DocumentType, StrictSchemaModel
 CACHE_CONTENT_DIRECTORY: Final = "content"
 CACHE_FORMAT_VERSION: Final = "1"
 CACHE_METADATA_FILENAME: Final = "metadata.json"
+CACHE_MANIFEST_FILENAME: Final = "manifest.json"
 
 # ==============================================================================
 # types
@@ -135,6 +138,32 @@ def write_metadata(path: Path, metadata: CacheMetadata) -> CacheMetadata:
     return metadata
 
 
+def build_manifest(content_path: Path) -> dict[str, str]:
+    root = content_path.resolve()
+    manifest: dict[str, str] = {}
+    for file in sorted(path for path in root.rglob("*") if path.is_file()):
+        manifest[file.relative_to(root).as_posix()] = _hash_file(file)
+    directories = [root, *(path for path in root.rglob("*") if path.is_dir())]
+    for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
+        digest = sha256()
+        for child in sorted(directory.iterdir(), key=lambda path: path.name):
+            key = child.relative_to(root).as_posix()
+            kind = "d" if child.is_dir() else "f"
+            digest.update(kind.encode("ascii"))
+            digest.update(b"\0")
+            digest.update(child.name.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(manifest.get(key, "").encode("ascii"))
+            digest.update(b"\0")
+        manifest[directory.relative_to(root).as_posix()] = digest.hexdigest()
+    return manifest
+
+
+def write_manifest(path: Path, manifest: Mapping[str, str]) -> None:
+    manifest_path = path / CACHE_MANIFEST_FILENAME
+    manifest_path.write_text(json.dumps(dict(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 @contextmanager
 def staging_cache(cache_root: Path, canonical_source: str) -> Iterator[Path]:
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -180,7 +209,26 @@ def _content_is_valid(path: Path, metadata: CacheMetadata) -> bool:
             return False
         content_file = path / metadata.content_name
         return content_file.parent == path and content_file.is_file()
-    return True
+    return _manifest_is_valid(path.parent)
+
+
+def _manifest_is_valid(entry: Path) -> bool:
+    manifest_path = entry / CACHE_MANIFEST_FILENAME
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(manifest, dict) and all(
+        isinstance(key, str) and isinstance(value, str) for key, value in manifest.items()
+    )
+
+
+def _hash_file(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as file:
+        while chunk := file.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _update_file_digest(digest: hashlib._Hash, relative_path: Path, path: Path) -> None:

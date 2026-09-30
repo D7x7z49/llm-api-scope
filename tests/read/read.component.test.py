@@ -12,7 +12,6 @@ import yaml
 from typer.testing import CliRunner
 
 from apiscope.main import app
-from apiscope.read_lib.llmstxt import reader as llmstxt_reader_module
 
 OPENAPI_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "read" / "openapi" / "openapi.yaml"
 READ_FILESYSTEM_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "read" / "filesystem"
@@ -380,7 +379,7 @@ def test_read_returns_an_rfc_xml_section_from_a_view_index(
     assert payload["data"][0]["media_type"] == "application/rfc+xml"
 
 
-def test_read_fetches_only_the_selected_llmstxt_link(
+def test_sync_downloads_llmstxt_pages_and_read_returns_them(
     isolated_home: Path,
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -407,7 +406,7 @@ def test_read_fetches_only_the_selected_llmstxt_link(
     def client_factory(**kwargs: Any) -> httpx.Client:
         return original_client(transport=httpx.MockTransport(handle), **kwargs)
 
-    monkeypatch.setattr(llmstxt_reader_module.httpx, "Client", client_factory)
+    monkeypatch.setattr(httpx, "Client", client_factory)
     runner = CliRunner()
 
     _register_and_sync(runner, "docs", "llms.txt", doc_type="llmstxt")
@@ -416,13 +415,13 @@ def test_read_fetches_only_the_selected_llmstxt_link(
     result = runner.invoke(app, ["--json", "read", "docs", link["index"]], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert requested == ["https://example.test/docs/guide.md"]
+    assert "https://example.test/docs/guide.md" in requested
     payload = json.loads(result.output)
     assert payload["data"][0]["content"] == "# Guide\n"
-    assert payload["extra"]["retrieval"] == "network"
+    assert "retrieval" not in payload["extra"]
 
 
-def test_read_reports_a_library_owned_llmstxt_fetch_error(
+def test_sync_skips_a_failed_llmstxt_page(
     isolated_home: Path,
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -439,18 +438,16 @@ def test_read_reports_a_library_owned_llmstxt_fetch_error(
     def client_factory(**kwargs: Any) -> httpx.Client:
         return original_client(transport=httpx.MockTransport(handle), **kwargs)
 
-    monkeypatch.setattr(llmstxt_reader_module.httpx, "Client", client_factory)
+    monkeypatch.setattr(httpx, "Client", client_factory)
     runner = CliRunner()
 
-    _register_and_sync(runner, "docs", "llms.txt", doc_type="llmstxt")
+    added = runner.invoke(app, ["add", "docs", "llms.txt", "--type", "llmstxt"], catch_exceptions=False)
+    result = runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
     view = runner.invoke(app, ["--json", "view", "docs"], catch_exceptions=False)
-    link = next(item for item in json.loads(view.output)["data"] if item.get("key") == "guide.md")
-    result = runner.invoke(app, ["--json", "read", "docs", link["index"]], catch_exceptions=False)
 
-    assert result.exit_code == 1
-    payload = json.loads(result.output)
-    assert payload["code"] == "read_lib.reader.read_failed"
-    assert payload["message"] == f"cannot read target {link['path']}"
+    assert added.exit_code == 0
+    assert result.exit_code == 0
+    assert [item["key"] for item in json.loads(view.output)["data"]] == ["llms.txt"]
     assert "Traceback" not in result.output
 
 

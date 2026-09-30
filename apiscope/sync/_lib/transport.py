@@ -55,24 +55,21 @@ def _fetch_remote(
     proxy: str | None,
 ) -> tuple[ContentKind, str]:
     name = _remote_name(source.url)
-    if proxy is None:
-        client = httpx.Client(
-            follow_redirects=True,
-            timeout=HTTP_TIMEOUT_SECONDS,
-            trust_env=False,
-        )
-    else:
-        client = httpx.Client(
-            follow_redirects=True,
-            timeout=HTTP_TIMEOUT_SECONDS,
-            proxy=proxy,
-            trust_env=False,
-        )
-    with client:
-        response = client.get(source.url)
-        response.raise_for_status()
-    (content_path / name).write_bytes(response.content)
+    (content_path / name).write_bytes(fetch_remote_bytes(source.url, proxy=proxy))
     return "file", name
+
+
+def fetch_remote_bytes(url: str, *, proxy: str | None = None) -> bytes:
+    with _client(proxy) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        return response.content
+
+
+def _client(proxy: str | None) -> httpx.Client:
+    if proxy is None:
+        return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, trust_env=False)
+    return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, proxy=proxy, trust_env=False)
 
 
 def _remote_name(url: str) -> str:

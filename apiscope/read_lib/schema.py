@@ -7,7 +7,6 @@ from typing import Any, Literal
 from apiscope.read_lib.constants import INVARIANT_MESSAGES, OUTPUT_TEMPLATES, ReadInvariant, ReadOutput
 
 ReadKind = Literal["text", "markdown", "binary"]
-ReadRetrieval = Literal["cache", "network"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +17,6 @@ class ReadResult:
     media_type: str | None = None
     encoding: str | None = None
     size: int | None = None
-    retrieval: ReadRetrieval = "cache"
 
     def __post_init__(self) -> None:
         if self.kind in {"text", "markdown"} and self.content is None:
@@ -45,8 +43,6 @@ class ReadResult:
 
     def as_extra(self, cache_state: str) -> dict[str, object]:
         extra: dict[str, object] = {"cache": cache_state, "kind": self.kind}
-        if self.retrieval == "network":
-            extra["retrieval"] = self.retrieval
         if self.media_type is not None:
             extra["media_type"] = self.media_type
         if self.encoding is not None:

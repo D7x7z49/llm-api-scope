@@ -89,6 +89,21 @@ def test_filesystem_viewer_marks_an_outside_link_as_a_leaf(tmp_path: Path) -> No
     assert [(node.index, node.key, node.node_type) for node in tree.indexed()] == [("1", "link", "leaf")]
 
 
+def test_llmstxt_viewer_builds_a_directory_tree(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    (content / "guide").mkdir(parents=True)
+    (content / "guide" / "intro.md").write_text("intro\n", encoding="utf-8")
+    (content / "llms.txt").write_text("# Docs\n", encoding="utf-8")
+
+    tree = LlmstxtViewer().build(content, _metadata("llmstxt", kind="directory", name=None))
+
+    assert [(node.index, node.key) for node in tree.indexed()] == [
+        ("1", "guide"),
+        ("1.1", "intro.md"),
+        ("2", "llms.txt"),
+    ]
+
+
 def test_repo_viewer_hides_git_metadata(tmp_path: Path) -> None:
     content = tmp_path / "content"
     (content / ".git").mkdir(parents=True)
@@ -281,112 +296,3 @@ def test_rfc_viewer_keeps_xml_section_anchors(tmp_path: Path) -> None:
         ("2", "intro", "ordinary"),
         ("2.1", "intro/scope", "leaf"),
     ]
-
-
-def test_llmstxt_viewer_builds_routes_from_link_urls(tmp_path: Path) -> None:
-    content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text(
-        """
-# Project
-> A short summary.
-
-## Documentation
-- [Getting Started](https://example.test/docs/guides/start.md): Install the project.
-- [API Reference](https://example.test/docs/reference/api.md)
-- [Catalog](https://example.test/docs/catalog.json)
-
-## External
-- [Help](https://other.test/help.md)
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-
-    tree = LlmstxtViewer().build(
-        content,
-        _metadata("llmstxt", name="llms.txt", source="https://example.test/docs/llms.txt"),
-    )
-
-    assert [(node.index, node.path, node.node_type) for node in tree.indexed()] == [
-        ("1", "overview", "leaf"),
-        ("2", "catalog.json", "leaf"),
-        ("3", "guides", "ordinary"),
-        ("3.1", "guides/start.md", "leaf"),
-        ("4", "other.test", "ordinary"),
-        ("4.1", "other.test/help.md", "leaf"),
-        ("5", "reference", "ordinary"),
-        ("5.1", "reference/api.md", "leaf"),
-    ]
-    node = tree.resolve("guides/start.md")
-    assert node.key == "start.md"
-    assert node.description == "[Getting Started] Install the project."
-    assert node.source_target == "https://example.test/docs/guides/start.md"
-
-
-def test_llmstxt_viewer_resolves_relative_links_from_a_nested_index(tmp_path: Path) -> None:
-    content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text(
-        "# Pydantic\n\n## Get Started\n- [Install](get-started/install/index.md)\n",
-        encoding="utf-8",
-    )
-
-    tree = LlmstxtViewer().build(
-        content,
-        _metadata(
-            "llmstxt",
-            name="llms.txt",
-            source="https://pydantic.dev/docs/validation/latest/llms.txt",
-        ),
-    )
-
-    node = tree.resolve("get-started/install/index.md")
-    assert node.source_target == "https://pydantic.dev/docs/validation/latest/get-started/install/index.md"
-
-
-def test_llmstxt_viewer_strips_a_local_source_directory(tmp_path: Path) -> None:
-    content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text(
-        "# Docs\n\n## Guides\n- [Install](install.md): Install the project.\n- [Reference](api/reference.md)\n",
-        encoding="utf-8",
-    )
-
-    tree = LlmstxtViewer().build(
-        content,
-        _metadata("llmstxt", name="llms.txt", source=str(content / "llms.txt")),
-    )
-
-    assert [(node.index, node.key, node.path) for node in tree.indexed()] == [
-        ("1", "Overview", "overview"),
-        ("2", "api", "api"),
-        ("2.1", "reference.md", "api/reference.md"),
-        ("3", "install.md", "install.md"),
-    ]
-
-
-def test_llmstxt_viewer_deduplicates_a_repeated_url(tmp_path: Path) -> None:
-    content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text(
-        """# Docs
-
-## One
-- [First](https://example.test/docs/guide.md)
-- [Second](https://example.test/docs/guide.md)
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
-
-    tree = LlmstxtViewer().build(
-        content,
-        _metadata("llmstxt", name="llms.txt", source="https://example.test/docs/llms.txt"),
-    )
-
-    assert [(node.index, node.key, node.path) for node in tree.indexed()] == [
-        ("1", "Overview", "overview"),
-        ("2", "guide.md", "guide.md"),
-    ]
-    assert tree.resolve("guide.md").description == "[First]"

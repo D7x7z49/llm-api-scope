@@ -1,16 +1,13 @@
 # tests/read_lib/readers.unit.test.py
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-import httpx
 import pytest
 import yaml
 
 from apiscope.cache import CacheMetadata
 from apiscope.read_lib.errors import ReadError
 from apiscope.read_lib.filesystem.reader import FilesystemReader
-from apiscope.read_lib.llmstxt import reader as llmstxt_reader_module
 from apiscope.read_lib.llmstxt.reader import LlmstxtReader
 from apiscope.read_lib.openapi.reader import OpenapiReader
 from apiscope.read_lib.registry import supports_reading
@@ -239,85 +236,33 @@ def test_rfc_reader_returns_one_text_page(tmp_path: Path) -> None:
     assert result.size == len(b"contents")
 
 
-def test_llmstxt_reader_returns_the_cached_index_for_overview(tmp_path: Path) -> None:
+def test_llmstxt_reader_reads_a_local_file(tmp_path: Path) -> None:
     content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text("# Docs\n", encoding="utf-8")
+    (content / "guide").mkdir(parents=True)
+    (content / "guide" / "intro.md").write_text("# Guide\n", encoding="utf-8")
 
-    result = LlmstxtReader().read(content, _llmstxt_metadata(), _node("overview"))
+    result = LlmstxtReader().read(content, _llmstxt_metadata(), _node("guide/intro.md"))
 
-    assert result.kind == "markdown"
-    assert result.content == "# Docs\n"
-    assert result.media_type == "text/markdown"
-
-
-def test_llmstxt_reader_fetches_only_the_selected_target(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    content = tmp_path / "content"
-    content.mkdir()
-    (content / "llms.txt").write_text("# Docs\n", encoding="utf-8")
-    requests: list[str] = []
-    original_client = httpx.Client
-
-    def handle(request: httpx.Request) -> httpx.Response:
-        requests.append(str(request.url))
-        return httpx.Response(
-            200,
-            headers={"content-type": "text/markdown; charset=utf-8"},
-            content=b"# Guide\n",
-            request=request,
-        )
-
-    def client_factory(**kwargs: Any) -> httpx.Client:
-        return original_client(transport=httpx.MockTransport(handle), **kwargs)
-
-    monkeypatch.setattr(llmstxt_reader_module.httpx, "Client", client_factory)
-    url = "https://example.test/docs/guide.md"
-
-    result = LlmstxtReader().read(
-        content,
-        _llmstxt_metadata(),
-        _node("docs/guide.md", key="Guide", source_target=url),
-    )
-
-    assert requests == [url]
     assert result.kind == "markdown"
     assert result.content == "# Guide\n"
-    assert result.as_extra("fresh")["retrieval"] == "network"
-    assert sorted(path.name for path in content.iterdir()) == ["llms.txt"]
+    assert result.media_type == "text/markdown"
+    assert "retrieval" not in result.as_extra("fresh")
 
 
-def test_llmstxt_reader_reports_http_errors(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    original_client = httpx.Client
+def test_llmstxt_reader_reports_a_missing_file(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    content.mkdir()
 
-    def handle(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, request=request)
-
-    def client_factory(**kwargs: Any) -> httpx.Client:
-        return original_client(transport=httpx.MockTransport(handle), **kwargs)
-
-    monkeypatch.setattr(llmstxt_reader_module.httpx, "Client", client_factory)
-
-    with pytest.raises(ReadError, match=r"read_lib\.reader\.read_failed"):
-        LlmstxtReader().read(
-            tmp_path,
-            _llmstxt_metadata(),
-            _node("guide.md", source_target="https://example.test/guide.md"),
-        )
-
-
-def test_llmstxt_reader_rejects_non_http_targets(tmp_path: Path) -> None:
     with pytest.raises(ReadError, match=r"read_lib\.reader\.target_invalid"):
-        LlmstxtReader().read(
-            tmp_path,
-            _llmstxt_metadata(),
-            _node("guide.md", source_target="file:///tmp/guide.md"),
-        )
+        LlmstxtReader().read(content, _llmstxt_metadata(), _node("guide.md"))
+
+
+def test_llmstxt_reader_rejects_an_ordinary_target(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    content.mkdir()
+
+    with pytest.raises(ReadError, match=r"read_lib\.reader\.target_not_leaf"):
+        LlmstxtReader().read(content, _llmstxt_metadata(), _node("guide", node_type="ordinary"))
 
 
 def _node(
