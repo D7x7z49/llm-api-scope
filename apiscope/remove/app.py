@@ -43,6 +43,8 @@ def main_callback(
         raise MessageError("remove.error.runtime_context_unavailable")
 
     try:
+        if name == "all":
+            raise MessageError("remove.error.reserved_name", {"name": name})
         options = RemoveOptions(name=name)
         command_context = RemoveCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)

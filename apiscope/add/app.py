@@ -47,6 +47,8 @@ def main_callback(
         raise MessageError("add.error.runtime_context_unavailable")
 
     try:
+        if name == "all":
+            raise MessageError("add.error.reserved_name", {"name": name})
         options = AddOptions(name=name, doc_type=cast(DocumentType, doc_type), doc_src=source, doc_ttl=ttl)
         command_context = AddCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)

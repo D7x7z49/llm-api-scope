@@ -11,6 +11,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "remove.error.invalid_options": "source name {name} is invalid",
     "remove.error.project_required": "a Git project is required unless --global is used",
     "remove.error.name_not_found": "source {name} was not found",
+    "remove.error.reserved_name": "source name {name} is reserved",
     "remove.error.persistence.read_failed": "cannot read the configuration at {path}",
     "remove.error.persistence.write_failed": "cannot update the configuration at {path}",
 }

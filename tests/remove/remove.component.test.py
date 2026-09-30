@@ -122,3 +122,19 @@ def test_remove_requires_a_project_without_global_mode(
         "[error] [scope=project] [action=remove] [code=remove.error.project_required]: "
         "a Git project is required unless --global is used\n"
     )
+
+
+def test_remove_rejects_the_reserved_name(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+
+    result = CliRunner().invoke(app, ["remove", "all"], catch_exceptions=False)
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=remove] [code=remove.error.reserved_name] [name=all]: "
+        "source name all is reserved\n"
+    )
