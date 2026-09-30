@@ -5,6 +5,5 @@ from apiscope.schema import StrictSchemaModel
 
 
 class ViewOptions(StrictSchemaModel):
-    name: str = Field(min_length=1)
-    path: str | None = None
+    address: str = Field(min_length=1)
     depth: int | None = Field(default=None, ge=0)

@@ -52,17 +52,12 @@ def test_view_path_filter_relays_out_the_index(
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
     runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
-    result = runner.invoke(app, ["view", "docs", "api"], catch_exceptions=False)
+    result = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert "- [1] overview.md" in result.output
     assert "[path=api]" in result.output
     assert "README.md" not in result.output
-
-    combined = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
-    assert combined.exit_code == 0
-    assert "- [1] overview.md" in combined.output
-    assert "README.md" not in combined.output
 
 
 def test_view_json_contains_the_same_semantic_nodes(
@@ -136,7 +131,7 @@ def test_view_uses_the_projection_error_catalog_directly(
 
     runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
     runner.invoke(app, ["sync", "docs"], catch_exceptions=False)
-    result = runner.invoke(app, ["view", "docs", "missing.md"], catch_exceptions=False)
+    result = runner.invoke(app, ["view", "docs/missing.md"], catch_exceptions=False)
 
     assert result.exit_code == 1
     assert "view_lib.projection.path_not_found" in result.output
@@ -160,7 +155,7 @@ def test_view_route_error_shows_the_valid_address_and_same_level(
 
     runner.invoke(app, ["add", "pets", "openapi.yaml", "--type", "openapi"], catch_exceptions=False)
     runner.invoke(app, ["sync", "pets"], catch_exceptions=False)
-    result = runner.invoke(app, ["view", "pets", "pets/x"], catch_exceptions=False)
+    result = runner.invoke(app, ["view", "pets/pets/x"], catch_exceptions=False)
 
     assert result.exit_code == 1
     assert "route pets/x does not exist" in result.output

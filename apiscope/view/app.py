@@ -68,8 +68,7 @@ class ViewResult:
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    name: str = typer.Argument(..., help=MESSAGE_TEMPLATES["view.help.argument.name"]),
-    path: str | None = typer.Argument(None, help=MESSAGE_TEMPLATES["view.help.argument.path"]),
+    address: str = typer.Argument(..., help=MESSAGE_TEMPLATES["view.help.argument.address"]),
     depth: int | None = typer.Option(None, "--depth", min=0, help=MESSAGE_TEMPLATES["view.help.option.depth"]),
 ) -> None:
     runtime_context = ctx.find_object(RuntimeContext)
@@ -77,27 +76,23 @@ def main_callback(
         raise MessageError("view.error.runtime_context_unavailable")
 
     try:
-        if path is None:
-            name, path = split_address(name, runtime_context.config.source)
-        options = ViewOptions(name=name, path=path, depth=depth)
+        options = ViewOptions(address=address, depth=depth)
         command_context = ViewCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)
-        source = runtime_context.config.source.get(options.name)
+        name, path = split_address(options.address, runtime_context.config.source)
+        source = runtime_context.config.source.get(name)
         if source is None:
-            raise MessageError("view.error.name_not_found", {"name": options.name})
-        result = _run_view(command_context, source)
+            raise MessageError("view.error.name_not_found", {"name": name})
+        result = _run_view(command_context, source, name=name, path=path)
     except ValidationError as error:
         message = MessageError("view.error.invalid_options")
         _emit_error(runtime_context, message)
-        raise typer.Exit(code=1) from error
-    except ProjectionError as error:
-        _emit_error(runtime_context, _projection_message(error, name=options.name))
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
         raise typer.Exit(code=1) from error
 
-    meta: dict[str, object] = {"name": options.name, "path": options.path or "."}
+    meta: dict[str, object] = {"name": name, "path": path}
     if result.anchor is not None and result.anchor.description:
         meta["description"] = result.anchor.description
     if options.depth is not None:
@@ -123,31 +118,39 @@ def main_callback(
 # ==============================================================================
 
 
-def _run_view(command_context: ViewCommandContext, source: RuntimeSource) -> ViewResult:
+def _run_view(
+    command_context: ViewCommandContext,
+    source: RuntimeSource,
+    *,
+    name: str,
+    path: str,
+) -> ViewResult:
     runtime = command_context.runtime
     options = command_context.options
     base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
     try:
         parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
     except SourceResolutionError as error:
-        raise MessageError("view.error.source_invalid", {"name": options.name}) from error
+        raise MessageError("view.error.source_invalid", {"name": name}) from error
 
     ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
     snapshot = load_content(runtime.paths.home.cache, parsed, ttl_days=ttl_days)
     inspection = snapshot.inspection
-    _require_cache(options.name, inspection)
+    _require_cache(name, inspection)
     metadata = inspection.metadata
     if metadata is None:
-        raise MessageError("view.error.cache_invalid", {"name": options.name})
+        raise MessageError("view.error.cache_invalid", {"name": name})
 
     try:
         tree = build_tree(source.doc_type, snapshot.content, metadata)
         anchor = None
-        if options.path is not None and tree.normalize_path(options.path):
-            anchor = tree.resolve(options.path)
-        nodes = tree.select(options.path, depth=options.depth)
+        if tree.normalize_path(path):
+            anchor = tree.resolve(path)
+        nodes = tree.select(path, depth=options.depth)
+    except ProjectionError as error:
+        raise _projection_message(error, name=name) from error
     except OSError as error:
-        raise MessageError("view.error.projection_failed", {"name": options.name}) from error
+        raise MessageError("view.error.projection_failed", {"name": name}) from error
 
     return ViewResult(
         cache_state=inspection.state,
