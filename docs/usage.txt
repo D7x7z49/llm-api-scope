@@ -22,3 +22,7 @@
   - view # show the structure of a cached source
     + [ADDRESS] # the registered source name and optional route
     + [--depth]? # levels to show below the scope; the default is unlimited
+  - skill # print or install the agent skill
+    - show # print the skill content
+    - install # install the skill directory
+      + [TARGET]? # install directory, defaulting to ~/.agents/skills/apiscope
