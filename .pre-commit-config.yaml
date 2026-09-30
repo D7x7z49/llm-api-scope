@@ -47,3 +47,9 @@ repos:
       language: system
       files: ^pyproject\.toml$|^pdm\.lock$
       pass_filenames: false
+    - id: usage-doc
+      name: Generate docs/usage.txt
+      entry: pdm run python scripts/ci/usage.py --write docs/usage.txt
+      language: system
+      files: ^(apiscope/.*\.py|scripts/ci/usage\.py|docs/usage\.txt)$
+      pass_filenames: false

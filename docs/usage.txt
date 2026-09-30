@@ -1,0 +1,24 @@
+- apiscope # read and cache structured documents from remote for LLM agents
+  + [--global]? # use home configuration and skip project discovery
+  + [--json]? # render reports as JSON
+  - add # add a source to the selected configuration
+    + [NAME] # the source name
+    + [SOURCE] # the source location
+    + [--type] # the source document type
+    + [--ttl]? # the source cache TTL in days
+  - remove # remove a source from the selected configuration
+    + [NAME] # the source name
+  - read # read selected content from a source
+    + [ADDRESS] # the registered source name and route
+    + [INDEX]? # the numeric tree index shown by view; omit it to read a leaf address directly
+  - list # list configured sources by document type
+    + [SELECTOR] # choose one of all, filesystem, repo, openapi, rfc, or llmstxt
+    + [--limit]? # show at most this many sources
+    + [--offset]? # skip this many sources before showing
+  - sync # fetch registered sources into the cache
+    + [NAME]? # the source name; omit it to inspect the selected range
+    + [--source-type]? # limit the range to one source type
+    + [--force]? # refresh selected sources regardless of freshness
+  - view # show the structure of a cached source
+    + [ADDRESS] # the registered source name and optional route
+    + [--depth]? # levels to show below the scope; the default is unlimited

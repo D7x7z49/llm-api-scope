@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-# PR validation — commit messages, lint, format, type check, tests
+# PR validation — commit messages, lint, format, usage, type check, tests
 
 name: CI
 
@@ -38,6 +38,9 @@ jobs:
 
       - name: Check format with ruff
         run: pdm run ruff format --check --diff
+
+      - name: Check the usage reference
+        run: pdm run python scripts/ci/usage.py --check docs/usage.txt
 
       - name: Type check with mypy
         run: pdm run mypy apiscope/ tests/
