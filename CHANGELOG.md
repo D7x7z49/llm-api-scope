@@ -2,6 +2,162 @@
 
 <!-- version list -->
 
+## v0.9.0 (2026-10-01)
+
+### Bug Fixes
+
+- **gitignore**: Stop forcing project config tracking
+  ([`0d7b812`](https://github.com/D7x7z49/llm-api-scope/commit/0d7b81249bca5d658bf1363a2a7165cb6572ffb6))
+
+### Chores
+
+- Enforce strict Ruff quality policy
+  ([`c5f180e`](https://github.com/D7x7z49/llm-api-scope/commit/c5f180eb4468de94e145c7a6dc8d2723521797f5))
+
+- Remove the archived baseline
+  ([`0b573de`](https://github.com/D7x7z49/llm-api-scope/commit/0b573de96e8065304d62b08657cb38be87f51629))
+
+- Untrack temporary files
+  ([`fb5e32d`](https://github.com/D7x7z49/llm-api-scope/commit/fb5e32d789952f593e173aa6c5fe78e887b4485a))
+
+- **ci**: Check the commit messages with commitizen
+  ([`a65f93c`](https://github.com/D7x7z49/llm-api-scope/commit/a65f93c12d5a83e34fd8a0c6df785e7895330157))
+
+### Documentation
+
+- Add design decision guidance
+  ([`19d2437`](https://github.com/D7x7z49/llm-api-scope/commit/19d243747ec77fe4a1aee06f494a21d32d54a028))
+
+- Archive the old command reference
+  ([`708e51d`](https://github.com/D7x7z49/llm-api-scope/commit/708e51dce1d7e33fca07615cf83d7caba3360645))
+
+- Clarify agent and error handling guidance
+  ([`540a6cb`](https://github.com/D7x7z49/llm-api-scope/commit/540a6cb483510d030d981e9d50fc3a01a20e4633))
+
+- Generate the usage reference from the app
+  ([`0172794`](https://github.com/D7x7z49/llm-api-scope/commit/01727942b39988346027bbfbc71b7e55c15675c2))
+
+- Refresh the readme for the new commands
+  ([`43481e0`](https://github.com/D7x7z49/llm-api-scope/commit/43481e00a92636644012aa2d9199315cb94cae92))
+
+- **apiscope**: Add scope rules and the concrete layout
+  ([`0e6e60a`](https://github.com/D7x7z49/llm-api-scope/commit/0e6e60a07f19f74ee082738e8852cae50f2fadf6))
+
+- **experience**: Record pytest expected data guidance
+  ([`5f7caa8`](https://github.com/D7x7z49/llm-api-scope/commit/5f7caa848c53025b2f00c140aba6fdb05a3e42bd))
+
+- **health**: Reserve a placeholder for the health subcommand
+  ([`96384f4`](https://github.com/D7x7z49/llm-api-scope/commit/96384f4758d53e35598afa54432b18d6127a9e95))
+
+- **prompt**: Add a CLI usage description grammar
+  ([`3005067`](https://github.com/D7x7z49/llm-api-scope/commit/3005067fbddd710881fcf49a7f3ba3d07bc04b47))
+
+### Features
+
+- **add**: Register project and home sources
+  ([`9598a1b`](https://github.com/D7x7z49/llm-api-scope/commit/9598a1b4e53dc791db153ac2a7469200e13902f4))
+
+- **apiscope**: Add the skill command
+  ([`0122063`](https://github.com/D7x7z49/llm-api-scope/commit/0122063a4392ffbd4e8546894ae8faa7cda9d9c5))
+
+- **apiscope**: Cache llmstxt pages and hash the content
+  ([`0123079`](https://github.com/D7x7z49/llm-api-scope/commit/012307954c03b06fe5b367581ee18c4821c8327e))
+
+- **apiscope**: Reserve the source name all
+  ([`2c4b094`](https://github.com/D7x7z49/llm-api-scope/commit/2c4b094f18e9b5ffa93c58c387f0011bf2fe9015))
+
+- **config**: Allow local source overrides
+  ([`49f6bba`](https://github.com/D7x7z49/llm-api-scope/commit/49f6bbae5466cafaaaa3bc6ce0801dc52b9c57d8))
+
+- **errors**: Add message catalog errors
+  ([`5bcc4a9`](https://github.com/D7x7z49/llm-api-scope/commit/5bcc4a98d747cbba6328a4e600e247721a4bbfa1))
+
+- **list**: List effective sources
+  ([`5d5900f`](https://github.com/D7x7z49/llm-api-scope/commit/5d5900f424158ced65ec4cf63a36c8faf01113ef))
+
+- **list**: Window the source list by limit and offset
+  ([`087ba63`](https://github.com/D7x7z49/llm-api-scope/commit/087ba6314062460cfc16df0af616cab61335492b))
+
+- **output**: Add a text and json report pipeline
+  ([`735a0d4`](https://github.com/D7x7z49/llm-api-scope/commit/735a0d4dfd250f5ebbd99934992704f717d6b352))
+
+- **read**: Read leaf content by address and index
+  ([`1bdf9da`](https://github.com/D7x7z49/llm-api-scope/commit/1bdf9dad515187db82cc7f35e871f7f080e9db09))
+
+- **remove**: Remove registered sources
+  ([`e9106f4`](https://github.com/D7x7z49/llm-api-scope/commit/e9106f4f55b763ae922bd11297f7172ccd99935a))
+
+- **sync**: Add source synchronization runtime
+  ([`c889836`](https://github.com/D7x7z49/llm-api-scope/commit/c8898368dc5279c23b793df5cabf91e87c409f59))
+
+- **sync**: Preflight source dependencies
+  ([`7a415ab`](https://github.com/D7x7z49/llm-api-scope/commit/7a415abed7bdc620b9e9ce724dfca0745414abff))
+
+- **view**: Add cached source tree view
+  ([`2529cd5`](https://github.com/D7x7z49/llm-api-scope/commit/2529cd54cdb12189efd2e6811cab3d5e6f752be2))
+
+- **view**: Add tree-based route navigation
+  ([`d10cf4c`](https://github.com/D7x7z49/llm-api-scope/commit/d10cf4c52aecc70748ca341e328a7fed3247ecd5))
+
+- **view**: Anchor the scope root and add a depth cap
+  ([`7dce0bc`](https://github.com/D7x7z49/llm-api-scope/commit/7dce0bce68f44d2a5e6dc97e6ddf27f3e7bcc635))
+
+### Refactoring
+
+- Restart implementation from archived baseline
+  ([`fdfaf75`](https://github.com/D7x7z49/llm-api-scope/commit/fdfaf75af9f3030877e9e3c3e46552d6f4f3cb75))
+
+- Separate command context and preflight concerns
+  ([`f09ae9d`](https://github.com/D7x7z49/llm-api-scope/commit/f09ae9d2c1e0c380090585c70c8b53bb96292a0d))
+
+- Unify source parsing and projection errors
+  ([`deb1d3f`](https://github.com/D7x7z49/llm-api-scope/commit/deb1d3fef129edd788b19ac9d9494d266c79e8a3))
+
+- **apiscope**: Centralize output text and share the content resolver
+  ([`cb8eaa2`](https://github.com/D7x7z49/llm-api-scope/commit/cb8eaa22b6098682a0b636566d51d2a24f61b4fc))
+
+- **apiscope**: Derive the report scope from the runtime context
+  ([`cedd076`](https://github.com/D7x7z49/llm-api-scope/commit/cedd076ac37773b80fc05070314a69ba3d062978))
+
+- **apiscope**: Keep read commands read-only
+  ([`ebb2808`](https://github.com/D7x7z49/llm-api-scope/commit/ebb280842adbb60a88412830a91a22ccaf931951))
+
+- **apiscope**: Select sync sources by a shared selector
+  ([`4e14842`](https://github.com/D7x7z49/llm-api-scope/commit/4e14842d079a51acb53d868bb8f02a96b6356750))
+
+- **apiscope**: Share the usage renderer
+  ([`9fbc088`](https://github.com/D7x7z49/llm-api-scope/commit/9fbc088bbc63ec9301b56d39fe7a6d32576821cd))
+
+- **cache**: Move cache mechanism to global module
+  ([`b83c566`](https://github.com/D7x7z49/llm-api-scope/commit/b83c56603ad5dd51b0dad56326eb529aa4c11172))
+
+- **config**: Harden persistence and merge rules
+  ([`2a9287f`](https://github.com/D7x7z49/llm-api-scope/commit/2a9287f0e74f6f296a5c8d00149903388ffe9095))
+
+- **config**: Prepare strict runtime configuration
+  ([`e74adcd`](https://github.com/D7x7z49/llm-api-scope/commit/e74adcd956abe270646a61a02beab7339239d7ab))
+
+- **context**: Add scoped runtime options and paths
+  ([`5ca43d2`](https://github.com/D7x7z49/llm-api-scope/commit/5ca43d2da23819b1882da3cc251d577995cc0d4d))
+
+- **context**: Share config paths across scopes
+  ([`2d631f3`](https://github.com/D7x7z49/llm-api-scope/commit/2d631f3b76c229bb1c7b64157a1983729f4cee42))
+
+- **gitignore**: Reduce source comment noise
+  ([`c722000`](https://github.com/D7x7z49/llm-api-scope/commit/c722000c7f373b1132801702e204daa1f6217c5d))
+
+- **view**: Key source trees and flatten view output
+  ([`44a4ee2`](https://github.com/D7x7z49/llm-api-scope/commit/44a4ee22a84a71ee36369137c34240755695fcd9))
+
+- **view**: Take one address like read
+  ([`b504540`](https://github.com/D7x7z49/llm-api-scope/commit/b504540e67a3f68bb4c681e1dd5bb1ac16af9a00))
+
+### Testing
+
+- **sync**: Restore the openapi and rfc fetcher cases
+  ([`7da547e`](https://github.com/D7x7z49/llm-api-scope/commit/7da547e7c19a15645ff0a5b25e60220129ff41f2))
+
+
 ## v0.8.0 (2026-06-11)
 
 ### Documentation
