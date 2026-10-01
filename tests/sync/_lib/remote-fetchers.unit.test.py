@@ -15,7 +15,10 @@ from apiscope.sync._lib.schema import ParsedSource, RemoteSource
 
 @pytest.mark.parametrize(
     ("fetcher_type", "doc_type", "url"),
-    [],
+    [
+        pytest.param(OpenapiFetcher, "openapi", "https://example.test/openapi.json", id="openapi"),
+        pytest.param(RfcFetcher, "rfc", "https://example.test/rfc9110.txt", id="rfc"),
+    ],
 )
 def test_remote_fetchers_store_mocked_content(
     tmp_path: Path,
