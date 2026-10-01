@@ -1,69 +1,144 @@
 # tests/config.unit.test.py
 
-import time
+import json
+from pathlib import Path
 
-import apiscope.config as config_mod
+import pytest
 
-
-class TestBaseConfigStale:
-    def test_is_stale_path_missing_file(self, tmp_path):
-        cfg = config_mod.BaseConfig(cache_ttl=60)
-        missing = tmp_path / "nonexistent.txt"
-
-        assert cfg.is_stale_path(missing) is True
-
-    def test_is_stale_since_expired(self, monkeypatch):
-        cfg = config_mod.BaseConfig(cache_ttl=60)
-        monkeypatch.setattr(time, "time", lambda: 1e10)
-        assert cfg.is_stale_since(0.0) is True
-
-    def test_is_stale_since_recent(self):
-        cfg = config_mod.BaseConfig(cache_ttl=999999)
-        assert cfg.is_stale_since(time.time() - 1) is False
+import apiscope.config as config_module
+from apiscope.config import ConfigError, assemble_runtime_config, save_config_file
+from apiscope.constants import CONFIG_SCHEMA_REF
+from apiscope.schema import GlobalConfigFile, LocalConfigFile, ProjectConfigFile
 
 
-class TestGetConfigFresh:
-    def test_creates_files_on_first_run(self, patch_config_paths, monkeypatch):
-        monkeypatch.setattr(config_mod, "_get_project_root", lambda: None)
-        cfg = config_mod.get_config()
-
-        assert cfg.openapi.alias == {}
-        assert config_mod.DEFAULT_CONFIG_PATH.exists()
-        assert config_mod.DEFAULT_CONFIG_SCHEMA_PATH.exists()
+def _config_data(**values: object) -> dict[str, object]:
+    return {"$schema": CONFIG_SCHEMA_REF, **values}
 
 
-class TestGetConfigGlobal:
-    def test_loads_global_aliases(self, patch_config_paths, monkeypatch):
-        config_mod.DEFAULT_CONFIG_PATH.write_text('{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}')
-        monkeypatch.setattr(config_mod, "_get_project_root", lambda: None)
+def test_save_config_file_keeps_the_original_when_replacement_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "config.json"
+    path.write_text("original\n", encoding="utf-8")
+    config_file = GlobalConfigFile.model_validate(_config_data())
 
-        cfg = config_mod.get_config()
-        assert cfg.openapi.alias == {"gh": "remote:https://api.github.com"}
+    def fail_replace(source: str, destination: Path) -> None:
+        raise OSError(f"cannot replace {source} with {destination}")
 
+    monkeypatch.setattr(config_module.os, "replace", fail_replace)
 
-class TestGetConfigProject:
-    def test_project_overrides_global(self, patch_config_paths, monkeypatch, tmp_path):
-        config_mod.DEFAULT_CONFIG_PATH.write_text('{"openapi": {"alias": {"gh": "remote:https://api.github.com"}}}')
+    with pytest.raises(ConfigError, match="cannot write"):
+        save_config_file(path, config_file)
 
-        project_dir = tmp_path / "project"
-        project_dir.mkdir()
-        project_config = project_dir / ".apiscope.config.json"
-        project_config.write_text('{"openapi": {"alias": {"gh": "local:./openapi.json"}}}')
-        monkeypatch.setattr(config_mod, "_get_project_root", lambda: project_dir)
-
-        cfg = config_mod.get_config()
-        assert cfg.openapi.alias == {"gh": "local:./openapi.json"}
+    assert path.read_text(encoding="utf-8") == "original\n"
+    assert list(tmp_path.glob(".config.json.*.tmp")) == []
 
 
-class TestGetProjectRoot:
-    def test_finds_git_root(self, tmp_path, monkeypatch):
-        git_dir = tmp_path / "repo"
-        git_dir.mkdir()
-        (git_dir / ".git").mkdir()
-        monkeypatch.chdir(git_dir)
+def test_save_config_file_writes_schema_before_configuration_sections(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    config_file = GlobalConfigFile.model_validate(
+        _config_data(source={"docs": {"doc_type": "filesystem", "doc_src": "docs"}})
+    )
 
-        assert config_mod._get_project_root() == git_dir.resolve()
+    save_config_file(path, config_file)
 
-    def test_returns_none_when_no_git(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        assert config_mod._get_project_root() is None
+    content = path.read_text(encoding="utf-8")
+    assert list(json.loads(content)) == ["$schema", "source"]
+
+
+def test_assemble_runtime_config_merges_sources_and_settings() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(
+            source={
+                "shared": {"doc_type": "filesystem", "doc_src": "global"},
+                "global": {"doc_type": "repo", "doc_src": "global-repo"},
+            },
+            setting={"public": {"doc_ttl": 14}, "local": {"proxy": "http://proxy"}},
+        )
+    )
+    project_file = ProjectConfigFile.model_validate(
+        _config_data(
+            source={
+                "shared": {"doc_type": "filesystem", "doc_src": "project"},
+                "project": {"doc_type": "openapi", "doc_src": "project-api"},
+            },
+            setting={"doc_ttl": 3},
+        )
+    )
+    local_file = LocalConfigFile.model_validate(
+        _config_data(
+            source={
+                "shared": {"doc_type": "filesystem", "doc_src": "local"},
+                "local": {"doc_type": "rfc", "doc_src": "local-rfc"},
+            },
+            setting={"proxy": None},
+        )
+    )
+
+    config = assemble_runtime_config(global_file, project_file, local_file)
+
+    assert config.source["shared"].doc_src == "local"
+    assert config.source["global"].doc_src == "global-repo"
+    assert config.source["project"].doc_src == "project-api"
+    assert config.source["local"].doc_src == "local-rfc"
+    assert config.setting.public.doc_ttl == 3
+    assert config.setting.local.proxy is None
+
+
+def test_assemble_runtime_config_preserves_inherited_fields_from_empty_scope_settings() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(
+            setting={"public": {"doc_ttl": 14}, "local": {"proxy": "http://proxy"}},
+        )
+    )
+    project_file = ProjectConfigFile.model_validate(_config_data(setting={}))
+    local_file = LocalConfigFile.model_validate(_config_data(setting={}))
+
+    project_config = assemble_runtime_config(global_file, project_file)
+    local_config = assemble_runtime_config(global_file, None, local_file)
+
+    assert project_config.setting.public.doc_ttl == 14
+    assert project_config.setting.local.proxy == "http://proxy"
+    assert local_config.setting.public.doc_ttl == 14
+    assert local_config.setting.local.proxy == "http://proxy"
+
+
+def test_assemble_runtime_config_uses_defaults_when_sections_are_missing() -> None:
+    global_file = GlobalConfigFile.model_validate(_config_data())
+
+    config = assemble_runtime_config(global_file)
+
+    assert config.source == {}
+    assert config.setting.public.doc_ttl == 7
+    assert config.setting.local.proxy is None
+
+
+def test_assemble_runtime_config_preserves_source_ttl_fallback_value() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(
+            source={
+                "docs": {
+                    "doc_type": "filesystem",
+                    "doc_src": "docs",
+                    "doc_ttl": None,
+                }
+            },
+            setting={"public": {"doc_ttl": 9}, "local": {"proxy": None}},
+        )
+    )
+
+    config = assemble_runtime_config(global_file)
+
+    assert config.source["docs"].doc_ttl is None
+    assert config.setting.public.doc_ttl == 9
+
+
+def test_local_config_accepts_source_entries() -> None:
+    config = LocalConfigFile.model_validate(
+        _config_data(
+            source={"docs": {"doc_type": "filesystem", "doc_src": "docs"}},
+        )
+    )
+
+    assert config.model_dump()["source"]["docs"]["doc_src"] == "docs"

@@ -1,0 +1,18 @@
+# apiscope/list/constants.py
+
+from typing import Final
+
+COMMAND_NAME: Final = "list"
+
+MESSAGE_TEMPLATES: Final[dict[str, str]] = {
+    "list.help.command": "list configured sources by document type",
+    "list.help.argument.selector": ("choose one of all, filesystem, repo, openapi, rfc, or llmstxt"),
+    "list.help.option.limit": "show at most this many sources",
+    "list.help.option.offset": "skip this many sources before showing",
+    "list.error.runtime_context_unavailable": "runtime context is unavailable",
+    "list.error.invalid_selector": ("list selector {selector} is invalid. choose all or a supported document type"),
+    "list.body.empty": "(no sources)",
+    "list.body.window_empty": "(no items in this window)",
+    "list.foot.count": "count {count} total {total}",
+    "list.foot.next": "count {count} total {total} next {next}",
+}

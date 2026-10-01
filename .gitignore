@@ -49,4 +49,6 @@ todo.md
 *.bak
 apiscope.ini
 .apiscope.config.json
+
+# Keep legacy project state private until the new config migration is implemented.
 .apiscope/

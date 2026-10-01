@@ -1,88 +1,69 @@
 # tests/conftest.py
 
+import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
-import apiscope.config as config_mod
-from apiscope.openapi.reader import OpenapiReader
-
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
+from apiscope.constants import APISCOPE_HOME_ENV
+from apiscope.sync._lib import transport
 
 # ==============================================================================
-# config fixtures
+# common filesystem fixtures
 # ==============================================================================
 
 
 @pytest.fixture
-def fake_root(tmp_path: Path) -> Path:
-    root = tmp_path / ".apiscope"
-    root.mkdir()
-    return root
+def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    home = tmp_path / "isolated-home"
+    monkeypatch.setenv(APISCOPE_HOME_ENV, str(home))
+    return home
 
 
 @pytest.fixture
-def patch_config_paths(monkeypatch, fake_root: Path):
-    monkeypatch.setattr(config_mod, "DEFAULT_ROOT", fake_root)
-    monkeypatch.setattr(config_mod, "DEFAULT_CONFIG_PATH", fake_root / "config.json")
-    monkeypatch.setattr(config_mod, "DEFAULT_CONFIG_SCHEMA_PATH", fake_root / "config.schema.json")
-
-
-# ==============================================================================
-# openapi reader fixtures
-# ==============================================================================
-
-
-@pytest.fixture(
-    scope="session",
-    params=["petstore.json", "tictactoe.yaml"],
-    ids=["json", "yaml"],
-)
-def spec_reader(request: pytest.FixtureRequest) -> OpenapiReader:
-    return OpenapiReader.load(FIXTURE_DIR / request.param)
+def git_project(tmp_path: Path) -> Path:
+    # This is a project-root marker, not a real Git repository.
+    project = tmp_path / "project"
+    (project / ".git").mkdir(parents=True)
+    return project
 
 
 @pytest.fixture
-def inline_reader() -> OpenapiReader:
-    payload: dict[str, Any] = {
-        "openapi": "3.0.0",
-        "info": {"title": "t", "version": "1"},
-        "paths": {
-            "/pets": {"get": {"summary": "List"}, "post": {"summary": "Create"}},
-            "/pets/{id}": {"get": {"summary": "Get"}, "delete": {"summary": "Delete"}},
-        },
-    }
-    return OpenapiReader(payload)
+def project_cwd(git_project: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.chdir(git_project)
+    return git_project
 
 
 @pytest.fixture
-def ref_reader() -> OpenapiReader:
-    payload: dict[str, Any] = {
-        "openapi": "3.0.0",
-        "info": {"title": "t", "version": "1"},
-        "paths": {
-            "/pets": {
-                "get": {
-                    "responses": {
-                        "200": {
-                            "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/Pet"},
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        "components": {
-            "schemas": {
-                "Pet": {
-                    "type": "object",
-                    "properties": {"name": {"type": "string"}},
-                },
-            },
-        },
-    }
-    return OpenapiReader(payload)
+def git_executable() -> str:
+    executable = shutil.which("git")
+    if executable is None:
+        pytest.skip("requires the system git executable")
+    return executable
+
+
+@pytest.fixture
+def httpx_client_options() -> dict[str, Any]:
+    return {}
+
+
+@pytest.fixture
+def install_httpx_mock_client(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_client_options: dict[str, Any],
+) -> Callable[[Callable[[httpx.Request], httpx.Response]], None]:
+    real_client = httpx.Client
+
+    def install(handler: Callable[[httpx.Request], httpx.Response]) -> None:
+        def client_factory(**kwargs: Any) -> httpx.Client:
+            httpx_client_options.update(kwargs)
+            mock_kwargs = dict(kwargs)
+            mock_kwargs.pop("proxy", None)
+            return real_client(transport=httpx.MockTransport(handler), **mock_kwargs)
+
+        monkeypatch.setattr(transport.httpx, "Client", client_factory)
+
+    return install

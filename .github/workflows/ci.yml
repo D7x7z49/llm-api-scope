@@ -1,6 +1,7 @@
 # .github/workflows/ci.yml
 
-# PR validation — commit messages, lint, format, type check, tests
+# PR validation — commit messages, lock, lint, format, usage, tests, types.
+# Every step is read-only: CI checks, it never edits files.
 
 name: CI
 
@@ -12,35 +13,40 @@ permissions:
   contents: read
 
 jobs:
-  commitlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: .commitlintrc.json
-
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pdm-project/setup-pdm@v4
         with:
           python-version: "3.12"
           cache: true
 
-      - name: Install dependencies
+      - name: install dependencies
         run: pdm sync -d
 
-      - name: Lint with ruff
+      - name: check the commit messages
+        run: >-
+          pdm run cz check --rev-range
+          ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+      - name: check the pdm lock file
+        run: pdm lock --check
+
+      - name: lint with ruff
         run: pdm run ruff check --output-format=github
 
-      - name: Check format with ruff
+      - name: check format with ruff
         run: pdm run ruff format --check --diff
 
-      - name: Type check with mypy
-        run: pdm run mypy apiscope/ tests/
+      - name: check the usage reference
+        run: pdm run python scripts/ci/usage.py --check docs/usage.txt
 
-      - name: Run tests
+      - name: run tests
         run: pdm run pytest
+
+      - name: type check with mypy
+        run: pdm run mypy apiscope/ tests/

@@ -1,0 +1,9 @@
+# apiscope/sync/_lib/filesystem/constants.py
+from typing import Final
+
+# ==============================================================================
+# filesystem content
+# ==============================================================================
+
+
+DEFAULT_CONTENT_NAME: Final = "document"

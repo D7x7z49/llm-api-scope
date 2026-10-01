@@ -12,40 +12,145 @@ pipx install llm-api-scope
 
 ## how it works
 
-apiscope fetches specifications from local files or remote URLs, caches them, and outputs structured JSON that agents can consume directly. no html parsing, no keyword ranking — just faithful extraction from the source document.
+apiscope has two ideas: a registered source, and a tree you navigate by address.
+text is the default output; `--json` prints the data layer instead.
 
-## commands
+### manage
 
-run `apiscope --help` to see all available commands.
+`apiscope add` registers a source with a name, a location, and a type.
+`apiscope remove` deletes it.
+`apiscope list` shows what is registered, filtered by type.
 
-### openapi
+five document types share one command surface:
 
-browse OpenAPI specifications with subcommands for discovering, listing, and describing operations.
+- `filesystem` reads a local file or directory
+- `repo` reads a directory inside a [git](https://git-scm.com) repository
+- `openapi` reads an [OpenAPI](https://www.openapis.org) specification
+- `rfc` reads an [IETF](https://www.ietf.org) document
+- `llmstxt` reads a [site index](https://llmstxt.org) that lists documentation pages
 
-aliases let you register frequently used specs once and reference them by short name. fetching is transparent — local copies are cached for fast repeat access, and a proxy can be configured for restricted networks.
+```bash
+apiscope add docs https://example.test/docs/llms.txt --type llmstxt
+apiscope list all
+```
 
-### rfc
+### use
 
-read, search, and navigate RFC documents from the IETF.
+`apiscope sync` fetches sources into a local cache.
+`apiscope view` shows the cached structure, and `apiscope read` reads one node.
 
-the metadata index is mirrored once via rsync. individual text files are fetched on demand and cached locally. you can browse the table of contents, jump to a section (XML) or page (TXT), filter the index by status or source, and run keyword searches against fulltext content.
+view and read share the same address: a source name plus an optional route.
+
+```bash
+apiscope sync all
+apiscope view docs
+apiscope read docs 1.2
+```
+
+every source projects into one tree.
+an ordinary node has children; a leaf has none.
+a view line is `- [index] key: description`, where the index is a tree address.
+an index from view always works with read.
 
 ### skill
 
-output a combined command reference and strategy guide for AI agents.
+`apiscope skill` prints or installs a combined command reference and strategy guide for AI agents.
+run `apiscope skill show` to print it, or `apiscope skill install` to install it under `~/.agents/skills/apiscope`.
 
-run `apiscope skill` to get a single document that covers every subcommand and
-how they fit together. the strategy guide classifies commands into management and
-usage groups, lists prerequisites in ABNF (RFC 5234), and provides workflow
-patterns with requirement levels (RFC 2119).
+agents read this once at onboarding instead of running `--help` repeatedly.
 
-agents read this output once at onboarding instead of running `--help` repeatedly.
+### configuration
 
-### repo
+apiscope reads three configuration layers in order.
+the global file is `~/.apiscope/config.json`.
+the project file is `.apiscope/config.json`, and the local file is `.apiscope/local.json`.
+`--global` uses the global layer only and skips project discovery.
 
-sync documentation directories from any git repository to a local cache.
+the public setting holds the default source ttl in days.
+the local setting holds the proxy.
 
-register repositories by URL with a target subdirectory and a ref — a branch, tag, or commit. the sync command clones with shallow depth, blobless filter, and sparse checkout so only the needed tree and files come over the wire. extracted docs land in the cache under a stable hash path, and a configurable TTL avoids redundant re-fetches. provider-agnostic, zero auth.
+```json
+{
+  "setting": {
+    "public": {"doc_ttl": 7},
+    "local": {"proxy": "http://proxy.example.test:8080"}
+  }
+}
+```
+
+the cache lives in the app directory of the selected layer, and the rest of its rules sit under `## commands`.
+
+## commands
+
+### add
+
+register a source:
+
+```bash
+apiscope add <name> <source> --type <type> [--ttl <days>]
+```
+
+### remove
+
+delete a source:
+
+```bash
+apiscope remove <name>
+```
+
+### list
+
+list registered sources:
+
+```bash
+apiscope list <selector> [--limit <n>] [--offset <n>]
+```
+
+the selector is one of all, filesystem, repo, openapi, rfc, or llmstxt.
+
+### sync
+
+fetch sources into the cache:
+
+```bash
+apiscope sync <selector> [<name>] [--force]
+```
+
+the selector is the same as in list, and the optional name narrows the range to one source.
+a source refreshes when its cache is older than its ttl, and `--force` ignores the ttl.
+`repo` clones with shallow depth, a blobless filter, and sparse checkout.
+`llmstxt` reads the index page, downloads the pages it lists, and skips a failed page.
+
+### view
+
+show the cached structure of an address:
+
+```bash
+apiscope view <address> [--depth <n>]
+```
+
+depth caps the levels below the scope; the default is unlimited.
+
+### read
+
+read one node:
+
+```bash
+apiscope read <address> [<index>]
+```
+
+the index is optional when the address already points at a leaf.
+
+### skill
+
+print or install the agent skill:
+
+```bash
+apiscope skill show
+apiscope skill install [<target>]
+```
+
+install defaults to `~/.agents/skills/apiscope`.
 
 ## future
 

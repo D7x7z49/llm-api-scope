@@ -1,0 +1,82 @@
+openapi: 3.2.1
+info:
+  title: Sample Pets API
+  version: 1.0.0
+paths:
+  /pets:
+    summary: Pet collection
+    parameters:
+      - name: api-version
+        in: header
+        schema:
+          type: string
+    get:
+      operationId: listPets
+      summary: List pets
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A page of pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      operationId: createPet
+      summary: Create a pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        "201":
+          description: The created pet
+    query:
+      operationId: queryPets
+      summary: Query pets
+      responses:
+        "200":
+          description: Query results
+    additionalOperations:
+      COPY:
+        operationId: copyPets
+        summary: Copy pets
+        responses:
+          "200":
+            description: Copied pets
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      summary: Get one pet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The requested pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
