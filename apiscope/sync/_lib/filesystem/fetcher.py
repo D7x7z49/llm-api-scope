@@ -6,7 +6,7 @@ from pathlib import Path
 from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.filesystem.constants import DEFAULT_CONTENT_NAME
-from apiscope.sync._lib.schema import ContentKind, FetchResult, LocalSource, ParsedSource
+from apiscope.sync._lib.schema import ContentKind, FetchResult, LocalLocation, ParsedSource
 
 
 class FilesystemFetcher:
@@ -18,7 +18,7 @@ class FilesystemFetcher:
         proxy: str | None = None,
     ) -> FetchResult:
         del proxy
-        if not isinstance(source.location, LocalSource):
+        if not isinstance(source.location, LocalLocation):
             raise SourceFetchError(source.original, "fetch.filesystem_local_required")
         path = source.location.path
         content_path = destination / "content"

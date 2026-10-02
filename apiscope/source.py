@@ -5,10 +5,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import TypeAlias
+from typing import Annotated, Literal, Protocol, TypeAlias
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
-from apiscope.schema import DocumentType
+from pydantic import ConfigDict, Field
+
+from apiscope.schema import DocumentType, StrictSchemaModel
 
 
 class SourceParseReason(StrEnum):
@@ -32,24 +34,52 @@ _REMOTE_SCHEMES: dict[DocumentType, frozenset[str]] = {
 
 
 @dataclass(frozen=True, slots=True)
-class LocalSource:
+class LocalLocation:
     path: Path
 
 
 @dataclass(frozen=True, slots=True)
-class RemoteSource:
+class RemoteLocation:
     url: str
 
 
-SourceLocation: TypeAlias = LocalSource | RemoteSource
+SourceLocation: TypeAlias = LocalLocation | RemoteLocation
 
 
-@dataclass(frozen=True, slots=True)
-class SourceIdentity:
-    doc_type: DocumentType
+# the common identity: the address a source keeps in the cache
+class SourceIdentity(StrictSchemaModel):
+    model_config = ConfigDict(frozen=True)
+
     original: str
     canonical: str
     location: SourceLocation
+
+
+# one model per document type; doc_type is the union discriminator
+class FilesystemSource(SourceIdentity):
+    doc_type: Literal["filesystem"] = "filesystem"
+
+
+class RepoSource(SourceIdentity):
+    doc_type: Literal["repo"] = "repo"
+
+
+class OpenapiSource(SourceIdentity):
+    doc_type: Literal["openapi"] = "openapi"
+
+
+class RfcSource(SourceIdentity):
+    doc_type: Literal["rfc"] = "rfc"
+
+
+class LlmstxtSource(SourceIdentity):
+    doc_type: Literal["llmstxt"] = "llmstxt"
+
+
+Source: TypeAlias = Annotated[
+    FilesystemSource | RepoSource | OpenapiSource | RfcSource | LlmstxtSource,
+    Field(discriminator="doc_type"),
+]
 
 
 class SourceResolutionError(ValueError):
@@ -65,11 +95,57 @@ class SourceResolutionError(ValueError):
         super().__init__(self.reason_code)
 
 
-def parse_source(doc_type: DocumentType, source: str, *, base_dir: Path) -> SourceIdentity:
-    value = source.strip()
-    if not value:
-        raise SourceResolutionError(source, SourceParseReason.SOURCE_EMPTY)
+class SourceParser(Protocol):
+    def __call__(self, source: str, *, base_dir: Path) -> Source: ...
 
+
+def parse_source(doc_type: DocumentType, source: str, *, base_dir: Path) -> Source:
+    if not source.strip():
+        raise SourceResolutionError(source, SourceParseReason.SOURCE_EMPTY)
+    return _PARSERS[doc_type](source, base_dir=base_dir)
+
+
+def _parse_filesystem(source: str, *, base_dir: Path) -> FilesystemSource:
+    canonical, location = _resolve_location("filesystem", source, source.strip(), base_dir)
+    return FilesystemSource(original=source, canonical=canonical, location=location)
+
+
+def _parse_repo(source: str, *, base_dir: Path) -> RepoSource:
+    canonical, location = _resolve_location("repo", source, source.strip(), base_dir)
+    return RepoSource(original=source, canonical=canonical, location=location)
+
+
+def _parse_openapi(source: str, *, base_dir: Path) -> OpenapiSource:
+    canonical, location = _resolve_location("openapi", source, source.strip(), base_dir)
+    return OpenapiSource(original=source, canonical=canonical, location=location)
+
+
+def _parse_rfc(source: str, *, base_dir: Path) -> RfcSource:
+    canonical, location = _resolve_location("rfc", source, source.strip(), base_dir)
+    return RfcSource(original=source, canonical=canonical, location=location)
+
+
+def _parse_llmstxt(source: str, *, base_dir: Path) -> LlmstxtSource:
+    canonical, location = _resolve_location("llmstxt", source, source.strip(), base_dir)
+    return LlmstxtSource(original=source, canonical=canonical, location=location)
+
+
+_PARSERS: dict[DocumentType, SourceParser] = {
+    "filesystem": _parse_filesystem,
+    "repo": _parse_repo,
+    "openapi": _parse_openapi,
+    "rfc": _parse_rfc,
+    "llmstxt": _parse_llmstxt,
+}
+
+
+# resolve a location to its canonical string and its typed location
+def _resolve_location(
+    doc_type: DocumentType,
+    source: str,
+    value: str,
+    base_dir: Path,
+) -> tuple[str, SourceLocation]:
     try:
         parsed = urlsplit(value)
     except ValueError as error:
@@ -83,7 +159,7 @@ def parse_source(doc_type: DocumentType, source: str, *, base_dir: Path) -> Sour
     if doc_type == "filesystem":
         if parsed.scheme:
             raise SourceResolutionError(source, SourceParseReason.FILESYSTEM_PATH_REQUIRED)
-        return _local_source(doc_type, source, value, base_dir)
+        return _local_location(doc_type, source, value, base_dir)
 
     if parsed.scheme:
         scheme = parsed.scheme.lower()
@@ -99,17 +175,17 @@ def parse_source(doc_type: DocumentType, source: str, *, base_dir: Path) -> Sour
             canonical = _canonical_url(parsed, scheme)
         except ValueError as error:
             raise SourceResolutionError(source, SourceParseReason.LOCATION_INVALID, {"detail": str(error)}) from error
-        return SourceIdentity(
-            doc_type=doc_type,
-            original=source,
-            canonical=canonical,
-            location=RemoteSource(url=canonical),
-        )
+        return canonical, RemoteLocation(url=canonical)
 
-    return _local_source(doc_type, source, value, base_dir)
+    return _local_location(doc_type, source, value, base_dir)
 
 
-def _local_source(doc_type: DocumentType, original: str, value: str, base_dir: Path) -> SourceIdentity:
+def _local_location(
+    doc_type: DocumentType,
+    original: str,
+    value: str,
+    base_dir: Path,
+) -> tuple[str, SourceLocation]:
     try:
         path = Path(value).expanduser()
         if not path.is_absolute():
@@ -122,12 +198,7 @@ def _local_source(doc_type: DocumentType, original: str, value: str, base_dir: P
             else SourceParseReason.LOCATION_INVALID
         )
         raise SourceResolutionError(original, reason, {"detail": str(error)}) from error
-    return SourceIdentity(
-        doc_type=doc_type,
-        original=original,
-        canonical=resolved.as_posix(),
-        location=LocalSource(path=resolved),
-    )
+    return resolved.as_posix(), LocalLocation(path=resolved)
 
 
 def _canonical_url(parsed: SplitResult, scheme: str) -> str:
@@ -144,8 +215,14 @@ def _canonical_url(parsed: SplitResult, scheme: str) -> str:
 
 
 __all__ = [
-    "LocalSource",
-    "RemoteSource",
+    "FilesystemSource",
+    "LlmstxtSource",
+    "LocalLocation",
+    "OpenapiSource",
+    "RemoteLocation",
+    "RepoSource",
+    "RfcSource",
+    "Source",
     "SourceIdentity",
     "SourceLocation",
     "SourceParseReason",

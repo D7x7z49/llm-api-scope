@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from apiscope.schema import DocumentType
-from apiscope.source import LocalSource, RemoteSource, SourceResolutionError, parse_source
+from apiscope.source import LocalLocation, RemoteLocation, SourceResolutionError, parse_source
 
 
 @pytest.mark.parametrize(
@@ -28,7 +28,7 @@ def test_parse_source_accepts_supported_remote_locations(
     parsed = parse_source(doc_type, source, base_dir=tmp_path)
 
     assert parsed.canonical == canonical
-    assert isinstance(parsed.location, RemoteSource)
+    assert isinstance(parsed.location, RemoteLocation)
     assert parsed.location.url == canonical
 
 
@@ -37,7 +37,7 @@ def test_parse_source_resolves_a_local_path(tmp_path: Path, doc_type: DocumentTy
     parsed = parse_source(doc_type, "./specs/api.yaml", base_dir=tmp_path)
 
     assert parsed.canonical == (tmp_path / "specs" / "api.yaml").resolve().as_posix()
-    assert isinstance(parsed.location, LocalSource)
+    assert isinstance(parsed.location, LocalLocation)
     assert parsed.location.path == (tmp_path / "specs" / "api.yaml").resolve()
 
 
@@ -104,7 +104,7 @@ def test_parse_source_preserves_brackets_in_an_ipv6_authority(tmp_path: Path) ->
     parsed = parse_source("openapi", "HTTPS://[2001:DB8::1]:8443/openapi.json", base_dir=tmp_path)
 
     assert parsed.canonical == "https://[2001:db8::1]:8443/openapi.json"
-    assert isinstance(parsed.location, RemoteSource)
+    assert isinstance(parsed.location, RemoteLocation)
     assert parsed.location.url == parsed.canonical
 
 

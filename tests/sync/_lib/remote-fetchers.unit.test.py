@@ -6,11 +6,20 @@ import httpx
 import pytest
 
 from apiscope.schema import DocumentType
+from apiscope.source import LlmstxtSource, OpenapiSource, RemoteLocation, RfcSource
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.llmstxt.fetcher import LlmstxtFetcher
 from apiscope.sync._lib.openapi.fetcher import OpenapiFetcher
 from apiscope.sync._lib.rfc.fetcher import RfcFetcher
-from apiscope.sync._lib.schema import ParsedSource, RemoteSource
+
+
+def _remote_source(doc_type: DocumentType, url: str) -> OpenapiSource | RfcSource | LlmstxtSource:
+    location = RemoteLocation(url)
+    if doc_type == "openapi":
+        return OpenapiSource(original=url, canonical=url, location=location)
+    if doc_type == "rfc":
+        return RfcSource(original=url, canonical=url, location=location)
+    return LlmstxtSource(original=url, canonical=url, location=location)
 
 
 @pytest.mark.parametrize(
@@ -34,12 +43,7 @@ def test_remote_fetchers_store_mocked_content(
         return httpx.Response(200, content=b"remote content")
 
     install_httpx_mock_client(handler)
-    source = ParsedSource(
-        doc_type=doc_type,
-        original=url,
-        canonical=url,
-        location=RemoteSource(url),
-    )
+    source = _remote_source(doc_type, url)
     destination = tmp_path / "staging"
 
     result = fetcher_type().fetch(source, destination=destination)
@@ -66,7 +70,7 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
 
     install_httpx_mock_client(handler)
     url = "https://example.test/docs/llms.txt"
-    source = ParsedSource(doc_type="llmstxt", original=url, canonical=url, location=RemoteSource(url))
+    source = _remote_source("llmstxt", url)
     destination = tmp_path / "staging"
 
     result = LlmstxtFetcher().fetch(source, destination=destination)
@@ -97,12 +101,7 @@ def test_remote_fetchers_translate_http_errors_with_the_original_cause(
         return httpx.Response(503, request=request)
 
     install_httpx_mock_client(handler)
-    source = ParsedSource(
-        doc_type=doc_type,
-        original=url,
-        canonical=url,
-        location=RemoteSource(url),
-    )
+    source = _remote_source(doc_type, url)
 
     with pytest.raises(SourceFetchError) as raised:
         fetcher_type().fetch(source, destination=tmp_path / "staging")

@@ -10,7 +10,7 @@ import httpx
 
 from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import TransportError
-from apiscope.sync._lib.schema import ContentKind, LocalSource, RemoteSource, SourceLocation
+from apiscope.sync._lib.schema import ContentKind, LocalLocation, RemoteLocation, SourceLocation
 
 DEFAULT_REMOTE_CONTENT_NAME: Final = "document"
 HTTP_TIMEOUT_SECONDS: Final = 30.0
@@ -24,7 +24,7 @@ def fetch_location(
 ) -> tuple[ContentKind, str | None, str]:
     content_path = destination / "content"
     content_path.mkdir(parents=True, exist_ok=True)
-    if isinstance(location, LocalSource):
+    if isinstance(location, LocalLocation):
         content_kind, content_name = _copy_local(location.path, content_path)
     else:
         content_kind, content_name = _fetch_remote(location, content_path, proxy=proxy)
@@ -49,7 +49,7 @@ def _copy_local(source: Path, content_path: Path) -> tuple[ContentKind, str | No
 
 
 def _fetch_remote(
-    source: RemoteSource,
+    source: RemoteLocation,
     content_path: Path,
     *,
     proxy: str | None,

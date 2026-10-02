@@ -4,28 +4,26 @@ from pathlib import Path
 
 import pytest
 
+from apiscope.source import LocalLocation, RemoteLocation, RepoSource
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo import fetcher as repo_fetcher
 from apiscope.sync._lib.repo.constants import GIT_PROXY_ENVIRONMENT_NAMES
 from apiscope.sync._lib.repo.fetcher import RepoFetcher
-from apiscope.sync._lib.schema import LocalSource, ParsedSource, RemoteSource
 
 
-def _parsed_source(path: Path) -> ParsedSource:
-    return ParsedSource(
-        doc_type="repo",
+def _parsed_source(path: Path) -> RepoSource:
+    return RepoSource(
         original=str(path),
         canonical=path.resolve().as_posix(),
-        location=LocalSource(path.resolve()),
+        location=LocalLocation(path.resolve()),
     )
 
 
-def _remote_source(url: str) -> ParsedSource:
-    return ParsedSource(
-        doc_type="repo",
+def _remote_source(url: str) -> RepoSource:
+    return RepoSource(
         original=url,
         canonical=url,
-        location=RemoteSource(url),
+        location=RemoteLocation(url),
     )
 
 

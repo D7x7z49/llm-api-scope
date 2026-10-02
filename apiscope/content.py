@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from apiscope.cache import CacheInspection, CacheMetadata, cache_path, inspect_cache
-from apiscope.source import SourceIdentity
+from apiscope.source import Source
 
 
 @dataclass(frozen=True, slots=True)
 class ContentSnapshot:
-    source: SourceIdentity
+    source: Source
     entry: Path
     inspection: CacheInspection
 
@@ -25,7 +25,7 @@ class ContentSnapshot:
 
 def load_content(
     cache_root: Path,
-    source: SourceIdentity,
+    source: Source,
     *,
     ttl_days: int,
 ) -> ContentSnapshot:

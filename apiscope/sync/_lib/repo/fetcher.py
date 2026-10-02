@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from apiscope.cache import digest_content
+from apiscope.source import LocalLocation, RemoteLocation, RepoSource
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo.constants import (
     GIT_COMMAND,
@@ -14,7 +15,7 @@ from apiscope.sync._lib.repo.constants import (
     GIT_PROXY_SCHEMES,
     GIT_TIMEOUT_SECONDS,
 )
-from apiscope.sync._lib.schema import FetchResult, LocalSource, ParsedSource, RemoteSource
+from apiscope.sync._lib.schema import FetchResult, ParsedSource
 
 
 class RepoFetcher:
@@ -25,7 +26,7 @@ class RepoFetcher:
         destination: Path,
         proxy: str | None = None,
     ) -> FetchResult:
-        if not isinstance(source.location, (LocalSource, RemoteSource)):
+        if not isinstance(source, RepoSource):
             raise SourceFetchError(source.original, "fetch.repo_location_invalid")
         git = shutil.which(GIT_COMMAND)
         if git is None:
@@ -34,7 +35,7 @@ class RepoFetcher:
         worktree = destination.parent / f".{destination.name}.git"
         shutil.rmtree(worktree, ignore_errors=True)
         repository = (
-            source.location.path.as_posix() if isinstance(source.location, LocalSource) else source.location.url
+            source.location.path.as_posix() if isinstance(source.location, LocalLocation) else source.location.url
         )
         content_path = destination / "content"
         content_path.mkdir(parents=True, exist_ok=True)
@@ -77,10 +78,10 @@ class RepoFetcher:
 
 def _git_proxy_options(
     original: str,
-    location: LocalSource | RemoteSource,
+    location: LocalLocation | RemoteLocation,
     proxy: str | None,
 ) -> list[str]:
-    if isinstance(location, LocalSource):
+    if isinstance(location, LocalLocation):
         return []
 
     scheme = urlsplit(location.url).scheme.lower()

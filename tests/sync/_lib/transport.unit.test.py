@@ -8,7 +8,7 @@ import pytest
 
 from apiscope.cache import digest_content
 from apiscope.sync._lib import transport
-from apiscope.sync._lib.schema import RemoteSource
+from apiscope.sync._lib.schema import RemoteLocation
 
 
 def test_fetch_location_writes_redirected_remote_content(
@@ -27,7 +27,7 @@ def test_fetch_location_writes_redirected_remote_content(
     destination = tmp_path / "staging"
 
     content_kind, content_name, content_digest = transport.fetch_location(
-        RemoteSource("https://example.test/spec.json"),
+        RemoteLocation("https://example.test/spec.json"),
         destination=destination,
     )
 
@@ -62,7 +62,7 @@ def test_fetch_location_passes_a_proxy_to_httpx(
     monkeypatch.setattr(transport.httpx, "Client", client_factory)
 
     transport.fetch_location(
-        RemoteSource("https://example.test/rfc.txt"),
+        RemoteLocation("https://example.test/rfc.txt"),
         destination=tmp_path / "staging",
         proxy="http://proxy.example.test:8080",
     )
@@ -86,7 +86,7 @@ def test_fetch_location_ignores_proxy_environment(
     install_httpx_mock_client(lambda request: httpx.Response(200, request=request, content=b"direct"))
 
     transport.fetch_location(
-        RemoteSource("https://example.test/document"),
+        RemoteLocation("https://example.test/document"),
         destination=tmp_path / "staging",
     )
 
@@ -113,7 +113,7 @@ def test_fetch_location_propagates_http_status_errors(
 
     with pytest.raises(httpx.HTTPStatusError):
         transport.fetch_location(
-            RemoteSource("https://example.test/document"),
+            RemoteLocation("https://example.test/document"),
             destination=tmp_path / "staging",
         )
 
@@ -129,6 +129,6 @@ def test_fetch_location_propagates_http_transport_errors(
 
     with pytest.raises(httpx.ConnectError, match="connection refused"):
         transport.fetch_location(
-            RemoteSource("https://example.test/document"),
+            RemoteLocation("https://example.test/document"),
             destination=tmp_path / "staging",
         )

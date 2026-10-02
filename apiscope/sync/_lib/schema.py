@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, TypeAlias
 
-from apiscope.source import LocalSource, RemoteSource, SourceIdentity, SourceLocation
+from apiscope.source import LocalLocation, RemoteLocation, Source, SourceLocation
 
 ContentKind = Literal["file", "directory"]
-ParsedSource: TypeAlias = SourceIdentity
+ParsedSource: TypeAlias = Source
 
-__all__ = ["ContentKind", "FetchResult", "LocalSource", "ParsedSource", "RemoteSource", "SourceLocation"]
+__all__ = ["ContentKind", "FetchResult", "LocalLocation", "ParsedSource", "RemoteLocation", "SourceLocation"]
 
 
 @dataclass(frozen=True, slots=True)

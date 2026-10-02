@@ -8,7 +8,7 @@ import httpx
 
 from apiscope.cache import CACHE_CONTENT_DIRECTORY, digest_content
 from apiscope.sync._lib.errors import SourceFetchError, TransportError
-from apiscope.sync._lib.schema import FetchResult, LocalSource, ParsedSource, RemoteSource
+from apiscope.sync._lib.schema import FetchResult, LocalLocation, ParsedSource, RemoteLocation
 from apiscope.sync._lib.transport import fetch_location, fetch_remote_bytes
 
 _LINK = re.compile(
@@ -62,9 +62,9 @@ class LlmstxtFetcher:
 
 def _index_base(source: ParsedSource) -> tuple[str, Path | None]:
     location = source.location
-    if isinstance(location, RemoteSource):
+    if isinstance(location, RemoteLocation):
         return location.url, None
-    if isinstance(location, LocalSource):
+    if isinstance(location, LocalLocation):
         return str(location.path), location.path.parent
     raise ValueError("the llmstxt source is unsupported")
 
