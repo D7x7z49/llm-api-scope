@@ -216,7 +216,7 @@ def test_repo_fetcher_wraps_process_errors_with_the_original_cause(
     with pytest.raises(SourceFetchError) as raised:
         RepoFetcher().fetch(source, destination=tmp_path / "staging")
 
-    assert raised.value.reason_code == "fetch.repo_clone_failed"
+    assert raised.value.reason_code == "fetch.repo_clone_failed_detail"
     assert raised.value.values == {"detail": "git process unavailable"}
     assert raised.value.__cause__ is process_error
 
@@ -373,3 +373,109 @@ def test_repo_fetcher_reports_a_ref_failure_with_detail(
 
     assert raised.value.reason_code == "fetch.repo_ref_failed"
     assert raised.value.values == {"ref": "nope", "detail": "unknown revision"}
+
+
+def test_repo_fetcher_reports_a_timeout_with_the_stage_reason(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[1] == "clone":
+            worktree = Path(command[-1])
+            (worktree / ".git").mkdir(parents=True)
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command[1] == "rev-parse":
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="")
+        raise subprocess.TimeoutExpired(command, 120.0)
+
+    monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
+
+    with pytest.raises(SourceFetchError) as raised:
+        RepoFetcher().fetch(
+            _parsed_source(tmp_path / "source-repository", ref="feature"),
+            destination=tmp_path / "staging",
+        )
+
+    assert raised.value.reason_code == "fetch.repo_ref_failed"
+    assert raised.value.values == {"ref": "feature", "detail": "the command timed out after 120 seconds"}
+
+
+def test_repo_fetcher_reports_a_local_ref_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[1] == "clone":
+            worktree = Path(command[-1])
+            (worktree / ".git").mkdir(parents=True)
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        raise subprocess.TimeoutExpired(command, 120.0)
+
+    monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
+
+    with pytest.raises(SourceFetchError) as raised:
+        RepoFetcher().fetch(
+            _parsed_source(tmp_path / "source-repository", ref="main"),
+            destination=tmp_path / "staging",
+        )
+
+    assert raised.value.reason_code == "fetch.repo_ref_failed"
+    assert raised.value.values == {"ref": "main", "detail": "the command timed out after 120 seconds"}
+
+
+def test_repo_fetcher_falls_back_to_gh_for_github(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        if command[0].endswith("gh"):
+            worktree = Path(command[4])
+            (worktree / ".git").mkdir(parents=True)
+            (worktree / "README.md").write_text("gh\n", encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="proxy failure\n")
+
+    monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
+    destination = tmp_path / "staging"
+
+    RepoFetcher().fetch(
+        _remote_source("https://github.com/owner/repo.git"),
+        destination=destination,
+    )
+
+    assert (destination / "content" / "README.md").read_text(encoding="utf-8") == "gh\n"
+    assert "clone" in commands[0]
+    assert commands[1][1:5] == [
+        "repo",
+        "clone",
+        "https://github.com/owner/repo.git",
+        str(tmp_path / ".staging.git"),
+    ]
+
+
+def test_repo_fetcher_reports_git_and_gh_failures_together(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[0].endswith("gh"):
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="gh failure\n")
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="git failure\n")
+
+    monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: f"/usr/bin/{command}")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
+
+    with pytest.raises(SourceFetchError) as raised:
+        RepoFetcher().fetch(
+            _remote_source("https://github.com/owner/repo.git"),
+            destination=tmp_path / "staging",
+        )
+
+    assert raised.value.reason_code == "fetch.repo_clone_failed_detail"
+    assert raised.value.values == {"detail": "git failure; gh failure"}

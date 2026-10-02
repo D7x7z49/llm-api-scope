@@ -7,6 +7,7 @@ from typing import Final
 
 
 GIT_COMMAND: Final = "git"
+GH_COMMAND: Final = "gh"
 GIT_TIMEOUT_SECONDS: Final = 120.0
 GIT_PROXY_ENVIRONMENT_NAMES: Final[tuple[str, ...]] = (
     "HTTP_PROXY",
