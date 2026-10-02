@@ -1,10 +1,11 @@
 # apiscope/source.py
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, Protocol, TypeAlias
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
@@ -22,6 +23,8 @@ class SourceParseReason(StrEnum):
     REMOTE_HOST_MISSING = "source.parse.remote_host_missing"
     CREDENTIALS_UNSUPPORTED = "source.parse.credentials_unsupported"
     FRAGMENTS_UNSUPPORTED = "source.parse.fragments_unsupported"
+    REF_INVALID = "source.parse.ref_invalid"
+    SUBPATH_INVALID = "source.parse.subpath_invalid"
 
 
 _REMOTE_SCHEMES: dict[DocumentType, frozenset[str]] = {
@@ -31,6 +34,12 @@ _REMOTE_SCHEMES: dict[DocumentType, frozenset[str]] = {
     "rfc": frozenset({"http", "https"}),
     "llmstxt": frozenset({"http", "https"}),
 }
+
+# a scp-style git location keeps its user@ prefix and is not a URL scheme
+_SCP_LOCATION = re.compile(r"^[^/@:]+@[^/@:]+:")
+# the repository path starts after the git suffix, as in repository.git/docs
+_REPO_PATH_MARKER = ".git/"
+_ENCODED_AT = "%40"
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +71,8 @@ class FilesystemSource(SourceIdentity):
 
 class RepoSource(SourceIdentity):
     doc_type: Literal["repo"] = "repo"
+    subpath: str | None = None
+    ref: str | None = None
 
 
 class OpenapiSource(SourceIdentity):
@@ -111,8 +122,19 @@ def _parse_filesystem(source: str, *, base_dir: Path) -> FilesystemSource:
 
 
 def _parse_repo(source: str, *, base_dir: Path) -> RepoSource:
-    canonical, location = _resolve_location("repo", source, source.strip(), base_dir)
-    return RepoSource(original=source, canonical=canonical, location=location)
+    value = source.strip()
+    location_text, ref = _split_repo_ref(value)
+    location_text, subpath = _split_repo_subpath(location_text, base_dir)
+    if ref is not None:
+        ref = _normalize_ref(source, ref)
+    if subpath is not None:
+        subpath = _normalize_subpath(source, subpath)
+    canonical, location = _resolve_location("repo", source, location_text, base_dir)
+    if subpath is not None:
+        canonical = f"{canonical}/{subpath}"
+    if ref is not None:
+        canonical = f"{canonical}@{ref}"
+    return RepoSource(original=source, canonical=canonical, location=location, subpath=subpath, ref=ref)
 
 
 def _parse_openapi(source: str, *, base_dir: Path) -> OpenapiSource:
@@ -139,6 +161,61 @@ _PARSERS: dict[DocumentType, SourceParser] = {
 }
 
 
+# split the compact repo link at the final unescaped @, keep a scp user@ prefix
+def _split_repo_ref(value: str) -> tuple[str, str | None]:
+    scp = _SCP_LOCATION.match(value)
+    scp_at = scp.group(0).index("@") if scp is not None else -1
+    last_at = value.rfind("@")
+    if last_at == -1 or last_at == scp_at:
+        return value, None
+    return value[:last_at], value[last_at + 1 :]
+
+
+# split the repository path from the git location at the .git suffix
+# a local location without that suffix falls back to the nearest git root
+def _split_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | None]:
+    marker = value.find(_REPO_PATH_MARKER)
+    if marker != -1:
+        end = marker + len(".git")
+        return value[:end], value[end + 1 :]
+    return _split_local_repo_subpath(value, base_dir)
+
+
+def _split_local_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | None]:
+    if "://" in value or _SCP_LOCATION.match(value):
+        return value, None
+    try:
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            path = base_dir / path
+        path = path.resolve(strict=False)
+    except (OSError, RuntimeError, ValueError):
+        return value, None
+    candidate = path
+    while candidate != candidate.parent:
+        if (candidate / ".git").exists():
+            if candidate == path:
+                return value, None
+            return candidate.as_posix(), path.relative_to(candidate).as_posix()
+        candidate = candidate.parent
+    return value, None
+
+
+def _normalize_ref(source: str, ref: str) -> str:
+    value = ref.replace(_ENCODED_AT, "@")
+    if not value or value != value.strip() or value.startswith("-") or any(character.isspace() for character in value):
+        raise SourceResolutionError(source, SourceParseReason.REF_INVALID)
+    return value
+
+
+def _normalize_subpath(source: str, subpath: str) -> str:
+    value = subpath.strip("/")
+    path = PurePosixPath(value)
+    if not value or value == "." or path.is_absolute() or ".." in path.parts:
+        raise SourceResolutionError(source, SourceParseReason.SUBPATH_INVALID, {"detail": subpath})
+    return value
+
+
 # resolve a location to its canonical string and its typed location
 def _resolve_location(
     doc_type: DocumentType,
@@ -146,6 +223,9 @@ def _resolve_location(
     value: str,
     base_dir: Path,
 ) -> tuple[str, SourceLocation]:
+    if doc_type == "repo" and _SCP_LOCATION.match(value):
+        return value, RemoteLocation(url=value)
+
     try:
         parsed = urlsplit(value)
     except ValueError as error:

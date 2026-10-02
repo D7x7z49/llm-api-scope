@@ -47,6 +47,10 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.source.parse.location_invalid": (
         "cannot parse source {source} because the source location is invalid ({detail})"
     ),
+    "sync.error.source.parse.ref_invalid": ("cannot parse source {source} because the repository ref is invalid"),
+    "sync.error.source.parse.subpath_invalid": (
+        "cannot parse source {source} because the repository path is invalid ({detail})"
+    ),
     "sync.error.fetch_failed": "cannot fetch source {source} because the fetcher reported {reason}",
     "sync.error.fetch.filesystem_local_required": (
         "cannot fetch source {source} because a filesystem source must be local"
@@ -65,6 +69,15 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.fetch.repo_clone_failed": "cannot fetch source {source} because Git clone failed",
     "sync.error.fetch.repo_clone_failed_detail": (
         "cannot fetch source {source} because Git reported a clone failure with {detail}"
+    ),
+    "sync.error.fetch.repo_ref_failed": (
+        "cannot fetch source {source} because Git could not check out ref {ref} ({detail})"
+    ),
+    "sync.error.fetch.repo_path_failed": (
+        "cannot fetch source {source} because Git could not select path {path} ({detail})"
+    ),
+    "sync.error.fetch.repo_path_missing": (
+        "cannot fetch source {source} because the repository path {path} does not exist"
     ),
     "sync.error.fetch.transport_failed": ("cannot fetch source {source} because the transport reported {detail}"),
     "sync.error.cache_failed": "cannot update cache for {name} because the cache operation failed",

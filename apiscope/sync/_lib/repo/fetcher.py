@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from apiscope.cache import digest_content
-from apiscope.source import LocalLocation, RemoteLocation, RepoSource
+from apiscope.source import RepoSource
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo.constants import (
     GIT_COMMAND,
@@ -15,7 +15,7 @@ from apiscope.sync._lib.repo.constants import (
     GIT_PROXY_SCHEMES,
     GIT_TIMEOUT_SECONDS,
 )
-from apiscope.sync._lib.schema import FetchResult, ParsedSource
+from apiscope.sync._lib.schema import FetchResult, LocalLocation, ParsedSource, RemoteLocation
 
 
 class RepoFetcher:
@@ -40,29 +40,11 @@ class RepoFetcher:
         content_path = destination / "content"
         content_path.mkdir(parents=True, exist_ok=True)
         try:
-            result = subprocess.run(
-                [
-                    git,
-                    *_git_proxy_options(source.original, source.location, proxy),
-                    "clone",
-                    "--depth=1",
-                    "--filter=blob:none",
-                    "--sparse",
-                    repository,
-                    str(worktree),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=GIT_TIMEOUT_SECONDS,
-                env=_git_environment(),
-            )
-            if result.returncode != 0:
-                detail = result.stderr.strip() or result.stdout.strip()
-                if detail:
-                    raise SourceFetchError(source.original, "fetch.repo_clone_failed_detail", {"detail": detail})
-                raise SourceFetchError(source.original, "fetch.repo_clone_failed")
-            _copy_repository(worktree, content_path)
+            proxy_options = _git_proxy_options(source.original, source.location, proxy)
+            self._clone(git, source, repository, worktree, proxy_options)
+            self._checkout_ref(git, source, worktree, proxy_options)
+            self._select_subpath(git, source, worktree)
+            _copy_repository(_source_root(source, worktree), content_path)
             digest = digest_content(content_path)
         except (OSError, shutil.Error, subprocess.TimeoutExpired) as error:
             raise SourceFetchError(source.original, "fetch.repo_clone_failed", {"detail": str(error)}) from error
@@ -75,6 +57,128 @@ class RepoFetcher:
             content_digest=digest,
         )
 
+    def _clone(
+        self,
+        git: str,
+        source: RepoSource,
+        repository: str,
+        worktree: Path,
+        proxy_options: list[str],
+    ) -> None:
+        args = [*proxy_options, "clone", "--depth=1"]
+        if source.subpath is not None:
+            args.extend(["--filter=blob:none", "--sparse"])
+        args.extend([repository, str(worktree)])
+        result = subprocess.run(
+            [git, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=GIT_TIMEOUT_SECONDS,
+            env=_git_environment(),
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            if detail:
+                raise SourceFetchError(source.original, "fetch.repo_clone_failed_detail", {"detail": detail})
+            raise SourceFetchError(source.original, "fetch.repo_clone_failed")
+
+    def _checkout_ref(
+        self,
+        git: str,
+        source: RepoSource,
+        worktree: Path,
+        proxy_options: list[str],
+    ) -> None:
+        if source.ref is None:
+            return
+        values = {"ref": source.ref}
+        # a branch, tag, or commit that the clone already holds needs no fetch
+        if _has_local_ref(git, source.ref, worktree):
+            _run_git(
+                git,
+                ["checkout", "--detach", source.ref],
+                cwd=worktree,
+                source=source.original,
+                reason="fetch.repo_ref_failed",
+                values=values,
+            )
+            return
+        _run_git(
+            git,
+            [*proxy_options, "fetch", "--depth=1", "origin", source.ref],
+            cwd=worktree,
+            source=source.original,
+            reason="fetch.repo_ref_failed",
+            values=values,
+        )
+        _run_git(
+            git,
+            ["checkout", "--detach", "FETCH_HEAD"],
+            cwd=worktree,
+            source=source.original,
+            reason="fetch.repo_ref_failed",
+            values=values,
+        )
+
+    def _select_subpath(self, git: str, source: RepoSource, worktree: Path) -> None:
+        if source.subpath is None:
+            return
+        _run_git(
+            git,
+            ["sparse-checkout", "set", source.subpath],
+            cwd=worktree,
+            source=source.original,
+            reason="fetch.repo_path_failed",
+            values={"path": source.subpath},
+        )
+
+
+def _run_git(
+    git: str,
+    args: list[str],
+    *,
+    cwd: Path,
+    source: str,
+    reason: str,
+    values: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        [git, *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=GIT_TIMEOUT_SECONDS,
+        env=_git_environment(),
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise SourceFetchError(source, reason, {**values, "detail": detail})
+    return result
+
+
+def _source_root(source: RepoSource, worktree: Path) -> Path:
+    if source.subpath is None:
+        return worktree
+    root = worktree / source.subpath
+    if not root.is_dir():
+        raise SourceFetchError(source.original, "fetch.repo_path_missing", {"path": source.subpath})
+    return root
+
+
+def _has_local_ref(git: str, ref: str, worktree: Path) -> bool:
+    result = subprocess.run(
+        [git, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=GIT_TIMEOUT_SECONDS,
+        env=_git_environment(),
+    )
+    return result.returncode == 0
+
 
 def _git_proxy_options(
     original: str,
@@ -85,13 +189,14 @@ def _git_proxy_options(
         return []
 
     scheme = urlsplit(location.url).scheme.lower()
-    if proxy is not None and scheme not in GIT_PROXY_SCHEMES:
-        raise SourceFetchError(
-            original,
-            "fetch.repo_proxy_unsupported",
-            {"scheme": scheme},
-        )
     if scheme not in GIT_PROXY_SCHEMES:
+        # a scp-style location has no scheme and never uses an HTTP proxy
+        if proxy is not None and scheme:
+            raise SourceFetchError(
+                original,
+                "fetch.repo_proxy_unsupported",
+                {"scheme": scheme},
+            )
         return []
 
     value = "" if proxy is None else proxy

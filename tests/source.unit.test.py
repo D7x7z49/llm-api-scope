@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from apiscope.schema import DocumentType
-from apiscope.source import LocalLocation, RemoteLocation, SourceResolutionError, parse_source
+from apiscope.source import LocalLocation, RemoteLocation, RepoSource, SourceResolutionError, parse_source
 
 
 @pytest.mark.parametrize(
@@ -120,3 +120,116 @@ def test_parse_source_wraps_an_invalid_filesystem_path(tmp_path: Path) -> None:
         parse_source("filesystem", "\x00", base_dir=tmp_path)
 
     assert raised.value.reason_code == "source.parse.filesystem_path_invalid"
+
+
+def test_parse_repo_source_keeps_a_subpath_and_a_ref(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://github.com/example/api.git/docs@main", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert isinstance(parsed.location, RemoteLocation)
+    assert parsed.location.url == "https://github.com/example/api.git"
+    assert parsed.canonical == "https://github.com/example/api.git/docs@main"
+    assert parsed.subpath == "docs"
+    assert parsed.ref == "main"
+
+
+def test_parse_repo_source_keeps_a_ref_only(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://github.com/example/api.git@v1.0.0", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert parsed.subpath is None
+    assert parsed.ref == "v1.0.0"
+    assert parsed.canonical == "https://github.com/example/api.git@v1.0.0"
+
+
+def test_parse_repo_source_keeps_a_subpath_only(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://github.com/example/api.git/docs", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert parsed.subpath == "docs"
+    assert parsed.ref is None
+    assert parsed.canonical == "https://github.com/example/api.git/docs"
+
+
+def test_parse_repo_source_keeps_an_scp_location(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "git@github.com:octocat/Hello-World.git@master", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert isinstance(parsed.location, RemoteLocation)
+    assert parsed.location.url == "git@github.com:octocat/Hello-World.git"
+    assert parsed.subpath is None
+    assert parsed.ref == "master"
+
+
+def test_parse_repo_source_keeps_an_scp_location_without_a_ref(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "git@github.com:octocat/Hello-World.git", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert isinstance(parsed.location, RemoteLocation)
+    assert parsed.location.url == "git@github.com:octocat/Hello-World.git"
+    assert parsed.ref is None
+
+
+def test_parse_repo_source_decodes_an_encoded_at_in_the_ref(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://github.com/example/api.git@feature%40x", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert parsed.ref == "feature@x"
+
+
+def test_parse_repo_source_resolves_a_local_subpath(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "./repo.git/docs@main", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert isinstance(parsed.location, LocalLocation)
+    assert parsed.location.path == (tmp_path / "repo.git").resolve()
+    assert parsed.subpath == "docs"
+    assert parsed.ref == "main"
+
+
+def test_parse_repo_source_finds_a_local_repo_root(tmp_path: Path) -> None:
+    (tmp_path / "repo" / ".git").mkdir(parents=True)
+
+    parsed = parse_source("repo", "./repo/docs@main", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert isinstance(parsed.location, LocalLocation)
+    assert parsed.location.path == (tmp_path / "repo").resolve()
+    assert parsed.subpath == "docs"
+    assert parsed.ref == "main"
+
+
+def test_parse_repo_source_rejects_an_empty_ref(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("repo", "https://github.com/example/api.git@", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.ref_invalid"
+
+
+def test_parse_repo_source_keeps_a_short_hash_ref(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://github.com/example/api.git@1a2b3c4", base_dir=tmp_path)
+
+    assert isinstance(parsed, RepoSource)
+    assert parsed.ref == "1a2b3c4"
+
+
+def test_parse_repo_source_rejects_an_option_like_ref(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("repo", "https://github.com/example/api.git@--upload-pack", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.ref_invalid"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "https://github.com/example/api.git/../etc@main",
+        "https://github.com/example/api.git/..@main",
+        "https://github.com/example/api.git/.@main",
+    ],
+)
+def test_parse_repo_source_rejects_an_unsafe_subpath(tmp_path: Path, source: str) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("repo", source, base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.subpath_invalid"

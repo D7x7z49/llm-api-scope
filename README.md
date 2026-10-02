@@ -31,6 +31,7 @@ five document types share one command surface:
 
 ```bash
 apiscope add docs https://example.test/docs/llms.txt --type llmstxt
+apiscope add api https://github.com/example/api.git/docs@main --type repo
 apiscope list all
 ```
 
@@ -118,7 +119,7 @@ apiscope sync <selector> [<name>] [--force]
 
 the selector is the same as in list, and the optional name narrows the range to one source.
 a source refreshes when its cache is older than its ttl, and `--force` ignores the ttl.
-`repo` clones with shallow depth, a blobless filter, and sparse checkout.
+`repo` clones with shallow depth, and a subpath selects files with a sparse checkout.
 `llmstxt` reads the index page, downloads the pages it lists, and skips a failed page.
 
 ### view
