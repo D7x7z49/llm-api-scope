@@ -16,7 +16,5 @@ class RepoReader:
         content: Path,
         metadata: CacheMetadata,
         target: IndexedNode,
-        *,
-        proxy: str | None = None,
     ) -> ReadResult:
-        return self._reader.read(content, metadata, target, proxy=proxy)
+        return self._reader.read(content, metadata, target)

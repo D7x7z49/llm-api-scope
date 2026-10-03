@@ -32,13 +32,11 @@ def read_content(
     content: Path,
     metadata: CacheMetadata,
     target: IndexedNode,
-    *,
-    proxy: str | None = None,
 ) -> ReadResult:
     reader = _READERS.get(doc_type)
     if reader is None:
         raise ReadError(ReadReason.READER_UNSUPPORTED, {"doc_type": doc_type})
-    return reader.read(content, metadata, target, proxy=proxy)
+    return reader.read(content, metadata, target)
 
 
 __all__ = ["read_content", "supports_reading"]

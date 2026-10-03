@@ -19,8 +19,6 @@ class RfcReader:
         content: Path,
         metadata: CacheMetadata,
         target: IndexedNode,
-        *,
-        proxy: str | None = None,
     ) -> ReadResult:
         if not target.is_leaf or target.path is None:
             raise ReadError(ReadReason.TARGET_NOT_LEAF, {"target": target.path or target.index})

@@ -13,6 +13,4 @@ class SourceReader(Protocol):
         content: Path,
         metadata: CacheMetadata,
         target: IndexedNode,
-        *,
-        proxy: str | None = None,
     ) -> ReadResult: ...

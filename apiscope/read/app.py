@@ -135,7 +135,6 @@ def _run_read(
             snapshot.content,
             metadata,
             node,
-            proxy=runtime.config.setting.local.proxy,
         )
     except ProjectionError as error:
         raise _projection_message(error, name=name, address=options.address) from error

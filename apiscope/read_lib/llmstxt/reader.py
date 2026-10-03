@@ -15,8 +15,5 @@ class LlmstxtReader:
         content: Path,
         metadata: CacheMetadata,
         target: IndexedNode,
-        *,
-        proxy: str | None = None,
     ) -> ReadResult:
-        del proxy
         return FilesystemReader().read(content, metadata, target)
