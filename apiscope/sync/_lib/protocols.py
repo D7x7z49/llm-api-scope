@@ -12,4 +12,5 @@ class SourceFetcher(Protocol):
         *,
         destination: Path,
         proxy: str | None = None,
+        no_proxy: str | None = None,
     ) -> FetchResult: ...

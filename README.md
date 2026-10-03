@@ -68,16 +68,22 @@ the project file is `.apiscope/config.json`, and the local file is `.apiscope/lo
 `--global` uses the global layer only and skips project discovery.
 
 the public setting holds the default source ttl in days.
-the local setting holds the proxy.
+the local setting holds the proxy and the `no_proxy` bypass list.
 
 ```json
 {
   "setting": {
     "public": {"doc_ttl": 7},
-    "local": {"proxy": "http://proxy.example.test:8080"}
+    "local": {
+      "proxy": "http://proxy.example.test:8080",
+      "no_proxy": "internal.example.test,localhost"
+    }
   }
 }
 ```
+
+apiscope reads the proxy only from configuration; environment proxy variables are not used.
+`no_proxy` is a comma-separated host, domain, or `*` list that skips the proxy.
 
 the cache lives in the app directory of the selected layer, and the rest of its rules sit under `## commands`.
 

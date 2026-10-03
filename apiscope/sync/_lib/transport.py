@@ -21,13 +21,14 @@ def fetch_location(
     *,
     destination: Path,
     proxy: str | None = None,
+    no_proxy: str | None = None,
 ) -> tuple[ContentKind, str | None, str]:
     content_path = destination / "content"
     content_path.mkdir(parents=True, exist_ok=True)
     if isinstance(location, LocalLocation):
         content_kind, content_name = _copy_local(location.path, content_path)
     else:
-        content_kind, content_name = _fetch_remote(location, content_path, proxy=proxy)
+        content_kind, content_name = _fetch_remote(location, content_path, proxy=proxy, no_proxy=no_proxy)
     return content_kind, content_name, digest_content(content_path)
 
 
@@ -53,23 +54,42 @@ def _fetch_remote(
     content_path: Path,
     *,
     proxy: str | None,
+    no_proxy: str | None,
 ) -> tuple[ContentKind, str]:
     name = _remote_name(source.url)
-    (content_path / name).write_bytes(fetch_remote_bytes(source.url, proxy=proxy))
+    (content_path / name).write_bytes(fetch_remote_bytes(source.url, proxy=proxy, no_proxy=no_proxy))
     return "file", name
 
 
-def fetch_remote_bytes(url: str, *, proxy: str | None = None) -> bytes:
-    with _client(proxy) as client:
+def fetch_remote_bytes(url: str, *, proxy: str | None = None, no_proxy: str | None = None) -> bytes:
+    with _client(proxy, no_proxy, url) as client:
         response = client.get(url)
         response.raise_for_status()
         return response.content
 
 
-def _client(proxy: str | None) -> httpx.Client:
-    if proxy is None:
+# the program reads the proxy only from configuration; a configured proxy is used
+# unless the target host is in the configured bypass list.
+def _client(proxy: str | None, no_proxy: str | None, url: str) -> httpx.Client:
+    if not proxy or _is_bypassed(url, no_proxy):
         return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, trust_env=False)
     return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, proxy=proxy, trust_env=False)
+
+
+def _is_bypassed(url: str, no_proxy: str | None) -> bool:
+    if not no_proxy:
+        return False
+    hostname = urlsplit(url).hostname
+    if hostname is None:
+        return False
+    host = hostname.lower()
+    for raw in no_proxy.split(","):
+        pattern = raw.strip().lower().lstrip(".")
+        if not pattern:
+            continue
+        if pattern == "*" or host == pattern or host.endswith(f".{pattern}"):
+            return True
+    return False
 
 
 def _remote_name(url: str) -> str:

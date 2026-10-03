@@ -16,8 +16,9 @@ class FilesystemFetcher:
         *,
         destination: Path,
         proxy: str | None = None,
+        no_proxy: str | None = None,
     ) -> FetchResult:
-        del proxy
+        del proxy, no_proxy
         if not isinstance(source.location, LocalLocation):
             raise SourceFetchError(source.original, "fetch.filesystem_local_required")
         path = source.location.path

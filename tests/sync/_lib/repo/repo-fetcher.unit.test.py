@@ -8,7 +8,6 @@ import pytest
 from apiscope.source import LocalLocation, RemoteLocation, RepoSource
 from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo import fetcher as repo_fetcher
-from apiscope.sync._lib.repo.constants import GIT_PROXY_ENVIRONMENT_NAMES
 from apiscope.sync._lib.repo.fetcher import RepoFetcher
 
 
@@ -71,25 +70,21 @@ def test_repo_fetcher_copies_a_mocked_clone_without_git_metadata(
     assert result.content_digest
 
 
-def test_repo_fetcher_passes_an_http_proxy_without_proxy_environment(
+def test_repo_fetcher_passes_a_configured_http_proxy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     commands: list[list[str]] = []
-    environments: list[dict[str, str]] = []
+    environments: list[object] = []
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         commands.append(command)
-        environment = kwargs["env"]
-        assert isinstance(environment, dict)
-        environments.append(environment)
+        environments.append(kwargs["env"])
         worktree = Path(command[-1])
         (worktree / "README.md").parent.mkdir(parents=True)
         (worktree / "README.md").write_text("hello\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
-    for name in GIT_PROXY_ENVIRONMENT_NAMES:
-        monkeypatch.setenv(name, f"{name}-from-environment")
     monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
     monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
 
@@ -107,27 +102,24 @@ def test_repo_fetcher_passes_an_http_proxy_without_proxy_environment(
         "https.proxy=http://proxy.example.test:8080",
     ]
     assert commands[0][5] == "clone"
-    assert all(name not in environments[0] for name in GIT_PROXY_ENVIRONMENT_NAMES)
+    # the git process inherits the environment, so it keeps its own proxy settings
+    assert environments[0] is None
 
 
-def test_repo_fetcher_disables_proxy_environment_without_configured_proxy(
+def test_repo_fetcher_leaves_the_git_environment_without_a_configured_proxy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     commands: list[list[str]] = []
-    environments: list[dict[str, str]] = []
+    environments: list[object] = []
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         commands.append(command)
-        environment = kwargs["env"]
-        assert isinstance(environment, dict)
-        environments.append(environment)
+        environments.append(kwargs["env"])
         worktree = Path(command[-1])
         worktree.mkdir(parents=True)
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
-    for name in GIT_PROXY_ENVIRONMENT_NAMES:
-        monkeypatch.setenv(name, f"{name}-from-environment")
     monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
     monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
 
@@ -136,34 +128,68 @@ def test_repo_fetcher_disables_proxy_environment_without_configured_proxy(
         destination=tmp_path / "staging",
     )
 
-    assert commands[0][1:6] == ["-c", "http.proxy=", "-c", "https.proxy=", "clone"]
-    assert all(name not in environments[0] for name in GIT_PROXY_ENVIRONMENT_NAMES)
+    assert commands[0][1:3] == ["clone", "--depth=1"]
+    assert "-c" not in commands[0]
+    assert environments[0] is None
+
+
+def test_repo_fetcher_passes_a_configured_no_proxy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environments: list[object] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        environments.append(kwargs["env"])
+        worktree = Path(command[-1])
+        worktree.mkdir(parents=True)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
+
+    RepoFetcher().fetch(
+        _remote_source("https://example.test/docs.git"),
+        destination=tmp_path / "staging",
+        no_proxy="example.test,internal.test",
+    )
+
+    assert isinstance(environments[0], dict)
+    assert environments[0]["NO_PROXY"] == "example.test,internal.test"
+    assert environments[0]["no_proxy"] == "example.test,internal.test"
 
 
 @pytest.mark.parametrize(
-    ("url", "scheme"),
+    "url",
     [
-        pytest.param("ssh://git@example.test/docs.git", "ssh", id="ssh"),
-        pytest.param("git://example.test/docs.git", "git", id="git"),
+        pytest.param("ssh://git@example.test/docs.git", id="ssh"),
+        pytest.param("git://example.test/docs.git", id="git"),
+        pytest.param("file://example.test/docs.git", id="file"),
     ],
 )
-def test_repo_fetcher_rejects_proxy_for_unsupported_repository_schemes(
+def test_repo_fetcher_ignores_the_proxy_for_unsupported_repository_schemes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     url: str,
-    scheme: str,
 ) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        worktree = Path(command[-1])
+        worktree.mkdir(parents=True)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
     monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
 
-    with pytest.raises(SourceFetchError) as raised:
-        RepoFetcher().fetch(
-            _remote_source(url),
-            destination=tmp_path / "staging",
-            proxy="http://proxy.example.test:8080",
-        )
+    RepoFetcher().fetch(
+        _remote_source(url),
+        destination=tmp_path / "staging",
+        proxy="http://proxy.example.test:8080",
+    )
 
-    assert raised.value.reason_code == "fetch.repo_proxy_unsupported"
-    assert raised.value.values == {"scheme": scheme}
+    assert "-c" not in commands[0]
 
 
 def test_repo_fetcher_reports_missing_git(

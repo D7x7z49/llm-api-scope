@@ -1,5 +1,6 @@
 # tests/sync/sync.component.test.py
 import json
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -156,12 +157,21 @@ def test_sync_does_not_check_git_for_a_filesystem_source(
     assert "[synced=1]" in result.output
 
 
-def test_sync_reports_an_unsupported_proxy_for_an_ssh_repo(
+def test_sync_ignores_a_proxy_for_an_ssh_repo(
     isolated_home: Path,
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     proxy = "http://proxy.example.test:8080"
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        worktree = Path(command[-1])
+        worktree.mkdir(parents=True, exist_ok=True)
+        (worktree / "README.md").write_text("hello\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
     runner = CliRunner()
     added = runner.invoke(
         app,
@@ -179,13 +189,14 @@ def test_sync_reports_an_unsupported_proxy_for_an_ssh_repo(
         encoding="utf-8",
     )
     monkeypatch.setattr(repo_fetcher.shutil, "which", lambda command: "/usr/bin/git")
+    monkeypatch.setattr(repo_fetcher.subprocess, "run", fake_run)
 
     result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
 
     assert added.exit_code == 0
-    assert result.exit_code == 1
-    assert "sync.error.fetch.repo_proxy_unsupported" in result.output
-    assert "repository scheme ssh" in result.output
+    assert result.exit_code == 0
+    assert "[synced=1]" in result.output
+    assert "-c" not in commands[0]
 
 
 def test_sync_default_range_skips_a_fresh_source(

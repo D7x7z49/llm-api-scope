@@ -75,6 +75,39 @@ def test_fetch_location_passes_a_proxy_to_httpx(
     }
 
 
+def test_fetch_location_bypasses_the_proxy_for_a_no_proxy_host(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options: dict[str, Any] = {}
+
+    class FakeClient:
+        def __enter__(self) -> "FakeClient":
+            return self
+
+        def __exit__(self, exception_type: Any, exception: Any, traceback: Any) -> None:
+            del exception_type, exception, traceback
+
+        def get(self, url: str) -> httpx.Response:
+            return httpx.Response(200, request=httpx.Request("GET", url), content=b"direct")
+
+    def client_factory(**kwargs: Any) -> FakeClient:
+        options.update(kwargs)
+        return FakeClient()
+
+    monkeypatch.setattr(transport.httpx, "Client", client_factory)
+
+    transport.fetch_location(
+        RemoteLocation("https://api.example.test/rfc.txt"),
+        destination=tmp_path / "staging",
+        proxy="http://proxy.example.test:8080",
+        no_proxy="example.test",
+    )
+
+    assert "proxy" not in options
+    assert options["trust_env"] is False
+
+
 def test_fetch_location_ignores_proxy_environment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -25,11 +25,14 @@ class LlmstxtFetcher:
         *,
         destination: Path,
         proxy: str | None = None,
+        no_proxy: str | None = None,
     ) -> FetchResult:
         content_path = destination / CACHE_CONTENT_DIRECTORY
         content_path.mkdir(parents=True, exist_ok=True)
         try:
-            content_kind, index_name, _ = fetch_location(source.location, destination=destination, proxy=proxy)
+            content_kind, index_name, _ = fetch_location(
+                source.location, destination=destination, proxy=proxy, no_proxy=no_proxy
+            )
         except TransportError as error:
             raise SourceFetchError(source.original, error.reason_code, error.values) from error
         except (OSError, ValueError, httpx.HTTPError) as error:
@@ -46,7 +49,7 @@ class LlmstxtFetcher:
             target = urljoin(base, link)
             try:
                 page = content_path / _route(base, target)
-                data = _page_bytes(target, index_dir, proxy=proxy)
+                data = _page_bytes(target, index_dir, proxy=proxy, no_proxy=no_proxy)
             except (OSError, ValueError, httpx.HTTPError):
                 continue
             page.parent.mkdir(parents=True, exist_ok=True)
@@ -69,10 +72,10 @@ def _index_base(source: ParsedSource) -> tuple[str, Path | None]:
     raise ValueError("the llmstxt source is unsupported")
 
 
-def _page_bytes(target: str, index_dir: Path | None, *, proxy: str | None) -> bytes:
+def _page_bytes(target: str, index_dir: Path | None, *, proxy: str | None, no_proxy: str | None) -> bytes:
     parts = urlsplit(target)
     if parts.scheme.lower() in _REMOTE_SCHEMES and parts.netloc:
-        return fetch_remote_bytes(target, proxy=proxy)
+        return fetch_remote_bytes(target, proxy=proxy, no_proxy=no_proxy)
     if index_dir is None:
         raise ValueError("a local link needs a local index")
     return Path(target).read_bytes()

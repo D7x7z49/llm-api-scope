@@ -12,7 +12,6 @@ from apiscope.sync._lib.errors import SourceFetchError
 from apiscope.sync._lib.repo.constants import (
     GH_COMMAND,
     GIT_COMMAND,
-    GIT_PROXY_ENVIRONMENT_NAMES,
     GIT_PROXY_SCHEMES,
     GIT_TIMEOUT_SECONDS,
 )
@@ -28,6 +27,7 @@ class RepoFetcher:
         *,
         destination: Path,
         proxy: str | None = None,
+        no_proxy: str | None = None,
     ) -> FetchResult:
         if not isinstance(source, RepoSource):
             raise SourceFetchError(source.original, "fetch.repo_location_invalid")
@@ -43,10 +43,10 @@ class RepoFetcher:
         content_path = destination / "content"
         content_path.mkdir(parents=True, exist_ok=True)
         try:
-            proxy_options = _git_proxy_options(source.original, source.location, proxy)
-            self._clone(git, source, repository, worktree, proxy_options, proxy)
-            self._checkout_ref(git, source, worktree, proxy_options)
-            self._select_subpath(git, source, worktree)
+            proxy_options = _git_proxy_options(source.location, proxy)
+            self._clone(git, source, repository, worktree, proxy_options, proxy, no_proxy)
+            self._checkout_ref(git, source, worktree, proxy_options, no_proxy)
+            self._select_subpath(git, source, worktree, proxy_options, no_proxy)
             _copy_repository(_source_root(source, worktree), content_path)
             digest = digest_content(content_path)
         except (OSError, shutil.Error) as error:
@@ -68,6 +68,7 @@ class RepoFetcher:
         worktree: Path,
         proxy_options: list[str],
         proxy: str | None,
+        no_proxy: str | None,
     ) -> None:
         args = [*proxy_options, "clone", "--depth=1"]
         if source.subpath is not None:
@@ -79,6 +80,7 @@ class RepoFetcher:
             source=source.original,
             reason="fetch.repo_clone_failed_detail",
             values={},
+            no_proxy=no_proxy,
         )
         if result.returncode == 0:
             return
@@ -91,7 +93,7 @@ class RepoFetcher:
 
         # a failed clone can leave a partial worktree, so clear it before the fallback
         shutil.rmtree(worktree, ignore_errors=True)
-        gh_result = _run_gh_clone(gh, source, github, worktree, proxy)
+        gh_result = _run_gh_clone(gh, source, github, worktree, proxy, no_proxy)
         if gh_result.returncode == 0:
             return
         gh_detail = gh_result.stderr.strip() or gh_result.stdout.strip()
@@ -107,12 +109,13 @@ class RepoFetcher:
         source: RepoSource,
         worktree: Path,
         proxy_options: list[str],
+        no_proxy: str | None,
     ) -> None:
         if source.ref is None:
             return
         values = {"ref": source.ref}
         # a branch, tag, or commit that the clone already holds needs no fetch
-        if _has_local_ref(git, source.ref, worktree, source=source.original, values=values):
+        if _has_local_ref(git, source.ref, worktree, source=source.original, values=values, no_proxy=no_proxy):
             _run_git(
                 git,
                 ["checkout", "--detach", source.ref],
@@ -120,6 +123,7 @@ class RepoFetcher:
                 source=source.original,
                 reason="fetch.repo_ref_failed",
                 values=values,
+                no_proxy=no_proxy,
             )
             return
         _run_git(
@@ -129,6 +133,7 @@ class RepoFetcher:
             source=source.original,
             reason="fetch.repo_ref_failed",
             values=values,
+            no_proxy=no_proxy,
         )
         _run_git(
             git,
@@ -137,18 +142,27 @@ class RepoFetcher:
             source=source.original,
             reason="fetch.repo_ref_failed",
             values=values,
+            no_proxy=no_proxy,
         )
 
-    def _select_subpath(self, git: str, source: RepoSource, worktree: Path) -> None:
+    def _select_subpath(
+        self,
+        git: str,
+        source: RepoSource,
+        worktree: Path,
+        proxy_options: list[str],
+        no_proxy: str | None,
+    ) -> None:
         if source.subpath is None:
             return
         _run_git(
             git,
-            ["sparse-checkout", "set", source.subpath],
+            [*proxy_options, "sparse-checkout", "set", source.subpath],
             cwd=worktree,
             source=source.original,
             reason="fetch.repo_path_failed",
             values={"path": source.subpath},
+            no_proxy=no_proxy,
         )
 
 
@@ -158,6 +172,7 @@ def _run_gh_clone(
     repository: str,
     worktree: Path,
     proxy: str | None,
+    no_proxy: str | None,
 ) -> subprocess.CompletedProcess[str]:
     args = [gh, "repo", "clone", repository, str(worktree), "--", "--depth=1"]
     if source.subpath is not None:
@@ -168,7 +183,7 @@ def _run_gh_clone(
         source=source.original,
         reason="fetch.repo_clone_failed_detail",
         values={},
-        env=_gh_environment(proxy),
+        env=_gh_environment(proxy, no_proxy),
     )
 
 
@@ -180,8 +195,9 @@ def _run_git(
     source: str,
     reason: str,
     values: dict[str, str],
+    no_proxy: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    result = _run_command([git, *args], cwd=cwd, source=source, reason=reason, values=values)
+    result = _run_command([git, *args], cwd=cwd, source=source, reason=reason, values=values, no_proxy=no_proxy)
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise SourceFetchError(source, reason, {**values, "detail": detail})
@@ -197,7 +213,9 @@ def _run_command(
     reason: str,
     values: dict[str, str],
     env: dict[str, str] | None = None,
+    no_proxy: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    effective_env = _git_environment(no_proxy) if env is None else env
     try:
         return subprocess.run(
             command,
@@ -206,7 +224,7 @@ def _run_command(
             text=True,
             check=False,
             timeout=GIT_TIMEOUT_SECONDS,
-            env=_git_environment() if env is None else env,
+            env=effective_env,
         )
     except subprocess.TimeoutExpired as error:
         detail = f"the command timed out after {GIT_TIMEOUT_SECONDS:g} seconds"
@@ -256,6 +274,7 @@ def _has_local_ref(
     *,
     source: str,
     values: dict[str, str],
+    no_proxy: str | None = None,
 ) -> bool:
     result = _run_command(
         [git, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
@@ -263,46 +282,48 @@ def _has_local_ref(
         source=source,
         reason="fetch.repo_ref_failed",
         values=values,
+        no_proxy=no_proxy,
     )
     return result.returncode == 0
 
 
+# a configured proxy overrides the environment; without one the git process is untouched
 def _git_proxy_options(
-    original: str,
     location: LocalLocation | RemoteLocation,
     proxy: str | None,
 ) -> list[str]:
-    if isinstance(location, LocalLocation):
+    if isinstance(location, LocalLocation) or not proxy:
         return []
 
     scheme = urlsplit(location.url).scheme.lower()
     if scheme not in GIT_PROXY_SCHEMES:
-        # a scp-style location has no scheme and never uses an HTTP proxy
-        if proxy is not None and scheme:
-            raise SourceFetchError(
-                original,
-                "fetch.repo_proxy_unsupported",
-                {"scheme": scheme},
-            )
+        # an HTTP proxy does not apply to scp, ssh, git, or file locations
         return []
 
-    value = "" if proxy is None else proxy
-    return ["-c", f"http.proxy={value}", "-c", f"https.proxy={value}"]
+    return ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
 
 
-def _git_environment() -> dict[str, str]:
+# the git process inherits the environment; configuration only adds a bypass list
+def _git_environment(no_proxy: str | None) -> dict[str, str] | None:
+    if not no_proxy:
+        return None
     environment = os.environ.copy()
-    for name in GIT_PROXY_ENVIRONMENT_NAMES:
-        environment.pop(name, None)
+    environment["NO_PROXY"] = no_proxy
+    environment["no_proxy"] = no_proxy
     return environment
 
 
-# gh uses its own transport, so it keeps the environment and the configured proxy
-def _gh_environment(proxy: str | None) -> dict[str, str]:
+# gh uses its own transport; configuration overrides the proxy when one is set
+def _gh_environment(proxy: str | None, no_proxy: str | None) -> dict[str, str] | None:
+    if not proxy and not no_proxy:
+        return None
     environment = os.environ.copy()
-    if proxy is not None:
+    if proxy:
         environment["HTTPS_PROXY"] = proxy
         environment["HTTP_PROXY"] = proxy
+    if no_proxy:
+        environment["NO_PROXY"] = no_proxy
+        environment["no_proxy"] = no_proxy
     return environment
 
 

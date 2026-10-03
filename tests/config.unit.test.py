@@ -114,6 +114,27 @@ def test_assemble_runtime_config_uses_defaults_when_sections_are_missing() -> No
     assert config.setting.local.proxy is None
 
 
+def test_local_setting_normalizes_a_blank_value_to_none() -> None:
+    local_file = LocalConfigFile.model_validate(_config_data(setting={"proxy": "   ", "no_proxy": ""}))
+
+    config = assemble_runtime_config(GlobalConfigFile.model_validate(_config_data()), None, local_file)
+
+    assert config.setting.local.proxy is None
+    assert config.setting.local.no_proxy is None
+
+
+def test_assemble_runtime_config_keeps_the_no_proxy_bypass_list() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(setting={"public": {"doc_ttl": 7}, "local": {"proxy": "http://global", "no_proxy": "g.test"}})
+    )
+    local_file = LocalConfigFile.model_validate(_config_data(setting={"no_proxy": "l.test"}))
+
+    config = assemble_runtime_config(global_file, None, local_file)
+
+    assert config.setting.local.proxy == "http://global"
+    assert config.setting.local.no_proxy == "l.test"
+
+
 def test_assemble_runtime_config_preserves_source_ttl_fallback_value() -> None:
     global_file = GlobalConfigFile.model_validate(
         _config_data(

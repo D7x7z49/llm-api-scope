@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from enum import StrEnum
 from typing import Annotated, Any, Final, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model, field_validator
 from pydantic_core import MISSING
 
 # ==============================================================================
@@ -45,6 +45,15 @@ class PublicSetting(StrictSchemaModel):
 
 class LocalSetting(StrictSchemaModel):
     proxy: str | None = None
+    no_proxy: str | None = None
+
+    # a blank value is not a proxy; treat it as unset
+    @field_validator("proxy", "no_proxy")
+    @classmethod
+    def _blank_to_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
 
 
 class RuntimeSetting(StrictSchemaModel):

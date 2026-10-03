@@ -238,9 +238,13 @@ def _merge_public_setting(base: PublicSetting, override: PublicSetting) -> Publi
 
 
 def _merge_local_setting(base: LocalSetting, override: LocalSetting) -> LocalSetting:
-    if "proxy" not in override.model_fields_set:
-        return base
-    return LocalSetting(proxy=override.proxy)
+    fields: dict[str, str | None] = {}
+    for name in ("proxy", "no_proxy"):
+        if name in override.model_fields_set:
+            fields[name] = getattr(override, name)
+        else:
+            fields[name] = getattr(base, name)
+    return LocalSetting(**fields)
 
 
 def assemble_runtime_config(

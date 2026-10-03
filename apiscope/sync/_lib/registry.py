@@ -34,5 +34,6 @@ def fetch_source(
     *,
     destination: Path,
     proxy: str | None = None,
+    no_proxy: str | None = None,
 ) -> FetchResult:
-    return _FETCHERS[source.doc_type].fetch(source, destination=destination, proxy=proxy)
+    return _FETCHERS[source.doc_type].fetch(source, destination=destination, proxy=proxy, no_proxy=no_proxy)

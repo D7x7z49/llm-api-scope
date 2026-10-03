@@ -17,9 +17,12 @@ class RfcFetcher:
         *,
         destination: Path,
         proxy: str | None = None,
+        no_proxy: str | None = None,
     ) -> FetchResult:
         try:
-            content_kind, content_name, digest = fetch_location(source.location, destination=destination, proxy=proxy)
+            content_kind, content_name, digest = fetch_location(
+                source.location, destination=destination, proxy=proxy, no_proxy=no_proxy
+            )
         except TransportError as error:
             raise SourceFetchError(source.original, error.reason_code, error.values) from error
         except (OSError, ValueError, shutil.Error, httpx.HTTPError) as error:

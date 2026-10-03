@@ -62,9 +62,6 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.fetch.repo_location_invalid": (
         "cannot fetch source {source} because the repository location is invalid"
     ),
-    "sync.error.fetch.repo_proxy_unsupported": (
-        "cannot fetch source {source} because an HTTP proxy is not supported for repository scheme {scheme}"
-    ),
     "sync.error.fetch.git_missing": "cannot fetch source {source} because the Git executable is not available",
     "sync.error.fetch.repo_clone_failed": "cannot fetch source {source} because Git clone failed",
     "sync.error.fetch.repo_clone_failed_detail": (
