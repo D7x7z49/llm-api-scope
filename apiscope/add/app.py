@@ -1,6 +1,7 @@
 # apiscope/add/app.py
 
 from pathlib import Path
+from re import fullmatch
 from typing import cast
 
 import typer
@@ -22,7 +23,14 @@ from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, emit_report
-from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, GlobalConfigFile, ProjectConfigFile, RuntimeSource
+from apiscope.schema import (
+    SOURCE_NAME_PATTERN,
+    SOURCE_SELECTOR_ALL,
+    DocumentType,
+    GlobalConfigFile,
+    ProjectConfigFile,
+    RuntimeSource,
+)
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -49,6 +57,8 @@ def main_callback(
     try:
         if name == SOURCE_SELECTOR_ALL:
             raise MessageError("add.error.reserved_name", {"name": name})
+        if fullmatch(SOURCE_NAME_PATTERN, name) is None:
+            raise MessageError("add.error.invalid_name", {"name": name})
         options = AddOptions(name=name, doc_type=cast(DocumentType, doc_type), doc_src=source, doc_ttl=ttl)
         command_context = AddCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)

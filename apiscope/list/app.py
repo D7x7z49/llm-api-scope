@@ -2,7 +2,6 @@
 
 from collections.abc import Mapping
 from typing import cast
-from urllib.parse import quote
 
 import typer
 from pydantic import ValidationError
@@ -18,7 +17,6 @@ from apiscope.output import Report, emit_report
 from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
-_SOURCE_SAFE_CHARS = "-._~/:?#[]@!$&'()*+,;=%"
 
 app = typer.Typer(
     name=COMMAND_NAME,
@@ -66,7 +64,6 @@ def main_callback(
         ),
         output_format=runtime_context.options.output_format,
         body=_render_window_body(window, total),
-        foot=_render_foot(len(window), total, next_offset),
     )
 
 
@@ -125,12 +122,6 @@ def _render_window_body(items: list[tuple[str, RuntimeSource]], total: int) -> s
     return MESSAGE_TEMPLATES["list.body.window_empty"]
 
 
-def _render_foot(count: int, total: int, next_offset: int | None) -> str:
-    if next_offset is None:
-        return MESSAGE_TEMPLATES["list.foot.count"].format(count=count, total=total)
-    return MESSAGE_TEMPLATES["list.foot.next"].format(count=count, total=total, next=next_offset)
-
-
 def _report_item(name: str, source: RuntimeSource) -> dict[str, str]:
     return {
         "name": name,
@@ -150,17 +141,9 @@ def _render_body(items: list[tuple[str, RuntimeSource]]) -> str:
     blocks: list[str] = []
     for doc_type, group in groups.items():
         lines = [f"[{doc_type}]"]
-        lines.extend(f"- [{_format_name(name)}] {_format_source(source.doc_src)}" for name, source in group)
+        lines.extend(f"- [{name}] {source.doc_src}" for name, source in group)
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
-
-
-def _format_name(value: str) -> str:
-    return quote(value, safe="-._~")
-
-
-def _format_source(value: str) -> str:
-    return quote(value, safe=_SOURCE_SAFE_CHARS)
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:

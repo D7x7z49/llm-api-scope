@@ -1,7 +1,6 @@
 # apiscope/view/app.py
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -109,7 +108,6 @@ def main_callback(
         ),
         output_format=runtime_context.options.output_format,
         body=_render_body(result.nodes),
-        foot=_render_foot(extra),
     )
 
 
@@ -184,10 +182,6 @@ def _render_body(nodes: tuple[IndexedNode, ...]) -> str:
         description = f": {node.description}" if node.description else ""
         lines.append(f"- [{node.index}] {node.key}{description}")
     return "\n".join(lines)
-
-
-def _render_foot(extra: dict[str, object]) -> str:
-    return json.dumps(extra, ensure_ascii=False, indent=2)
 
 
 def _projection_message(error: ProjectionError, *, name: str) -> MessageError:

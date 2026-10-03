@@ -141,6 +141,20 @@ def test_render_text_for_read_success_has_head_body_and_foot() -> None:
     assert actual == "[ok] [scope=project] [action=list]\n\n---\n\npetstore\n\n---\n\ncount 1"
 
 
+def test_render_text_for_read_default_foot_uses_head_tags() -> None:
+    report = Report(
+        status="ok",
+        scope=ConfigScope.PROJECT,
+        action="read",
+        data=[],
+        extra={"count": 1, "cache": "fresh"},
+    )
+
+    actual = render_report(report, body="body")
+
+    assert actual == "[ok] [scope=project] [action=read]\n\n---\n\nbody\n\n---\n\n[count=1] [cache=fresh]"
+
+
 def test_emit_report_writes_one_line_to_the_given_stream() -> None:
     report = Report(status="ok", scope=ConfigScope.HOME, action="add")
     stream = io.StringIO()
@@ -211,7 +225,7 @@ def test_render_text_for_error_with_extra_shows_head_and_hint() -> None:
 
     assert actual == (
         "[error] [scope=project] [action=view] [code=view_lib.projection.path_not_found] "
-        "[path=docs%2Fx]: route docs/x does not exist\n\n---\n\ndocs\n- [/][1] api"
+        "[path=docs/x]: route docs/x does not exist\n\n---\n\ndocs\n- [/][1] api"
     )
 
 
@@ -261,7 +275,7 @@ def test_report_rejects_read_data_on_an_error() -> None:
         Report(status="error", scope=ConfigScope.PROJECT, action="view", code="view.error.invalid", data=[])
 
 
-def test_text_tags_encode_values_that_conflict_with_the_report_syntax() -> None:
+def test_text_tags_keep_values_readable_without_url_encoding() -> None:
     report = Report(
         status="ok",
         scope=ConfigScope.PROJECT,
@@ -271,4 +285,17 @@ def test_text_tags_encode_values_that_conflict_with_the_report_syntax() -> None:
 
     actual = render_report(report)
 
-    assert actual == "[ok] [scope=project] [action=add] [name=pet%20store%3Ablue]"
+    assert actual == "[ok] [scope=project] [action=add] [name=pet store:blue]"
+
+
+def test_text_tags_keep_one_line_when_a_value_contains_a_newline() -> None:
+    report = Report(
+        status="ok",
+        scope=ConfigScope.PROJECT,
+        action="read",
+        meta={"target": "api/overview.md\nnext line"},
+    )
+
+    actual = render_report(report)
+
+    assert actual == "[ok] [scope=project] [action=read] [target=api/overview.md next line]"

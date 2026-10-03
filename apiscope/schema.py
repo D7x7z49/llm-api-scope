@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from enum import StrEnum
+from re import fullmatch
 from typing import Annotated, Any, Final, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, create_model, field_validator
@@ -16,6 +17,9 @@ DocumentType = Literal["filesystem", "repo", "openapi", "rfc", "llmstxt"]
 
 SOURCE_SELECTOR_ALL: Final = "all"
 SourceSelector = Literal["all"] | DocumentType
+
+# a source name is a lowercase kebab-case identifier
+SOURCE_NAME_PATTERN: Final = r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 
 
 class ConfigScope(StrEnum):
@@ -64,6 +68,15 @@ class RuntimeSetting(StrictSchemaModel):
 class RuntimeConfig(StrictSchemaModel):
     source: dict[str, RuntimeSource]
     setting: RuntimeSetting
+
+    # every configured source name must be a lowercase kebab-case identifier
+    @field_validator("source")
+    @classmethod
+    def _validate_source_names(cls, value: dict[str, RuntimeSource]) -> dict[str, RuntimeSource]:
+        for name in value:
+            if fullmatch(SOURCE_NAME_PATTERN, name) is None:
+                raise ValueError(f"source name {name!r} is not lowercase kebab case")
+        return value
 
 
 # ==============================================================================

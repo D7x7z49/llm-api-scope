@@ -1,7 +1,6 @@
 # apiscope/read/app.py
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -94,7 +93,6 @@ def main_callback(
         ),
         output_format=runtime_context.options.output_format,
         body=content.render_body(),
-        foot=json.dumps(content.as_extra(result.cache_state), ensure_ascii=False, indent=2),
     )
 
 

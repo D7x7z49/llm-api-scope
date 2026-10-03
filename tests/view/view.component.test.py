@@ -33,10 +33,7 @@ def test_view_shows_a_cached_filesystem_tree(
         "- [1.1] overview.md\n"
         "- [2] README.md\n"
         "\n---\n\n"
-        "{\n"
-        '  "entries": 3,\n'
-        '  "cache": "fresh"\n'
-        "}\n"
+        "[entries=3] [cache=fresh]\n"
     )
 
 

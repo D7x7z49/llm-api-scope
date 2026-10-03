@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 import apiscope.config as config_module
 from apiscope.config import ConfigError, assemble_runtime_config, save_config_file
@@ -45,6 +46,11 @@ def test_save_config_file_writes_schema_before_configuration_sections(tmp_path: 
 
     content = path.read_text(encoding="utf-8")
     assert list(json.loads(content)) == ["$schema", "source"]
+
+
+def test_runtime_config_rejects_a_name_that_is_not_lowercase_kebab_case() -> None:
+    with pytest.raises(ValidationError):
+        GlobalConfigFile.model_validate(_config_data(source={"BadName": {"doc_type": "filesystem", "doc_src": "docs"}}))
 
 
 def test_assemble_runtime_config_merges_sources_and_settings() -> None:

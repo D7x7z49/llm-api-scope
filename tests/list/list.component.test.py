@@ -88,8 +88,26 @@ def test_list_all_groups_effective_sources_by_type(
         "[rfc]\n"
         "- [rfc-http] https://example.test/rfc.txt\n\n"
         "---\n\n"
-        "count 2 total 2\n"
+        "[count=2] [total=2]\n"
     )
+
+
+def test_list_text_preserves_source_link(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    source = "https://example.test/spec?label=中文%2Fraw"
+    _write_config(
+        git_project / ".apiscope" / "config.json",
+        {"source": {"spec": {"doc_type": "openapi", "doc_src": source}}},
+    )
+
+    result = CliRunner().invoke(app, ["list", "all"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert f"- [spec] {source}" in result.output
 
 
 def test_list_filters_one_type_in_json(
@@ -194,7 +212,7 @@ def test_list_reports_an_empty_project_registry(
 
     assert result.exit_code == 0
     assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all]\n\n---\n\n(no sources)\n\n---\n\ncount 0 total 0\n"
+        "[ok] [scope=project] [action=list] [filter=all]\n\n---\n\n(no sources)\n\n---\n\n[count=0] [total=0]\n"
     )
 
 
@@ -225,7 +243,7 @@ def test_list_global_reads_only_the_home_registry(
         "[filesystem]\n"
         "- [docs] ./docs\n\n"
         "---\n\n"
-        "count 1 total 1\n"
+        "[count=1] [total=1]\n"
     )
 
 
@@ -257,7 +275,7 @@ def test_list_windows_the_sources_by_limit(
         "[openapi]\n"
         "- [petstore] ./openapi.json\n\n"
         "---\n\n"
-        "count 1 total 2 next 1\n"
+        "[count=1] [total=2] [next=1]\n"
     )
 
 
@@ -286,7 +304,7 @@ def test_list_windows_the_sources_by_offset(
         "[rfc]\n"
         "- [rfc-http] ./rfc.txt\n\n"
         "---\n\n"
-        "count 1 total 2\n"
+        "[count=1] [total=2]\n"
     )
 
 
@@ -313,7 +331,7 @@ def test_list_reports_an_empty_window(
         "---\n\n"
         "(no items in this window)\n\n"
         "---\n\n"
-        "count 0 total 1\n"
+        "[count=0] [total=1]\n"
     )
 
 

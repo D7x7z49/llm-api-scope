@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from re import fullmatch
 from typing import Any, Literal, TextIO
-from urllib.parse import quote
 
 from apiscope.constants import REPORT_INVARIANT_MESSAGES, ReportInvariant
 from apiscope.errors import MessageError
@@ -114,7 +113,18 @@ _META_FIELD_ORDER = (
     "offset",
     "count",
 )
-_EXTRA_FIELD_ORDER = ("count", "total", "next", "warnings")
+_EXTRA_FIELD_ORDER = (
+    "count",
+    "total",
+    "next",
+    "entries",
+    "cache",
+    "kind",
+    "media_type",
+    "encoding",
+    "size",
+    "warnings",
+)
 _SAFE_TOKEN_PATTERN = r"^[A-Za-z0-9_.-]+$"
 _SAFE_FIELD_PATTERN = r"^[a-z][a-z0-9_]*$"
 
@@ -213,7 +223,7 @@ def _render_text(
             return head
         if foot is not None:
             raise OutputError("root.error.output.write_sections")
-        hint = body if body is not None else _render_section_foot(report.extra)
+        hint = body if body is not None else _render_hint(report.extra)
         return f"{head}\n\n---\n\n{hint}"
 
     if report.data is None:
@@ -222,7 +232,7 @@ def _render_text(
         return head
 
     rendered_body = _render_section_body(report.data) if body is None else body
-    rendered_foot = _render_section_foot(report.extra) if foot is None else foot
+    rendered_foot = _render_foot(report.extra) if foot is None else foot
     return f"{head}\n\n---\n\n{rendered_body}\n\n---\n\n{rendered_foot}"
 
 
@@ -235,15 +245,21 @@ def _render_head(report: Report, message: str | None) -> str:
     )
     head = " ".join(fields)
     if message is not None:
-        return f"{head}: {message}"
-    return head
+        head = f"{head}: {message}"
+    return " ".join(head.splitlines())
 
 
 def _render_section_body(data: list[Any]) -> str:
     return _dump_json(data, indent=2)
 
 
-def _render_section_foot(extra: Mapping[str, Any] | None) -> str:
+def _render_foot(extra: Mapping[str, Any] | None) -> str:
+    if extra is None:
+        raise OutputError("root.error.output.missing_extra")
+    return " ".join(f"[{key}={_format_tag_value(value)}]" for key, value in _ordered_items(extra, _EXTRA_FIELD_ORDER))
+
+
+def _render_hint(extra: Mapping[str, Any] | None) -> str:
     if extra is None:
         raise OutputError("root.error.output.missing_extra")
     return _dump_json(dict(_ordered_items(extra, _EXTRA_FIELD_ORDER)), indent=2)
@@ -292,8 +308,8 @@ def _format_tag_value(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
-        return quote(value, safe="-._~")
-    return quote(_dump_json(value), safe="-._~")
+        return value
+    return _dump_json(value)
 
 
 def _dump_json(value: Any, *, indent: int | None = None) -> str:

@@ -319,7 +319,7 @@ def test_sync_filters_sources_by_type_before_fetching(
     assert filesystem_added.exit_code == 0
     assert openapi_added.exit_code == 0
     assert result.exit_code == 0
-    assert "[target=type%3Afilesystem]" in result.output
+    assert "[target=type:filesystem]" in result.output
     assert "[synced=1]" in result.output
     assert _only_cache_entry(isolated_home).is_dir()
 

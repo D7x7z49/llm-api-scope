@@ -217,6 +217,26 @@ def test_add_requires_a_project_without_global_mode(
     )
 
 
+def test_add_rejects_a_name_that_is_not_lowercase_kebab_case(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+
+    result = CliRunner().invoke(
+        app,
+        ["add", "RuffSite", "./docs", "--type", "filesystem"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=add] [code=add.error.invalid_name] "
+        "[name=RuffSite]: source name RuffSite must be lowercase kebab case\n"
+    )
+
+
 def test_add_rejects_the_reserved_name(
     isolated_home: Path,
     git_project: Path,

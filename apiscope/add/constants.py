@@ -14,6 +14,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "add.error.invalid_options": ("source {name} has an invalid definition. check its type, location, and TTL"),
     "add.error.project_required": "a Git project is required unless --global is used",
     "add.error.duplicate_name": "source {name} already exists",
+    "add.error.invalid_name": "source name {name} must be lowercase kebab case",
     "add.error.reserved_name": "source name {name} is reserved",
     "add.error.persistence.read_failed": "cannot read the configuration at {path}",
     "add.error.persistence.write_failed": "cannot update the configuration at {path}",

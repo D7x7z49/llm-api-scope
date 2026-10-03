@@ -13,6 +13,4 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "list.error.invalid_selector": ("list selector {selector} is invalid. choose all or a supported document type"),
     "list.body.empty": "(no sources)",
     "list.body.window_empty": "(no items in this window)",
-    "list.foot.count": "count {count} total {total}",
-    "list.foot.next": "count {count} total {total} next {next}",
 }

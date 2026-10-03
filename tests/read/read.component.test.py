@@ -223,20 +223,13 @@ def test_read_text_output_has_a_head_body_and_foot(
     result = runner.invoke(app, ["read", "docs", "1.1"], catch_exceptions=False)
 
     expected_content = "# API overview\n\nThe service exposes a health endpoint.\n"
-    expected_foot = json.dumps(
-        {
-            "cache": "fresh",
-            "kind": "markdown",
-            "media_type": "text/markdown",
-            "encoding": "utf-8",
-            "size": len(expected_content.encode("utf-8")),
-        },
-        ensure_ascii=False,
-        indent=2,
+    expected_foot = (
+        "[cache=fresh] [kind=markdown] [media_type=text/markdown] "
+        f"[encoding=utf-8] [size={len(expected_content.encode('utf-8'))}]"
     )
     assert result.exit_code == 0
     expected_output = (
-        "[ok] [scope=project] [action=read] [name=docs] [target=api%2Foverview.md]\n\n"
+        "[ok] [scope=project] [action=read] [name=docs] [target=api/overview.md]\n\n"
         "---\n\n"
         f"{expected_content}\n\n---\n\n"
         f"{expected_foot}\n"
