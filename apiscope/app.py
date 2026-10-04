@@ -4,10 +4,12 @@ import typer
 
 from apiscope.add.app import app as add_app
 from apiscope.add.constants import COMMAND_NAME as ADD_COMMAND_NAME
+from apiscope.config import ConfigError, build_home_paths, resolve_home
 from apiscope.constants import MESSAGE_TEMPLATES
 from apiscope.context import RootOptions
 from apiscope.list.app import app as list_app
 from apiscope.list.constants import COMMAND_NAME as LIST_COMMAND_NAME
+from apiscope.lock import LockError, acquire_write_lock
 from apiscope.output import OutputFormat, Report, emit_report
 from apiscope.preflight import PreflightError, run_preflight, run_read_preflight
 from apiscope.read.app import app as read_app
@@ -68,10 +70,12 @@ def main_callback(
     root_options = RootOptions(global_only=global_only, output_format=output_format)
     try:
         if ctx.invoked_subcommand in _WRITE_COMMANDS:
+            lock = acquire_write_lock(build_home_paths(resolve_home()).root)
+            ctx.call_on_close(lock.release)
             runtime_context = run_preflight(options=root_options)
         else:
             runtime_context = run_read_preflight(options=root_options)
-    except PreflightError as error:
+    except (PreflightError, ConfigError, LockError) as error:
         emit_report(
             Report(
                 status="error",

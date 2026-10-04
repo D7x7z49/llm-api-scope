@@ -21,6 +21,7 @@ APP_NAME: Final = "apiscope"
 
 APP_DIRECTORY: Final = f".{APP_NAME}"
 CACHE_DIRECTORY: Final = "cache"
+LOCK_FILENAME: Final = "lock.sqlite3"
 
 # ===============================================================================
 # configuration files
@@ -85,6 +86,10 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     ),
     "root.error.preflight.directory_prepare_failed": (
         "cannot prepare the directory at {path} because it cannot be created or written"
+    ),
+    "root.error.write_lock.busy": "another write command holds the lock at {path}",
+    "root.error.write_lock.unavailable": (
+        "cannot prepare the write lock at {path} because the path is inaccessible ({detail})"
     ),
     "root.error.output.unsupported_format": "output format {format} is not supported",
     "root.error.output.missing_code": "the error report is missing its code",

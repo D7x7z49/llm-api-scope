@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from apiscope.constants import LOCK_FILENAME
+from apiscope.lock import acquire_write_lock
 from apiscope.main import app
 
 # report preflight failures
@@ -58,6 +60,29 @@ def test_global_option_skips_project_preparation(
     assert result.exit_code == 0
     assert (isolated_home / ".apiscope" / "config.json").exists()
     assert not (git_project / ".apiscope").exists()
+
+
+# write commands take the home lock
+
+
+def test_write_command_reports_a_held_lock(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    held = acquire_write_lock(isolated_home / ".apiscope")
+    try:
+        result = CliRunner().invoke(app, ["add", "docs", "./docs", "--type", "filesystem"], catch_exceptions=False)
+    finally:
+        held.release()
+
+    lock_path = isolated_home / ".apiscope" / LOCK_FILENAME
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=preflight] [code=root.error.write_lock.busy] "
+        f"[path={lock_path}]: another write command holds the lock at {lock_path}\n"
+    )
 
 
 # read commands stay read-only

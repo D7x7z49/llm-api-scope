@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
+from apiscope.lock import acquire_write_lock
 from apiscope.output import Report, emit_report
 from apiscope.skill.constants import MESSAGE_TEMPLATES as SKILL_MESSAGE_TEMPLATES
 from apiscope.skill.constants import SKILL_NAME
@@ -51,6 +52,8 @@ def main_callback(
 ) -> None:
     runtime_context = _runtime_context(ctx)
     try:
+        lock = acquire_write_lock(runtime_context.paths.home.root)
+        ctx.call_on_close(lock.release)
         options = InstallOptions(target=target)
         command_context = InstallCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)

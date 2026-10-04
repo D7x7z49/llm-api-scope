@@ -6,6 +6,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from apiscope.lock import acquire_write_lock
 from apiscope.main import app
 
 
@@ -66,3 +67,32 @@ def test_skill_install_writes_the_skill_directory(
     written = target / "SKILL.md"
     assert written.is_file()
     assert written.read_text(encoding="utf-8").startswith("---\nname: apiscope\n")
+
+
+def test_skill_install_reports_a_held_lock(
+    isolated_home: Path,
+    project_cwd: Path,
+    tmp_path: Path,
+) -> None:
+    held = acquire_write_lock(isolated_home / ".apiscope")
+    try:
+        result = CliRunner().invoke(app, ["skill", "install", str(tmp_path / "skills")], catch_exceptions=False)
+    finally:
+        held.release()
+
+    assert result.exit_code == 1
+    assert "root.error.write_lock.busy" in result.output
+    assert not (tmp_path / "skills").exists()
+
+
+def test_skill_show_does_not_take_the_write_lock(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    held = acquire_write_lock(isolated_home / ".apiscope")
+    try:
+        result = CliRunner().invoke(app, ["skill", "show"], catch_exceptions=False)
+    finally:
+        held.release()
+
+    assert result.exit_code == 0
