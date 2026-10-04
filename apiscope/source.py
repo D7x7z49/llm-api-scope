@@ -5,7 +5,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Annotated, Literal, Protocol, TypeAlias
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
@@ -25,21 +25,27 @@ class SourceParseReason(StrEnum):
     FRAGMENTS_UNSUPPORTED = "source.parse.fragments_unsupported"
     REF_INVALID = "source.parse.ref_invalid"
     SUBPATH_INVALID = "source.parse.subpath_invalid"
+    RFC_NUMBER_INVALID = "source.parse.rfc_number_invalid"
+    LOCAL_FORM_UNSUPPORTED = "source.parse.local_form_unsupported"
+    SCP_UNSUPPORTED = "source.parse.scp_unsupported"
 
 
 _REMOTE_SCHEMES: dict[DocumentType, frozenset[str]] = {
     "filesystem": frozenset(),
-    "repo": frozenset({"file", "git", "http", "https", "ssh"}),
+    "repo": frozenset({"http", "https"}),
     "openapi": frozenset({"http", "https"}),
-    "rfc": frozenset({"http", "https"}),
+    "rfc": frozenset(),
     "llmstxt": frozenset({"http", "https"}),
 }
 
-# a scp-style git location keeps its user@ prefix and is not a URL scheme
-_SCP_LOCATION = re.compile(r"^[^/@:]+@[^/@:]+:")
+# only these types accept a local path
+_LOCAL_TYPES: frozenset[DocumentType] = frozenset({"filesystem", "repo", "openapi"})
 # the repository path starts after the git suffix, as in repository.git/docs
 _REPO_PATH_MARKER = ".git/"
-_ENCODED_AT = "%40"
+# the rfc number form prefers the xml form; the fetcher falls back to text
+_RFC_TARGET = "https://www.rfc-editor.org/rfc/rfc{number}.xml"
+# an scp-style location is out of scope and is not a local path
+_SCP_LOCATION = re.compile(r"^[^/@:]+@[^/@:]+:")
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +129,8 @@ def _parse_filesystem(source: str, *, base_dir: Path) -> FilesystemSource:
 
 def _parse_repo(source: str, *, base_dir: Path) -> RepoSource:
     value = source.strip()
+    if _SCP_LOCATION.match(value):
+        raise SourceResolutionError(source, SourceParseReason.SCP_UNSUPPORTED)
     location_text, ref = _split_repo_ref(value)
     location_text, subpath = _split_repo_subpath(location_text, base_dir)
     if ref is not None:
@@ -143,8 +151,20 @@ def _parse_openapi(source: str, *, base_dir: Path) -> OpenapiSource:
 
 
 def _parse_rfc(source: str, *, base_dir: Path) -> RfcSource:
-    canonical, location = _resolve_location("rfc", source, source.strip(), base_dir)
-    return RfcSource(original=source, canonical=canonical, location=location)
+    value = source.strip()
+    if not value.isascii() or not value.isdecimal():
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value})
+    try:
+        number = int(value)
+    except ValueError as error:
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value}) from error
+    if number <= 0:
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value})
+    return RfcSource(
+        original=source,
+        canonical=f"rfc{number}",
+        location=RemoteLocation(url=_RFC_TARGET.format(number=number)),
+    )
 
 
 def _parse_llmstxt(source: str, *, base_dir: Path) -> LlmstxtSource:
@@ -161,20 +181,29 @@ _PARSERS: dict[DocumentType, SourceParser] = {
 }
 
 
-# split the compact repo link at the final unescaped @, keep a scp user@ prefix
+# split the compact repo link at the final @ that follows the location
 def _split_repo_ref(value: str) -> tuple[str, str | None]:
-    scp = _SCP_LOCATION.match(value)
-    scp_at = scp.group(0).index("@") if scp is not None else -1
     last_at = value.rfind("@")
-    if last_at == -1 or last_at == scp_at:
+    if last_at == -1 or last_at < _authority_end(value):
         return value, None
     return value[:last_at], value[last_at + 1 :]
+
+
+# the offset where the URL authority ends; zero for a local path
+def _authority_end(value: str) -> int:
+    marker = value.find("://")
+    if marker == -1:
+        return 0
+    slash = value.find("/", marker + 3)
+    if slash == -1:
+        return len(value)
+    return slash
 
 
 # split the repository path from the git location at the .git suffix
 # a local location without that suffix falls back to the nearest git root
 def _split_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | None]:
-    marker = value.find(_REPO_PATH_MARKER)
+    marker = value.find(_REPO_PATH_MARKER, _authority_end(value))
     if marker != -1:
         end = marker + len(".git")
         return value[:end], value[end + 1 :]
@@ -182,7 +211,7 @@ def _split_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | None]:
 
 
 def _split_local_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | None]:
-    if "://" in value or _SCP_LOCATION.match(value):
+    if "://" in value:
         return value, None
     try:
         path = Path(value).expanduser()
@@ -202,10 +231,9 @@ def _split_local_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | No
 
 
 def _normalize_ref(source: str, ref: str) -> str:
-    value = ref.replace(_ENCODED_AT, "@")
-    if not value or value != value.strip() or value.startswith("-") or any(character.isspace() for character in value):
+    if not ref or ref != ref.strip() or ref.startswith("-") or any(character.isspace() for character in ref):
         raise SourceResolutionError(source, SourceParseReason.REF_INVALID)
-    return value
+    return ref
 
 
 def _normalize_subpath(source: str, subpath: str) -> str:
@@ -223,8 +251,9 @@ def _resolve_location(
     value: str,
     base_dir: Path,
 ) -> tuple[str, SourceLocation]:
-    if doc_type == "repo" and _SCP_LOCATION.match(value):
-        return value, RemoteLocation(url=value)
+    # urlsplit treats a Windows drive letter as a URI scheme.
+    if doc_type in _LOCAL_TYPES and PureWindowsPath(value).drive:
+        return _local_location(doc_type, source, value, base_dir)
 
     try:
         parsed = urlsplit(value)
@@ -240,6 +269,9 @@ def _resolve_location(
         if parsed.scheme:
             raise SourceResolutionError(source, SourceParseReason.FILESYSTEM_PATH_REQUIRED)
         return _local_location(doc_type, source, value, base_dir)
+
+    if not parsed.scheme and doc_type not in _LOCAL_TYPES:
+        raise SourceResolutionError(source, SourceParseReason.LOCAL_FORM_UNSUPPORTED)
 
     if parsed.scheme:
         scheme = parsed.scheme.lower()

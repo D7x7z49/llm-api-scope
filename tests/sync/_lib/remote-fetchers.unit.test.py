@@ -82,6 +82,48 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
     assert requests == [url, "https://example.test/docs/guide/intro.md"]
 
 
+def test_rfc_fetcher_uses_xml_when_present(
+    tmp_path: Path,
+    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+) -> None:
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        return httpx.Response(200, content=b"<rfc/>")
+
+    install_httpx_mock_client(handler)
+    source = _remote_source("rfc", "https://example.test/rfc9110.xml")
+    destination = tmp_path / "staging"
+
+    result = RfcFetcher().fetch(source, destination=destination)
+
+    assert requests == ["https://example.test/rfc9110.xml"]
+    assert result.content_name == "rfc9110.xml"
+
+
+def test_rfc_fetcher_falls_back_to_text_when_xml_is_absent(
+    tmp_path: Path,
+    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+) -> None:
+    requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(str(request.url))
+        if str(request.url).endswith(".xml"):
+            return httpx.Response(404, request=request)
+        return httpx.Response(200, content=b"rfc text")
+
+    install_httpx_mock_client(handler)
+    source = _remote_source("rfc", "https://example.test/rfc9110.xml")
+    destination = tmp_path / "staging"
+
+    result = RfcFetcher().fetch(source, destination=destination)
+
+    assert requests == ["https://example.test/rfc9110.xml", "https://example.test/rfc9110.txt"]
+    assert result.content_name == "rfc9110.txt"
+
+
 @pytest.mark.parametrize(
     ("fetcher_type", "doc_type", "url"),
     [

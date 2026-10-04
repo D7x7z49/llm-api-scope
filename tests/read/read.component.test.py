@@ -332,11 +332,27 @@ def test_read_uses_the_shared_index_not_found_message(
 def test_read_returns_one_rfc_txt_page(
     isolated_home: Path,
     project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    (project_cwd / "rfc.txt").write_text("cover\fcontents\fbody page\n", encoding="utf-8")
+    original_client = httpx.Client
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if str(request.url).endswith(".xml"):
+            return httpx.Response(404, request=request)
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/plain; charset=utf-8"},
+            content=b"cover\fcontents\fbody page\n",
+            request=request,
+        )
+
+    def client_factory(**kwargs: Any) -> httpx.Client:
+        return original_client(transport=httpx.MockTransport(handle), **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", client_factory)
     runner = CliRunner()
 
-    _register_and_sync(runner, "rfc", "rfc.txt", doc_type="rfc")
+    _register_and_sync(runner, "rfc", "9110", doc_type="rfc")
     page_view = runner.invoke(app, ["--json", "view", "rfc/page"], catch_exceptions=False)
     page_index = next(item["index"] for item in json.loads(page_view.output)["data"] if item["path"] == "page/2")
     result = runner.invoke(app, ["--json", "read", "rfc/page", page_index], catch_exceptions=False)
@@ -348,47 +364,28 @@ def test_read_returns_one_rfc_txt_page(
     assert payload["data"][0]["media_type"] == "text/plain"
 
 
-def test_read_returns_an_rfc_xml_section_from_a_view_index(
-    isolated_home: Path,
-    project_cwd: Path,
-) -> None:
-    (project_cwd / "rfc.xml").write_text(
-        '<rfc><front><title>Example</title></front><middle><section anchor="intro">'
-        '<name>Introduction</name><section anchor="scope"><name>Scope</name>'
-        "<t>Read this section.</t></section></section></middle></rfc>",
-        encoding="utf-8",
-    )
-    runner = CliRunner()
-
-    _register_and_sync(runner, "rfc", "rfc.xml", doc_type="rfc")
-    view = runner.invoke(app, ["--json", "view", "rfc"], catch_exceptions=False)
-    leaf = next(item for item in json.loads(view.output)["data"] if item.get("path") == "intro/scope")
-    result = runner.invoke(app, ["--json", "read", "rfc", leaf["index"]], catch_exceptions=False)
-
-    assert result.exit_code == 0
-    payload = json.loads(result.output)
-    assert payload["meta"] == {"name": "rfc", "target": "intro/scope"}
-    assert "<t>Read this section.</t>" in payload["data"][0]["content"]
-    assert payload["data"][0]["media_type"] == "application/rfc+xml"
-
-
 def test_sync_downloads_llmstxt_pages_and_read_returns_them(
     isolated_home: Path,
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    source = project_cwd / "llms.txt"
-    source.write_text(
+    index = (
         "# Docs\n\n## Guides\n"
         "- [Guide](https://example.test/docs/guide.md): Read this guide.\n"
-        "- [API](https://example.test/docs/api.md)\n",
-        encoding="utf-8",
+        "- [API](https://example.test/docs/api.md)\n"
     )
     requested: list[str] = []
     original_client = httpx.Client
 
     def handle(request: httpx.Request) -> httpx.Response:
         requested.append(str(request.url))
+        if str(request.url) == "https://example.test/llms.txt":
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/plain; charset=utf-8"},
+                content=index.encode(),
+                request=request,
+            )
         return httpx.Response(
             200,
             headers={"content-type": "text/markdown; charset=utf-8"},
@@ -402,7 +399,7 @@ def test_sync_downloads_llmstxt_pages_and_read_returns_them(
     monkeypatch.setattr(httpx, "Client", client_factory)
     runner = CliRunner()
 
-    _register_and_sync(runner, "docs", "llms.txt", doc_type="llmstxt")
+    _register_and_sync(runner, "docs", "https://example.test/llms.txt", doc_type="llmstxt")
     view = runner.invoke(app, ["--json", "view", "docs"], catch_exceptions=False)
     link = next(item for item in json.loads(view.output)["data"] if item.get("key") == "guide.md")
     result = runner.invoke(app, ["--json", "read", "docs", link["index"]], catch_exceptions=False)
@@ -419,13 +416,17 @@ def test_sync_skips_a_failed_llmstxt_page(
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    (project_cwd / "llms.txt").write_text(
-        "# Docs\n\n## Guides\n- [Guide](https://example.test/docs/guide.md)\n",
-        encoding="utf-8",
-    )
+    index = b"# Docs\n\n## Guides\n- [Guide](https://example.test/docs/guide.md)\n"
     original_client = httpx.Client
 
     def handle(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == "https://example.test/llms.txt":
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/plain; charset=utf-8"},
+                content=index,
+                request=request,
+            )
         return httpx.Response(404, request=request)
 
     def client_factory(**kwargs: Any) -> httpx.Client:
@@ -434,7 +435,11 @@ def test_sync_skips_a_failed_llmstxt_page(
     monkeypatch.setattr(httpx, "Client", client_factory)
     runner = CliRunner()
 
-    added = runner.invoke(app, ["add", "docs", "llms.txt", "--type", "llmstxt"], catch_exceptions=False)
+    added = runner.invoke(
+        app,
+        ["add", "docs", "https://example.test/llms.txt", "--type", "llmstxt"],
+        catch_exceptions=False,
+    )
     result = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     view = runner.invoke(app, ["--json", "view", "docs"], catch_exceptions=False)
 

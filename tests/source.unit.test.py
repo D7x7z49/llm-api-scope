@@ -1,21 +1,17 @@
 # tests/source.unit.test.py
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
 from apiscope.schema import DocumentType
-from apiscope.source import LocalLocation, RemoteLocation, RepoSource, SourceResolutionError, parse_source
+from apiscope.source import LocalLocation, RemoteLocation, RepoSource, RfcSource, SourceResolutionError, parse_source
 
 
 @pytest.mark.parametrize(
     ("doc_type", "source", "canonical"),
     [
-        ("repo", "file://example.test/docs.git", "file://example.test/docs.git"),
-        ("repo", "git://example.test/docs.git", "git://example.test/docs.git"),
-        ("repo", "ssh://example.test/docs.git", "ssh://example.test/docs.git"),
         ("repo", "HTTPS://Example.TEST/docs.git", "https://example.test/docs.git"),
         ("openapi", "http://example.test/openapi.json", "http://example.test/openapi.json"),
-        ("rfc", "https://example.test/rfc.txt", "https://example.test/rfc.txt"),
         ("llmstxt", "https://example.test/llms.txt", "https://example.test/llms.txt"),
     ],
 )
@@ -32,7 +28,7 @@ def test_parse_source_accepts_supported_remote_locations(
     assert parsed.location.url == canonical
 
 
-@pytest.mark.parametrize("doc_type", ["filesystem", "repo", "openapi", "rfc", "llmstxt"])
+@pytest.mark.parametrize("doc_type", ["filesystem", "repo", "openapi"])
 def test_parse_source_resolves_a_local_path(tmp_path: Path, doc_type: DocumentType) -> None:
     parsed = parse_source(doc_type, "./specs/api.yaml", base_dir=tmp_path)
 
@@ -41,27 +37,68 @@ def test_parse_source_resolves_a_local_path(tmp_path: Path, doc_type: DocumentTy
     assert parsed.location.path == (tmp_path / "specs" / "api.yaml").resolve()
 
 
+@pytest.mark.parametrize("doc_type", ["filesystem", "repo", "openapi"])
+def test_parse_source_treats_a_windows_drive_path_as_local(tmp_path: Path, doc_type: DocumentType) -> None:
+    source = PureWindowsPath("C:/work/docs").as_posix()
+
+    parsed = parse_source(doc_type, source, base_dir=tmp_path)
+
+    assert isinstance(parsed.location, LocalLocation)
+
+
 @pytest.mark.parametrize(
-    ("doc_type", "source"),
+    ("doc_type", "source", "expected"),
     [
-        ("openapi", "ftp://example.test/openapi.json"),
-        ("rfc", "git://example.test/rfc.xml"),
-        ("llmstxt", "ssh://example.test/llms.txt"),
-        ("filesystem", "https://example.test/docs"),
+        ("openapi", "ftp://example.test/openapi.json", "source.parse.unsupported_scheme"),
+        ("repo", "git://example.test/docs.git", "source.parse.unsupported_scheme"),
+        ("llmstxt", "ssh://example.test/llms.txt", "source.parse.unsupported_scheme"),
+        ("filesystem", "https://example.test/docs", "source.parse.filesystem_path_required"),
     ],
 )
 def test_parse_source_rejects_unsupported_schemes(
     tmp_path: Path,
     doc_type: DocumentType,
     source: str,
+    expected: str,
 ) -> None:
     with pytest.raises(SourceResolutionError) as raised:
         parse_source(doc_type, source, base_dir=tmp_path)
 
-    expected = (
-        "source.parse.filesystem_path_required" if doc_type == "filesystem" else "source.parse.unsupported_scheme"
-    )
     assert raised.value.reason_code == expected
+
+
+def test_parse_rfc_source_normalizes_a_number(tmp_path: Path) -> None:
+    parsed = parse_source("rfc", "9110", base_dir=tmp_path)
+
+    assert isinstance(parsed, RfcSource)
+    assert parsed.canonical == "rfc9110"
+    assert isinstance(parsed.location, RemoteLocation)
+    assert parsed.location.url == "https://www.rfc-editor.org/rfc/rfc9110.xml"
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["0", "-1", "rfc9110", "9110.txt", "./rfc.txt", "https://example.test/rfc.txt", "\u00b2", "\uff11\uff12"],
+)
+def test_parse_rfc_source_rejects_a_non_number(tmp_path: Path, source: str) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("rfc", source, base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.rfc_number_invalid"
+
+
+def test_parse_rfc_source_wraps_an_integer_conversion_limit(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("rfc", "9" * 5000, base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.rfc_number_invalid"
+
+
+def test_parse_llmstxt_source_rejects_a_local_path(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("llmstxt", "./llms.txt", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.local_form_unsupported"
 
 
 def test_parse_source_rejects_an_empty_source(tmp_path: Path) -> None:
@@ -151,30 +188,28 @@ def test_parse_repo_source_keeps_a_subpath_only(tmp_path: Path) -> None:
     assert parsed.canonical == "https://github.com/example/api.git/docs"
 
 
-def test_parse_repo_source_keeps_an_scp_location(tmp_path: Path) -> None:
-    parsed = parse_source("repo", "git@github.com:octocat/Hello-World.git@master", base_dir=tmp_path)
+def test_parse_repo_source_does_not_split_a_git_marker_in_the_host(tmp_path: Path) -> None:
+    parsed = parse_source("repo", "https://example.git/docs", base_dir=tmp_path)
 
     assert isinstance(parsed, RepoSource)
     assert isinstance(parsed.location, RemoteLocation)
-    assert parsed.location.url == "git@github.com:octocat/Hello-World.git"
+    assert parsed.location.url == "https://example.git/docs"
     assert parsed.subpath is None
-    assert parsed.ref == "master"
+    assert parsed.canonical == "https://example.git/docs"
 
 
-def test_parse_repo_source_keeps_an_scp_location_without_a_ref(tmp_path: Path) -> None:
-    parsed = parse_source("repo", "git@github.com:octocat/Hello-World.git", base_dir=tmp_path)
+def test_parse_repo_source_rejects_an_scp_location(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("repo", "git@github.com:octocat/Hello-World.git@master", base_dir=tmp_path)
 
-    assert isinstance(parsed, RepoSource)
-    assert isinstance(parsed.location, RemoteLocation)
-    assert parsed.location.url == "git@github.com:octocat/Hello-World.git"
-    assert parsed.ref is None
+    assert raised.value.reason_code == "source.parse.scp_unsupported"
 
 
-def test_parse_repo_source_decodes_an_encoded_at_in_the_ref(tmp_path: Path) -> None:
+def test_parse_repo_source_keeps_an_encoded_at_in_the_ref(tmp_path: Path) -> None:
     parsed = parse_source("repo", "https://github.com/example/api.git@feature%40x", base_dir=tmp_path)
 
     assert isinstance(parsed, RepoSource)
-    assert parsed.ref == "feature@x"
+    assert parsed.ref == "feature%40x"
 
 
 def test_parse_repo_source_resolves_a_local_subpath(tmp_path: Path) -> None:

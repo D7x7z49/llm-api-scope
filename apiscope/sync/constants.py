@@ -51,6 +51,15 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.source.parse.subpath_invalid": (
         "cannot parse source {source} because the repository path is invalid ({detail})"
     ),
+    "sync.error.source.parse.rfc_number_invalid": (
+        "cannot parse source {source} because an RFC source must be a decimal number ({number})"
+    ),
+    "sync.error.source.parse.local_form_unsupported": (
+        "cannot parse source {source} because this document type has no local form"
+    ),
+    "sync.error.source.parse.scp_unsupported": (
+        "cannot parse source {source} because an scp-style location is not supported"
+    ),
     "sync.error.fetch_failed": "cannot fetch source {source} because the fetcher reported {reason}",
     "sync.error.fetch.filesystem_local_required": (
         "cannot fetch source {source} because a filesystem source must be local"
