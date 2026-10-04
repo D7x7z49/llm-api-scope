@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from apiscope.cache import CacheInspection, CacheMetadata, cache_path, inspect_cache
+from apiscope.cache import CacheInspection, CacheMetadata, cache_path, inspect_cache, source_digest
 from apiscope.source import Source
 
 
@@ -35,6 +35,7 @@ def load_content(
         ttl_days=ttl_days,
         expected_source=source.canonical,
         expected_doc_type=source.doc_type,
+        expected_digest=source_digest(source.canonical),
     )
     return ContentSnapshot(source=source, entry=entry, inspection=inspection)
 

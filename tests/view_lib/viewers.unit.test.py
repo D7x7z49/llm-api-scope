@@ -26,6 +26,7 @@ def _metadata(
         format_version="1",
         doc_type=doc_type,
         source=source,
+        source_digest="digest",
         fetched_at=datetime.now(timezone.utc),
         content_kind=kind,
         content_name=name,

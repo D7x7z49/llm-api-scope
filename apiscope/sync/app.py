@@ -16,6 +16,7 @@ from apiscope.cache import (
     build_manifest,
     cache_path,
     inspect_cache,
+    source_digest,
     staging_cache,
     write_manifest,
     write_metadata,
@@ -238,6 +239,7 @@ def _prepare_sync_target(
             ttl_days=ttl_days,
             expected_source=parsed.canonical,
             expected_doc_type=parsed.doc_type,
+            expected_digest=source_digest(parsed.canonical),
         )
     except SourceError as error:
         raise _source_error_message(error) from error
@@ -265,6 +267,7 @@ def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
                     format_version=CACHE_FORMAT_VERSION,
                     doc_type=target.parsed.doc_type,
                     source=target.parsed.canonical,
+                    source_digest=source_digest(target.parsed.canonical),
                     fetched_at=result.fetched_at,
                     content_kind=result.content_kind,
                     content_name=result.content_name,
