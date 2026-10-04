@@ -82,8 +82,9 @@ the local setting holds the proxy and the `no_proxy` bypass list.
 }
 ```
 
-apiscope reads the proxy only from configuration; environment proxy variables are not used.
-`no_proxy` is a comma-separated host, domain, or `*` list that skips the proxy.
+the HTTP client uses only the configured `[proxy]` and `[no_proxy]` and ignores environment proxy variables.
+for repository operations, apiscope passes configured proxy settings to `git` and `gh`; when `[proxy]` is unset, it does not set or clear their proxy.
+`[no_proxy]` is a comma-separated list of hosts, domains, or `*` that bypasses the configured proxy.
 
 the cache lives in the app directory of the selected layer, and the rest of its rules sit under `## commands`.
 
