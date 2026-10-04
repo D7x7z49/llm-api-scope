@@ -203,6 +203,7 @@ def test_sync_default_range_skips_an_expired_source(
     assert result.exit_code == 0
     assert "[skipped=1]" in result.output
     assert "[synced=0]" in result.output
+    assert "[expired=docs]" in result.output
 
 
 def test_sync_force_refreshes_a_fresh_source(

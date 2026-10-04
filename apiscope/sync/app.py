@@ -71,6 +71,7 @@ class SyncSummary:
     total: int
     synced: int
     skipped: int
+    expired: tuple[str, ...]
     failures: tuple[SyncFailure, ...]
 
 
@@ -123,17 +124,21 @@ def main_callback(
         _emit_error(runtime_context, failure_error)
         raise typer.Exit(code=1)
 
+    meta = {
+        "target": _target(options),
+        "count": summary.total,
+        "synced": summary.synced,
+        "skipped": summary.skipped,
+    }
+    if summary.expired:
+        # a bulk sync keeps the expired cache and leaves the refresh to the user
+        meta["expired"] = ",".join(summary.expired)
     emit_report(
         Report(
             status="ok",
             scope=runtime_context.scope,
             action=COMMAND_NAME,
-            meta={
-                "target": _target(options),
-                "count": summary.total,
-                "synced": summary.synced,
-                "skipped": summary.skipped,
-            },
+            meta=meta,
         ),
         output_format=runtime_context.options.output_format,
     )
@@ -164,9 +169,12 @@ def _run_sync(command_context: SyncCommandContext) -> SyncSummary:
 
     synced = 0
     skipped = 0
+    expired: list[str] = []
     for target in targets:
         if _should_skip(target.inspection, options):
             skipped += 1
+            if target.inspection.state == "expired":
+                expired.append(target.name)
             continue
         try:
             _sync_target(runtime, target)
@@ -174,7 +182,13 @@ def _run_sync(command_context: SyncCommandContext) -> SyncSummary:
             failures.append(SyncFailure(name=target.name, error=error))
             continue
         synced += 1
-    return SyncSummary(total=len(selected), synced=synced, skipped=skipped, failures=tuple(failures))
+    return SyncSummary(
+        total=len(selected),
+        synced=synced,
+        skipped=skipped,
+        expired=tuple(expired),
+        failures=tuple(failures),
+    )
 
 
 # ==============================================================================
