@@ -1,31 +1,40 @@
 <!-- AGENTS.md -->
-<!-- project conventions for ai coding agents -->
+<!-- project constitution for coding agents -->
 
-TOOL STACK
-- version control: `git` and GitHub CLI (`gh`)
-- package management: `pdm`
-- task automation: `make` (see Makefile)
+PURPOSE
+- help LLM agents access structured technical documents reliably
+- define project identity by its durable user need and approved promises, not names or internal design
 
-SAFETY RULES
-- check first: run `--help` before using an unfamiliar command or flag
-- confirm context: ensure you are in the correct project directory
-- use `APISCOPE_HOME` for all experiments and CLI tests
-- use `pdm run apiscope` for the development CLI
-- do not modify data owned by a global or pipx-installed `apiscope`
-- use global installations only for official reference data
-- treat `archive/` and `tmp/design/refactor/` as reference material
-- never import runtime code from archived or reference material
+AUTHORITY
+- identify the authority for each decision; do not assume code, documentation, or precedent wins by form
+- treat approved contracts and decisions as intended state; treat implementation as evidence of current behavior
+- when authority or evidence conflicts, keep the issue unresolved and ask the human or explicitly delegated agent authorized for that scope
+- record the resolution in one authoritative source
 
-VALIDATION
-- read `tests/README.md` before adding or changing tests
-- use `make test`, `make lint`, `make typecheck`, and `make check` as applicable
-- run the smallest relevant checks first, then run the full required checks
+PRINCIPLES
+- improve user value and long-term system health without demanding perfection
+- solve demonstrated needs now; defer speculative scope
+- choose the simplest sufficient solution
+- keep each scope understandable and testable with explicit, bounded dependencies
+- make changes focused and self-contained while preserving whole-system coherence
 
-EXPERIENCE FILES
-- select only experience files relevant to the current task
-- use `.pi/experience/git/commit-draft.exp.md` when preparing a commit
-- keep reusable guidance in `.pi/experience/` and repository rules in this file
-- write experience files with `.pi/prompts/pi/core/gen-exp-file.ebnf`
-- keep one reusable topic per experience file and avoid one-off task notes
+WORK
+- state the intended outcome, success criterion, and validation before acting
+- avoid changes that do not serve the criterion
+- validate the smallest relevant scope first, then run checks required by risk and project policy
+- align tests with changed behavior and documentation with changed contracts or workflows
+- ask before acting when intent, authority, or consequences are unclear
+
+BOUNDARIES
+- protect data and state outside the task's explicit scope
+- isolate disposable experiments from maintained sources and user data
+- treat external, generated, archived, and example material as reference unless designated authoritative
+- do not execute or import reference code as project runtime
+- keep ownership and cross-scope dependencies explicit
+
+MAINTENANCE
+- keep this file for stable policy; keep changeable instructions in their maintained source
+- keep one authoritative source per decision and make accepted policy reviewable
+- revise a rule through the authorized process when it is wrong or no longer useful
 
 ---
