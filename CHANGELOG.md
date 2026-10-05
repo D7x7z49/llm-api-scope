@@ -2,6 +2,61 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-10-05)
+
+### Bug Fixes
+
+- **output**: Show raw text values and match the foot to the head
+  ([`d7f2b2e`](https://github.com/D7x7z49/llm-api-scope/commit/d7f2b2e28463fef2ce286a9c604308b4512cbb06))
+
+- **source**: Align cache identity with registered links
+  ([`cfede18`](https://github.com/D7x7z49/llm-api-scope/commit/cfede1895cbdfd92f396f228d53fe1b40fd575c6))
+
+### Chores
+
+- **pdm**: Load the project .env on pdm run
+  ([`ba0e253`](https://github.com/D7x7z49/llm-api-scope/commit/ba0e25372f0d0b2b401e8b4a31c34b11127899b6))
+
+### Documentation
+
+- Describe the proxy scope for the client and git
+  ([`4e2de18`](https://github.com/D7x7z49/llm-api-scope/commit/4e2de18224a13f14846783b66ec74941e9a36676))
+
+- **agents**: Define stable project operating principles
+  ([`15a7e66`](https://github.com/D7x7z49/llm-api-scope/commit/15a7e663e4893a66253da0080f48da6e62222ecb))
+
+### Features
+
+- **cache**: Name an entry with a short source digest
+  ([`d48a740`](https://github.com/D7x7z49/llm-api-scope/commit/d48a7403113d1c08e640fd6924ee8c3fb5f3872a))
+
+- **lock**: Serialize the write commands with a home lock
+  ([`885096f`](https://github.com/D7x7z49/llm-api-scope/commit/885096f398ca3629020ac7e16139f9c7e14d53f0))
+
+- **repo**: Select a repository path and ref with a sparse checkout
+  ([`0dbbb87`](https://github.com/D7x7z49/llm-api-scope/commit/0dbbb8730b99e71b6e5aefdfaa5089a0083d0211))
+
+- **repo**: Wrap the git calls and fall back to gh on GitHub
+  ([`a962a8f`](https://github.com/D7x7z49/llm-api-scope/commit/a962a8f675b9bebcee9082a426a731bce51d6a88))
+
+- **source**: Enforce the source forms by document type
+  ([`44e3c6f`](https://github.com/D7x7z49/llm-api-scope/commit/44e3c6f957d93c2a4aae8fe4c40f2f73d73d4d28))
+
+- **sync**: Apply the configured proxy and add a bypass list
+  ([`701d225`](https://github.com/D7x7z49/llm-api-scope/commit/701d2258659c22d2b92ef2e23b50b067635643cb))
+
+- **sync**: Report an expired cache in the bulk sync head
+  ([`252d5da`](https://github.com/D7x7z49/llm-api-scope/commit/252d5da12285485569537bd32572b476dec56a1b))
+
+### Refactoring
+
+- **apiscope**: Model parsed sources by document type
+  ([`680a8c5`](https://github.com/D7x7z49/llm-api-scope/commit/680a8c5ef617fbaa8a1249b128056152cc8fd31d))
+
+- **read**: Drop the unused proxy parameter
+  ([`397c4f6`](https://github.com/D7x7z49/llm-api-scope/commit/397c4f6a9490d0b7f8c1fa07e4e8d49a595b8db7))
+
+
 ## v0.9.0 (2026-10-01)
 
 ### Bug Fixes
