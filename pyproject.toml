@@ -68,6 +68,10 @@ apiscope = ["**/*.yaml", "**/*.json"]
 [tool.pdm]
 distribution = true
 
+[tool.pdm.scripts]
+# load the local development environment for every pdm run command
+_.env_file = ".env"
+
 # ==============================================================================
 # mypy configuration
 # ==============================================================================
