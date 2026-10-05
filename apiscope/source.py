@@ -16,6 +16,8 @@ from apiscope.schema import DocumentType, StrictSchemaModel
 
 class SourceParseReason(StrEnum):
     SOURCE_EMPTY = "source.parse.source_empty"
+    SOURCE_WHITESPACE = "source.parse.source_whitespace"
+    PATH_HOME_UNSUPPORTED = "source.parse.path_home_unsupported"
     LOCATION_INVALID = "source.parse.location_invalid"
     FILESYSTEM_PATH_INVALID = "source.parse.filesystem_path_invalid"
     FILESYSTEM_PATH_REQUIRED = "source.parse.filesystem_path_required"
@@ -61,12 +63,11 @@ class RemoteLocation:
 SourceLocation: TypeAlias = LocalLocation | RemoteLocation
 
 
-# the common identity: the address a source keeps in the cache
+# the common identity: one registered link plus its fetch location
 class SourceIdentity(StrictSchemaModel):
     model_config = ConfigDict(frozen=True)
 
     original: str
-    canonical: str
     location: SourceLocation
 
 
@@ -117,59 +118,54 @@ class SourceParser(Protocol):
 
 
 def parse_source(doc_type: DocumentType, source: str, *, base_dir: Path) -> Source:
-    if not source.strip():
+    if source != source.strip():
+        raise SourceResolutionError(source, SourceParseReason.SOURCE_WHITESPACE)
+    if not source:
         raise SourceResolutionError(source, SourceParseReason.SOURCE_EMPTY)
     return _PARSERS[doc_type](source, base_dir=base_dir)
 
 
 def _parse_filesystem(source: str, *, base_dir: Path) -> FilesystemSource:
-    canonical, location = _resolve_location("filesystem", source, source.strip(), base_dir)
-    return FilesystemSource(original=source, canonical=canonical, location=location)
+    location = _resolve_location("filesystem", source, source, base_dir)
+    return FilesystemSource(original=source, location=location)
 
 
 def _parse_repo(source: str, *, base_dir: Path) -> RepoSource:
-    value = source.strip()
-    if _SCP_LOCATION.match(value):
+    if _SCP_LOCATION.match(source):
         raise SourceResolutionError(source, SourceParseReason.SCP_UNSUPPORTED)
-    location_text, ref = _split_repo_ref(value)
+    location_text, ref = _split_repo_ref(source)
     location_text, subpath = _split_repo_subpath(location_text, base_dir)
     if ref is not None:
         ref = _normalize_ref(source, ref)
     if subpath is not None:
-        subpath = _normalize_subpath(source, subpath)
-    canonical, location = _resolve_location("repo", source, location_text, base_dir)
-    if subpath is not None:
-        canonical = f"{canonical}/{subpath}"
-    if ref is not None:
-        canonical = f"{canonical}@{ref}"
-    return RepoSource(original=source, canonical=canonical, location=location, subpath=subpath, ref=ref)
+        subpath = _validate_subpath(source, subpath)
+    location = _resolve_location("repo", source, location_text, base_dir)
+    return RepoSource(original=source, location=location, subpath=subpath, ref=ref)
 
 
 def _parse_openapi(source: str, *, base_dir: Path) -> OpenapiSource:
-    canonical, location = _resolve_location("openapi", source, source.strip(), base_dir)
-    return OpenapiSource(original=source, canonical=canonical, location=location)
+    location = _resolve_location("openapi", source, source, base_dir)
+    return OpenapiSource(original=source, location=location)
 
 
 def _parse_rfc(source: str, *, base_dir: Path) -> RfcSource:
-    value = source.strip()
-    if not value.isascii() or not value.isdecimal():
-        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value})
+    if not source.isascii() or not source.isdecimal():
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": source})
     try:
-        number = int(value)
+        number = int(source)
     except ValueError as error:
-        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value}) from error
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": source}) from error
     if number <= 0:
-        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": value})
+        raise SourceResolutionError(source, SourceParseReason.RFC_NUMBER_INVALID, {"number": source})
     return RfcSource(
         original=source,
-        canonical=f"rfc{number}",
         location=RemoteLocation(url=_RFC_TARGET.format(number=number)),
     )
 
 
 def _parse_llmstxt(source: str, *, base_dir: Path) -> LlmstxtSource:
-    canonical, location = _resolve_location("llmstxt", source, source.strip(), base_dir)
-    return LlmstxtSource(original=source, canonical=canonical, location=location)
+    location = _resolve_location("llmstxt", source, source, base_dir)
+    return LlmstxtSource(original=source, location=location)
 
 
 _PARSERS: dict[DocumentType, SourceParser] = {
@@ -214,7 +210,7 @@ def _split_local_repo_subpath(value: str, base_dir: Path) -> tuple[str, str | No
     if "://" in value:
         return value, None
     try:
-        path = Path(value).expanduser()
+        path = Path(value)
         if not path.is_absolute():
             path = base_dir / path
         path = path.resolve(strict=False)
@@ -236,21 +232,21 @@ def _normalize_ref(source: str, ref: str) -> str:
     return ref
 
 
-def _normalize_subpath(source: str, subpath: str) -> str:
-    value = subpath.strip("/")
-    path = PurePosixPath(value)
-    if not value or value == "." or path.is_absolute() or ".." in path.parts:
+def _validate_subpath(source: str, subpath: str) -> str:
+    path = PurePosixPath(subpath)
+    if subpath != subpath.strip("/") or not subpath or subpath == "." or path.is_absolute() or ".." in path.parts:
         raise SourceResolutionError(source, SourceParseReason.SUBPATH_INVALID, {"detail": subpath})
-    return value
+    return subpath
 
 
-# resolve a location to its canonical string and its typed location
+# resolve a value to its fetch location
+# the registered link stays the identity; this only builds the transport target
 def _resolve_location(
     doc_type: DocumentType,
     source: str,
     value: str,
     base_dir: Path,
-) -> tuple[str, SourceLocation]:
+) -> SourceLocation:
     # urlsplit treats a Windows drive letter as a URI scheme.
     if doc_type in _LOCAL_TYPES and PureWindowsPath(value).drive:
         return _local_location(doc_type, source, value, base_dir)
@@ -284,10 +280,10 @@ def _resolve_location(
         if parsed.fragment:
             raise SourceResolutionError(source, SourceParseReason.FRAGMENTS_UNSUPPORTED)
         try:
-            canonical = _canonical_url(parsed, scheme)
+            url = _transport_url(parsed, scheme)
         except ValueError as error:
             raise SourceResolutionError(source, SourceParseReason.LOCATION_INVALID, {"detail": str(error)}) from error
-        return canonical, RemoteLocation(url=canonical)
+        return RemoteLocation(url=url)
 
     return _local_location(doc_type, source, value, base_dir)
 
@@ -297,9 +293,11 @@ def _local_location(
     original: str,
     value: str,
     base_dir: Path,
-) -> tuple[str, SourceLocation]:
+) -> LocalLocation:
+    if value.startswith("~"):
+        raise SourceResolutionError(original, SourceParseReason.PATH_HOME_UNSUPPORTED, {"path": value})
     try:
-        path = Path(value).expanduser()
+        path = Path(value)
         if not path.is_absolute():
             path = base_dir / path
         resolved = path.resolve(strict=False)
@@ -310,10 +308,12 @@ def _local_location(
             else SourceParseReason.LOCATION_INVALID
         )
         raise SourceResolutionError(original, reason, {"detail": str(error)}) from error
-    return resolved.as_posix(), LocalLocation(path=resolved)
+    return LocalLocation(path=resolved)
 
 
-def _canonical_url(parsed: SplitResult, scheme: str) -> str:
+# build the transport URL from a parsed remote location
+# host case and the default path are transport details, not identity
+def _transport_url(parsed: SplitResult, scheme: str) -> str:
     hostname = parsed.hostname
     if hostname is None:
         raise ValueError("remote host is missing")
@@ -324,6 +324,26 @@ def _canonical_url(parsed: SplitResult, scheme: str) -> str:
         host = f"{host}:{parsed.port}"
     path = parsed.path or "/"
     return urlunsplit((scheme, host, path, parsed.query, ""))
+
+
+# the cache identity: the registered link, scoped when it is relative
+# a relative local link gains meaning from its project root, so that root is part of the key
+def cache_identity(source: Source, *, base_dir: Path) -> str:
+    if isinstance(source.location, RemoteLocation):
+        return source.original
+    if is_absolute_path(source.original):
+        return source.original
+    return f"{base_dir.as_posix()}\0{source.original}"
+
+
+# a local path is absolute on the running platform or as a Windows path
+# a local source with no scheme is a local path; a remote link keeps its scheme
+def is_absolute_path(value: str) -> bool:
+    return PureWindowsPath(value).is_absolute() or Path(value).is_absolute()
+
+
+def is_local_form(doc_type: DocumentType, source: str) -> bool:
+    return doc_type in _LOCAL_TYPES and "://" not in source
 
 
 __all__ = [
@@ -339,5 +359,8 @@ __all__ = [
     "SourceLocation",
     "SourceParseReason",
     "SourceResolutionError",
+    "cache_identity",
+    "is_absolute_path",
+    "is_local_form",
     "parse_source",
 ]

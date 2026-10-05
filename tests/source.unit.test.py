@@ -4,11 +4,19 @@ from pathlib import Path, PureWindowsPath
 import pytest
 
 from apiscope.schema import DocumentType
-from apiscope.source import LocalLocation, RemoteLocation, RepoSource, RfcSource, SourceResolutionError, parse_source
+from apiscope.source import (
+    LocalLocation,
+    RemoteLocation,
+    RepoSource,
+    RfcSource,
+    SourceResolutionError,
+    cache_identity,
+    parse_source,
+)
 
 
 @pytest.mark.parametrize(
-    ("doc_type", "source", "canonical"),
+    ("doc_type", "source", "transport_url"),
     [
         ("repo", "HTTPS://Example.TEST/docs.git", "https://example.test/docs.git"),
         ("openapi", "http://example.test/openapi.json", "http://example.test/openapi.json"),
@@ -19,20 +27,20 @@ def test_parse_source_accepts_supported_remote_locations(
     tmp_path: Path,
     doc_type: DocumentType,
     source: str,
-    canonical: str,
+    transport_url: str,
 ) -> None:
     parsed = parse_source(doc_type, source, base_dir=tmp_path)
 
-    assert parsed.canonical == canonical
+    assert parsed.original == source
     assert isinstance(parsed.location, RemoteLocation)
-    assert parsed.location.url == canonical
+    assert parsed.location.url == transport_url
 
 
 @pytest.mark.parametrize("doc_type", ["filesystem", "repo", "openapi"])
 def test_parse_source_resolves_a_local_path(tmp_path: Path, doc_type: DocumentType) -> None:
     parsed = parse_source(doc_type, "./specs/api.yaml", base_dir=tmp_path)
 
-    assert parsed.canonical == (tmp_path / "specs" / "api.yaml").resolve().as_posix()
+    assert cache_identity(parsed, base_dir=tmp_path) == f"{tmp_path.as_posix()}\0./specs/api.yaml"
     assert isinstance(parsed.location, LocalLocation)
     assert parsed.location.path == (tmp_path / "specs" / "api.yaml").resolve()
 
@@ -67,11 +75,11 @@ def test_parse_source_rejects_unsupported_schemes(
     assert raised.value.reason_code == expected
 
 
-def test_parse_rfc_source_normalizes_a_number(tmp_path: Path) -> None:
+def test_parse_rfc_source_keeps_the_number(tmp_path: Path) -> None:
     parsed = parse_source("rfc", "9110", base_dir=tmp_path)
 
     assert isinstance(parsed, RfcSource)
-    assert parsed.canonical == "rfc9110"
+    assert parsed.original == "9110"
     assert isinstance(parsed.location, RemoteLocation)
     assert parsed.location.url == "https://www.rfc-editor.org/rfc/rfc9110.xml"
 
@@ -103,9 +111,30 @@ def test_parse_llmstxt_source_rejects_a_local_path(tmp_path: Path) -> None:
 
 def test_parse_source_rejects_an_empty_source(tmp_path: Path) -> None:
     with pytest.raises(SourceResolutionError) as raised:
-        parse_source("filesystem", "  ", base_dir=tmp_path)
+        parse_source("filesystem", "", base_dir=tmp_path)
 
     assert raised.value.reason_code == "source.parse.source_empty"
+
+
+def test_parse_source_rejects_surrounding_whitespace(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("filesystem", " ./docs ", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.source_whitespace"
+
+
+def test_parse_source_rejects_a_home_relative_path(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("filesystem", "~/docs", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.path_home_unsupported"
+
+
+def test_parse_repo_source_rejects_a_subpath_with_surrounding_slashes(tmp_path: Path) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("repo", "https://github.com/example/api.git/docs/", base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.subpath_invalid"
 
 
 def test_parse_source_rejects_a_remote_location_without_a_host(tmp_path: Path) -> None:
@@ -140,9 +169,9 @@ def test_parse_source_wraps_an_invalid_port(tmp_path: Path) -> None:
 def test_parse_source_preserves_brackets_in_an_ipv6_authority(tmp_path: Path) -> None:
     parsed = parse_source("openapi", "HTTPS://[2001:DB8::1]:8443/openapi.json", base_dir=tmp_path)
 
-    assert parsed.canonical == "https://[2001:db8::1]:8443/openapi.json"
+    assert parsed.original == "HTTPS://[2001:DB8::1]:8443/openapi.json"
     assert isinstance(parsed.location, RemoteLocation)
-    assert parsed.location.url == parsed.canonical
+    assert parsed.location.url == "https://[2001:db8::1]:8443/openapi.json"
 
 
 def test_parse_source_wraps_an_invalid_remote_authority(tmp_path: Path) -> None:
@@ -165,7 +194,7 @@ def test_parse_repo_source_keeps_a_subpath_and_a_ref(tmp_path: Path) -> None:
     assert isinstance(parsed, RepoSource)
     assert isinstance(parsed.location, RemoteLocation)
     assert parsed.location.url == "https://github.com/example/api.git"
-    assert parsed.canonical == "https://github.com/example/api.git/docs@main"
+    assert parsed.original == "https://github.com/example/api.git/docs@main"
     assert parsed.subpath == "docs"
     assert parsed.ref == "main"
 
@@ -176,7 +205,7 @@ def test_parse_repo_source_keeps_a_ref_only(tmp_path: Path) -> None:
     assert isinstance(parsed, RepoSource)
     assert parsed.subpath is None
     assert parsed.ref == "v1.0.0"
-    assert parsed.canonical == "https://github.com/example/api.git@v1.0.0"
+    assert parsed.original == "https://github.com/example/api.git@v1.0.0"
 
 
 def test_parse_repo_source_keeps_a_subpath_only(tmp_path: Path) -> None:
@@ -185,7 +214,7 @@ def test_parse_repo_source_keeps_a_subpath_only(tmp_path: Path) -> None:
     assert isinstance(parsed, RepoSource)
     assert parsed.subpath == "docs"
     assert parsed.ref is None
-    assert parsed.canonical == "https://github.com/example/api.git/docs"
+    assert parsed.original == "https://github.com/example/api.git/docs"
 
 
 def test_parse_repo_source_does_not_split_a_git_marker_in_the_host(tmp_path: Path) -> None:
@@ -195,7 +224,7 @@ def test_parse_repo_source_does_not_split_a_git_marker_in_the_host(tmp_path: Pat
     assert isinstance(parsed.location, RemoteLocation)
     assert parsed.location.url == "https://example.git/docs"
     assert parsed.subpath is None
-    assert parsed.canonical == "https://example.git/docs"
+    assert parsed.original == "https://example.git/docs"
 
 
 def test_parse_repo_source_rejects_an_scp_location(tmp_path: Path) -> None:
@@ -268,3 +297,26 @@ def test_parse_repo_source_rejects_an_unsafe_subpath(tmp_path: Path, source: str
         parse_source("repo", source, base_dir=tmp_path)
 
     assert raised.value.reason_code == "source.parse.subpath_invalid"
+
+
+def test_parse_source_keeps_distinct_remote_spellings(tmp_path: Path) -> None:
+    first = parse_source("openapi", "HTTPS://Example.TEST/openapi.json", base_dir=tmp_path)
+    second = parse_source("openapi", "https://example.test/openapi.json", base_dir=tmp_path)
+
+    assert cache_identity(first, base_dir=tmp_path) == "HTTPS://Example.TEST/openapi.json"
+    assert cache_identity(second, base_dir=tmp_path) == "https://example.test/openapi.json"
+    assert cache_identity(first, base_dir=tmp_path) != cache_identity(second, base_dir=tmp_path)
+
+
+def test_cache_identity_keeps_distinct_local_spellings(tmp_path: Path) -> None:
+    first = parse_source("filesystem", "docs/api.yaml", base_dir=tmp_path)
+    second = parse_source("filesystem", "./docs/api.yaml", base_dir=tmp_path)
+
+    assert cache_identity(first, base_dir=tmp_path) != cache_identity(second, base_dir=tmp_path)
+
+
+def test_cache_identity_scopes_a_relative_path_to_its_project(tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    parsed = parse_source("filesystem", "docs/api.yaml", base_dir=tmp_path)
+
+    assert cache_identity(parsed, base_dir=tmp_path) != cache_identity(parsed, base_dir=other)

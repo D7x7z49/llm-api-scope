@@ -36,6 +36,7 @@ from apiscope.schema import (
     RuntimeSetting,
     RuntimeSource,
 )
+from apiscope.source import is_absolute_path, is_local_form
 
 # ==============================================================================
 # errors
@@ -252,6 +253,8 @@ def assemble_runtime_config(
     project_file: BaseModel | None = None,
     local_file: BaseModel | None = None,
 ) -> RuntimeConfig:
+    _reject_duplicate_sources((global_file, project_file, local_file))
+    _validate_source_paths(global_file, project_file, local_file)
     source: dict[str, RuntimeSource] = {}
     setting = RuntimeSetting(public=PublicSetting(), local=LocalSetting())
 
@@ -292,6 +295,46 @@ def assemble_runtime_config(
         },
         strict=True,
     )
+
+
+# reject one link declared twice across the configured layers
+# check raw declarations, so a later name override cannot hide a repeat
+def _reject_duplicate_sources(config_files: tuple[BaseModel | None, ...]) -> None:
+    seen: dict[str, str] = {}
+    for config_file in config_files:
+        if config_file is None:
+            continue
+        source_value = _explicit_field(config_file, "source")
+        if source_value is MISSING:
+            continue
+        for name, value in source_value.items():
+            previous = seen.get(value.doc_src)
+            if previous is not None:
+                raise ConfigError("root.error.config.duplicate_source", {"source": value.doc_src, "name": name})
+            seen[value.doc_src] = name
+
+
+# a private local source needs an absolute path; a project source needs a relative path
+# the owning layer decides the form, so a hand-edited config fails here
+def _validate_source_paths(
+    global_file: BaseModel,
+    project_file: BaseModel | None,
+    local_file: BaseModel | None,
+) -> None:
+    for config_file, private in ((global_file, True), (local_file, True), (project_file, False)):
+        if config_file is None:
+            continue
+        source_value = _explicit_field(config_file, "source")
+        if source_value is MISSING:
+            continue
+        for value in source_value.values():
+            if not is_local_form(value.doc_type, value.doc_src):
+                continue
+            absolute = is_absolute_path(value.doc_src)
+            if private and not absolute:
+                raise ConfigError("root.error.config.source_path_absolute", {"source": value.doc_src})
+            if not private and absolute:
+                raise ConfigError("root.error.config.source_path_relative", {"source": value.doc_src})
 
 
 def _explicit_field(model: BaseModel, field_name: str) -> Any:

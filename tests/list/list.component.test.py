@@ -155,8 +155,8 @@ def test_list_uses_the_merged_project_registry(
         isolated_home / ".apiscope" / "config.json",
         {
             "source": {
-                "shared": {"doc_type": "openapi", "doc_src": "./global-shared.json"},
-                "global-only": {"doc_type": "repo", "doc_src": "./global"},
+                "shared": {"doc_type": "openapi", "doc_src": str(isolated_home / "global-shared.json")},
+                "global-only": {"doc_type": "repo", "doc_src": str(isolated_home / "global")},
             },
         },
     )
@@ -173,8 +173,8 @@ def test_list_uses_the_merged_project_registry(
         git_project / ".apiscope" / "local.json",
         {
             "source": {
-                "shared": {"doc_type": "llmstxt", "doc_src": "./local-shared.txt"},
-                "local-only": {"doc_type": "filesystem", "doc_src": "./local"},
+                "shared": {"doc_type": "llmstxt", "doc_src": str(git_project / "local-shared.txt")},
+                "local-only": {"doc_type": "filesystem", "doc_src": str(git_project / "local")},
             },
         },
         LOCAL_CONFIG_SCHEMA_REF,
@@ -189,10 +189,10 @@ def test_list_uses_the_merged_project_registry(
         "action": "list",
         "meta": {"filter": "all"},
         "data": [
-            {"name": "local-only", "type": "filesystem", "source": "./local"},
-            {"name": "shared", "type": "llmstxt", "source": "./local-shared.txt"},
+            {"name": "local-only", "type": "filesystem", "source": str(git_project / "local")},
+            {"name": "shared", "type": "llmstxt", "source": str(git_project / "local-shared.txt")},
             {"name": "project-only", "type": "openapi", "source": "./project-api.json"},
-            {"name": "global-only", "type": "repo", "source": "./global"},
+            {"name": "global-only", "type": "repo", "source": str(isolated_home / "global")},
         ],
         "extra": {"count": 4, "total": 4},
     }
@@ -229,7 +229,7 @@ def test_list_global_reads_only_the_home_registry(
         isolated_home / ".apiscope" / "config.json",
         {
             "source": {
-                "docs": {"doc_type": "filesystem", "doc_src": "./docs"},
+                "docs": {"doc_type": "filesystem", "doc_src": str(isolated_home / "docs")},
             },
         },
     )
@@ -241,7 +241,7 @@ def test_list_global_reads_only_the_home_registry(
         "[ok] [scope=home] [action=list] [filter=all]\n\n"
         "---\n\n"
         "[filesystem]\n"
-        "- [docs] ./docs\n\n"
+        f"- [docs] {isolated_home / 'docs'}\n\n"
         "---\n\n"
         "[count=1] [total=1]\n"
     )

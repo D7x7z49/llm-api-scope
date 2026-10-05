@@ -356,15 +356,26 @@ def test_sync_reports_a_malformed_port_with_a_namespaced_source_error(
     project_cwd: Path,
 ) -> None:
     runner = CliRunner()
-    added = runner.invoke(
-        app,
-        ["add", "api", "https://example.test:invalid/openapi.json", "--type", "openapi"],
-        catch_exceptions=False,
+    config_path = project_cwd / ".apiscope" / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        json.dumps(
+            {
+                "$schema": "./schema/config.schema.json",
+                "source": {
+                    "api": {
+                        "doc_type": "openapi",
+                        "doc_src": "https://example.test:invalid/openapi.json",
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
     )
 
     result = runner.invoke(app, ["sync", "all", "api"], catch_exceptions=False)
 
-    assert added.exit_code == 0
     assert result.exit_code == 1
     assert "sync.error.source.parse.location_invalid" in result.output
     assert "cannot parse source" in result.output

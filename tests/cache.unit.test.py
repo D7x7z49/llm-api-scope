@@ -8,7 +8,6 @@ import pytest
 from apiscope import cache as cache_module
 from apiscope.cache import (
     CACHE_CONTENT_DIRECTORY,
-    CACHE_DIGEST_MIN_LENGTH,
     CACHE_FORMAT_VERSION,
     CacheMetadata,
     build_manifest,
@@ -18,7 +17,7 @@ from apiscope.cache import (
     write_manifest,
     write_metadata,
 )
-from apiscope.source import parse_source
+from apiscope.source import cache_identity, parse_source
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
 
 
@@ -26,17 +25,18 @@ def test_cache_promotes_metadata_and_content_atomically(tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     source.write_text("hello\n", encoding="utf-8")
     parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
+    identity = cache_identity(parsed, base_dir=tmp_path)
     cache_root = tmp_path / "cache"
 
-    with staging_cache(cache_root, parsed.canonical) as staging:
+    with staging_cache(cache_root, identity) as staging:
         result = FilesystemFetcher().fetch(parsed, destination=staging)
         write_metadata(
             staging,
             CacheMetadata(
                 format_version=CACHE_FORMAT_VERSION,
                 doc_type=parsed.doc_type,
-                source=parsed.canonical,
-                source_digest=cache_module.source_digest(parsed.canonical),
+                source=parsed.original,
+                source_digest=cache_module.source_digest(identity),
                 fetched_at=result.fetched_at,
                 content_kind=result.content_kind,
                 content_name=result.content_name,
@@ -44,7 +44,7 @@ def test_cache_promotes_metadata_and_content_atomically(tmp_path: Path) -> None:
             ),
         )
 
-    entry = cache_path(cache_root, parsed.canonical)
+    entry = cache_path(cache_root, identity)
     inspection = inspect_cache(entry, ttl_days=7)
     assert inspection.state == "fresh"
     assert (entry / "metadata.json").exists()
@@ -111,8 +111,8 @@ def test_staging_cache_restores_the_previous_entry_after_promotion_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cache_root = tmp_path / "cache"
-    canonical_source = "file:///source.txt"
-    entry = cache_path(cache_root, canonical_source)
+    identity = "file:///source.txt"
+    entry = cache_path(cache_root, identity)
     entry.mkdir(parents=True)
     (entry / "sentinel.txt").write_text("old\n", encoding="utf-8")
     real_replace = cache_module.os.replace
@@ -126,7 +126,7 @@ def test_staging_cache_restores_the_previous_entry_after_promotion_failure(
     monkeypatch.setattr(cache_module.os, "replace", fail_staging_promotion)
 
     with pytest.raises(OSError, match="promotion failed"):
-        with staging_cache(cache_root, canonical_source) as staging:
+        with staging_cache(cache_root, identity) as staging:
             staging_path = staging
             (staging / "content").mkdir()
             (staging / "content" / "new.txt").write_text("new\n", encoding="utf-8")
@@ -198,41 +198,46 @@ def test_cache_accepts_a_directory_entry_with_a_manifest(tmp_path: Path) -> None
     assert inspection.state == "fresh"
 
 
-def test_cache_path_uses_a_short_source_digest(tmp_path: Path) -> None:
+def test_cache_path_uses_the_full_source_digest(tmp_path: Path) -> None:
     cache_root = tmp_path / "cache"
-    canonical = "file:///source.txt"
+    identity = "file:///source.txt"
 
-    entry = cache_path(cache_root, canonical)
+    entry = cache_path(cache_root, identity)
 
-    assert entry.name == cache_module.source_digest(canonical)[:CACHE_DIGEST_MIN_LENGTH]
-    assert len(entry.name) == CACHE_DIGEST_MIN_LENGTH
+    assert entry.name == cache_module.source_digest(identity)
+    assert len(entry.name) == 64
 
 
-def test_cache_names_extend_a_shared_prefix() -> None:
-    first = "a" * CACHE_DIGEST_MIN_LENGTH + "1" + "0" * 50
-    second = "a" * CACHE_DIGEST_MIN_LENGTH + "2" + "0" * 50
+def test_cache_path_is_deterministic_and_keeps_other_entries(tmp_path: Path) -> None:
+    cache_root = tmp_path / "cache"
+    first = cache_path(cache_root, "file:///first")
+    first.mkdir(parents=True)
+    (first / "sentinel.txt").write_text("first\n", encoding="utf-8")
 
-    names = cache_module._assign_cache_names([first, second])
+    second = cache_path(cache_root, "file:///second")
+    second.mkdir(parents=True)
 
-    assert names[first] == first[: CACHE_DIGEST_MIN_LENGTH + 1]
-    assert names[second] == second[: CACHE_DIGEST_MIN_LENGTH + 1]
+    assert cache_path(cache_root, "file:///first") == first
+    assert cache_path(cache_root, "file:///second") == second
+    assert (first / "sentinel.txt").read_text(encoding="utf-8") == "first\n"
 
 
 def test_cache_entry_keeps_the_full_source_digest(tmp_path: Path) -> None:
     source = tmp_path / "source.txt"
     source.write_text("hello\n", encoding="utf-8")
     parsed = parse_source("filesystem", str(source), base_dir=tmp_path)
+    identity = cache_identity(parsed, base_dir=tmp_path)
     cache_root = tmp_path / "cache"
-    digest = cache_module.source_digest(parsed.canonical)
+    digest = cache_module.source_digest(identity)
 
-    with staging_cache(cache_root, parsed.canonical) as staging:
+    with staging_cache(cache_root, identity) as staging:
         result = FilesystemFetcher().fetch(parsed, destination=staging)
         write_metadata(
             staging,
             CacheMetadata(
                 format_version=CACHE_FORMAT_VERSION,
                 doc_type=parsed.doc_type,
-                source=parsed.canonical,
+                source=parsed.original,
                 source_digest=digest,
                 fetched_at=result.fetched_at,
                 content_kind=result.content_kind,
@@ -241,45 +246,13 @@ def test_cache_entry_keeps_the_full_source_digest(tmp_path: Path) -> None:
             ),
         )
 
-    entry = cache_path(cache_root, parsed.canonical)
+    entry = cache_path(cache_root, identity)
     metadata = json.loads((entry / "metadata.json").read_text(encoding="utf-8"))
 
-    assert len(entry.name) == CACHE_DIGEST_MIN_LENGTH
+    assert entry.name == digest
     assert metadata["source_digest"] == digest
+    assert metadata["source"] == parsed.original
     assert metadata["content_digest"] != metadata["source_digest"]
-
-
-def test_cache_extends_entries_that_share_a_prefix(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    cache_root = tmp_path / "cache"
-    digests = {
-        "file:///a": "a" * CACHE_DIGEST_MIN_LENGTH + "1" + "0" * 56,
-        "file:///b": "a" * CACHE_DIGEST_MIN_LENGTH + "2" + "0" * 56,
-    }
-    monkeypatch.setattr(cache_module, "source_digest", lambda value: digests[value])
-
-    for canonical in ("file:///a", "file:///b"):
-        entry = cache_module._prepare_cache_entry(cache_root, canonical)
-        (entry / "content").mkdir(parents=True)
-        (entry / "content" / "doc.txt").write_text("x\n", encoding="utf-8")
-        write_metadata(
-            entry,
-            CacheMetadata(
-                format_version=CACHE_FORMAT_VERSION,
-                doc_type="filesystem",
-                source=canonical,
-                source_digest=digests[canonical],
-                fetched_at=datetime.now(timezone.utc),
-                content_kind="file",
-                content_name="doc.txt",
-                content_digest="digest",
-            ),
-        )
-
-    assert (cache_root / digests["file:///a"][: CACHE_DIGEST_MIN_LENGTH + 1]).is_dir()
-    assert (cache_root / digests["file:///b"][: CACHE_DIGEST_MIN_LENGTH + 1]).is_dir()
 
 
 def test_cache_rejects_metadata_with_another_source_digest(tmp_path: Path) -> None:

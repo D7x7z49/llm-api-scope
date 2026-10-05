@@ -115,7 +115,7 @@ def _run_read(
         raise MessageError(ReadReason.READER_UNSUPPORTED, {"name": name, "doc_type": source.doc_type})
 
     ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
-    snapshot = load_content(runtime.paths.home.cache, parsed, ttl_days=ttl_days)
+    snapshot = load_content(runtime.paths.home.cache, parsed, base_dir=base_dir, ttl_days=ttl_days)
     inspection = snapshot.inspection
     _require_cache(name, inspection)
     metadata = inspection.metadata

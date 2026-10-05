@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from apiscope.source import SourceParseReason, SourceResolutionError
+from apiscope.source import SourceParseReason, SourceResolutionError, cache_identity
 from apiscope.source import parse_source as resolve_source
 from apiscope.sync._lib.errors import SourceParseError
 from apiscope.sync._lib.registry import parse_source
@@ -21,7 +21,8 @@ def test_sync_parser_preserves_the_shared_source_identity(tmp_path: Path) -> Non
     adapted = parse_source("openapi", source, base_dir=tmp_path)
 
     assert adapted == shared
-    assert adapted.canonical == "https://example.test/openapi.json"
+    assert adapted.original == source
+    assert cache_identity(adapted, base_dir=tmp_path) == source
 
 
 def test_sync_parser_adapts_a_shared_parse_error(tmp_path: Path) -> None:

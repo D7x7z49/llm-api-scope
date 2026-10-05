@@ -38,7 +38,6 @@ def _make_repository(git: str, root: Path) -> Path:
 def _parsed(repository: Path, *, subpath: str | None = None, ref: str | None = None) -> RepoSource:
     return RepoSource(
         original=repository.as_posix(),
-        canonical=repository.resolve().as_posix(),
         location=LocalLocation(repository.resolve()),
         subpath=subpath,
         ref=ref,

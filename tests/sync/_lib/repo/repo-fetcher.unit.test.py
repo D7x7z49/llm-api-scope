@@ -14,7 +14,6 @@ from apiscope.sync._lib.repo.fetcher import RepoFetcher
 def _parsed_source(path: Path, *, subpath: str | None = None, ref: str | None = None) -> RepoSource:
     return RepoSource(
         original=str(path),
-        canonical=path.resolve().as_posix(),
         location=LocalLocation(path.resolve()),
         subpath=subpath,
         ref=ref,
@@ -24,7 +23,6 @@ def _parsed_source(path: Path, *, subpath: str | None = None, ref: str | None = 
 def _remote_source(url: str, *, subpath: str | None = None, ref: str | None = None) -> RepoSource:
     return RepoSource(
         original=url,
-        canonical=url,
         location=RemoteLocation(url),
         subpath=subpath,
         ref=ref,

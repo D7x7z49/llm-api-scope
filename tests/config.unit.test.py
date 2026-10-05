@@ -57,8 +57,8 @@ def test_assemble_runtime_config_merges_sources_and_settings() -> None:
     global_file = GlobalConfigFile.model_validate(
         _config_data(
             source={
-                "shared": {"doc_type": "filesystem", "doc_src": "global"},
-                "global": {"doc_type": "repo", "doc_src": "global-repo"},
+                "shared": {"doc_type": "filesystem", "doc_src": "/abs/global"},
+                "global": {"doc_type": "repo", "doc_src": "/abs/global-repo"},
             },
             setting={"public": {"doc_ttl": 14}, "local": {"proxy": "http://proxy"}},
         )
@@ -75,8 +75,8 @@ def test_assemble_runtime_config_merges_sources_and_settings() -> None:
     local_file = LocalConfigFile.model_validate(
         _config_data(
             source={
-                "shared": {"doc_type": "filesystem", "doc_src": "local"},
-                "local": {"doc_type": "rfc", "doc_src": "local-rfc"},
+                "shared": {"doc_type": "filesystem", "doc_src": "/abs/local"},
+                "local": {"doc_type": "rfc", "doc_src": "/abs/local-rfc"},
             },
             setting={"proxy": None},
         )
@@ -84,12 +84,50 @@ def test_assemble_runtime_config_merges_sources_and_settings() -> None:
 
     config = assemble_runtime_config(global_file, project_file, local_file)
 
-    assert config.source["shared"].doc_src == "local"
-    assert config.source["global"].doc_src == "global-repo"
+    assert config.source["shared"].doc_src == "/abs/local"
+    assert config.source["global"].doc_src == "/abs/global-repo"
     assert config.source["project"].doc_src == "project-api"
-    assert config.source["local"].doc_src == "local-rfc"
+    assert config.source["local"].doc_src == "/abs/local-rfc"
     assert config.setting.public.doc_ttl == 3
     assert config.setting.local.proxy is None
+
+
+def test_assemble_runtime_config_rejects_a_duplicate_source_across_layers() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(source={"shared": {"doc_type": "openapi", "doc_src": "https://example.test/spec.json"}})
+    )
+    project_file = ProjectConfigFile.model_validate(
+        _config_data(source={"alias": {"doc_type": "llmstxt", "doc_src": "https://example.test/spec.json"}})
+    )
+
+    with pytest.raises(ConfigError) as raised:
+        assemble_runtime_config(global_file, project_file)
+
+    assert raised.value.code == "root.error.config.duplicate_source"
+    assert raised.value.values == {"source": "https://example.test/spec.json", "name": "alias"}
+
+
+def test_assemble_runtime_config_rejects_a_relative_local_path_in_the_home_layer() -> None:
+    global_file = GlobalConfigFile.model_validate(
+        _config_data(source={"docs": {"doc_type": "filesystem", "doc_src": "docs"}})
+    )
+
+    with pytest.raises(ConfigError) as raised:
+        assemble_runtime_config(global_file)
+
+    assert raised.value.code == "root.error.config.source_path_absolute"
+
+
+def test_assemble_runtime_config_rejects_an_absolute_local_path_in_the_project_layer() -> None:
+    global_file = GlobalConfigFile.model_validate(_config_data())
+    project_file = ProjectConfigFile.model_validate(
+        _config_data(source={"docs": {"doc_type": "filesystem", "doc_src": "/abs/docs"}})
+    )
+
+    with pytest.raises(ConfigError) as raised:
+        assemble_runtime_config(global_file, project_file)
+
+    assert raised.value.code == "root.error.config.source_path_relative"
 
 
 def test_assemble_runtime_config_preserves_inherited_fields_from_empty_scope_settings() -> None:
@@ -147,7 +185,7 @@ def test_assemble_runtime_config_preserves_source_ttl_fallback_value() -> None:
             source={
                 "docs": {
                     "doc_type": "filesystem",
-                    "doc_src": "docs",
+                    "doc_src": "/abs/docs",
                     "doc_ttl": None,
                 }
             },

@@ -108,10 +108,11 @@ def test_add_global_writes_a_home_source(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    source = tmp_path / "docs"
 
     result = CliRunner().invoke(
         app,
-        ["--global", "add", "docs", "./docs", "--type", "filesystem"],
+        ["--global", "add", "docs", str(source), "--type", "filesystem"],
         catch_exceptions=False,
     )
 
@@ -120,7 +121,7 @@ def test_add_global_writes_a_home_source(
     config = json.loads((isolated_home / ".apiscope" / "config.json").read_text(encoding="utf-8"))
     assert config["source"]["docs"] == {
         "doc_type": "filesystem",
-        "doc_src": "./docs",
+        "doc_src": str(source),
         "doc_ttl": None,
     }
 
@@ -194,7 +195,126 @@ def test_add_rejects_a_duplicate_name_without_changing_the_source(
     assert config["source"]["petstore"]["doc_src"] == "https://example.test/openapi.json"
 
 
+def test_add_rejects_a_duplicate_source_with_another_name(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    runner = CliRunner()
+
+    first = runner.invoke(
+        app,
+        ["add", "petstore", "https://example.test/openapi.json", "--type", "openapi"],
+        catch_exceptions=False,
+    )
+    second = runner.invoke(
+        app,
+        ["add", "petstore-copy", "https://example.test/openapi.json", "--type", "openapi"],
+        catch_exceptions=False,
+    )
+
+    assert first.exit_code == 0
+    assert second.exit_code == 1
+    assert second.output == (
+        "[error] [scope=project] [action=add] [code=add.error.duplicate_source] [name=petstore] "
+        "[source=https://example.test/openapi.json]: "
+        "source https://example.test/openapi.json is already registered as petstore\n"
+    )
+    config = json.loads((git_project / ".apiscope" / "config.json").read_text(encoding="utf-8"))
+    assert list(config["source"]) == ["petstore"]
+
+
+def test_add_rejects_a_duplicate_source_with_another_type(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    runner = CliRunner()
+
+    first = runner.invoke(
+        app,
+        ["add", "api", "https://example.test/spec.json", "--type", "openapi"],
+        catch_exceptions=False,
+    )
+    second = runner.invoke(
+        app,
+        ["add", "spec", "https://example.test/spec.json", "--type", "llmstxt"],
+        catch_exceptions=False,
+    )
+
+    assert first.exit_code == 0
+    assert second.exit_code == 1
+    assert "code=add.error.duplicate_source" in second.output
+
+
 # require a project for project writes
+
+
+def test_add_rejects_a_relative_local_path_in_the_home_configuration(
+    isolated_home: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["--global", "add", "docs", "./docs", "--type", "filesystem"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "code=add.error.source_path_absolute" in result.output
+
+
+def test_add_rejects_an_absolute_local_path_in_the_project_configuration(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+
+    result = CliRunner().invoke(
+        app,
+        ["add", "docs", str(git_project / "docs"), "--type", "filesystem"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "code=add.error.source_path_relative" in result.output
+
+
+def test_add_rejects_an_invalid_source_without_writing(
+    isolated_home: Path,
+    git_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(git_project)
+    config_path = git_project / ".apiscope" / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        json.dumps(
+            {
+                "$schema": CONFIG_SCHEMA_REF,
+                "source": {"existing": {"doc_type": "filesystem", "doc_src": "./existing.txt"}},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["add", "docs", "ftp://example.test/docs", "--type", "openapi"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "code=add.error.invalid_source" in result.output
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    assert "docs" not in config["source"]
 
 
 def test_add_requires_a_project_without_global_mode(

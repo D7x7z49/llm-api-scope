@@ -118,7 +118,7 @@ def test_run_preflight_preserves_an_existing_valid_config(
     context = run_preflight(cwd=workdir)
     custom_config = {
         "$schema": CONFIG_SCHEMA_REF,
-        "source": {"demo": {"doc_type": "filesystem", "doc_src": "."}},
+        "source": {"demo": {"doc_type": "filesystem", "doc_src": str(workdir)}},
         "setting": {"public": {"doc_ttl": 3}, "local": {"proxy": None}},
     }
     context.paths.home.config.write_text(json.dumps(custom_config) + "\n", encoding="utf-8")

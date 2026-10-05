@@ -27,8 +27,6 @@ CACHE_CONTENT_DIRECTORY: Final = "content"
 CACHE_FORMAT_VERSION: Final = "1"
 CACHE_METADATA_FILENAME: Final = "metadata.json"
 CACHE_MANIFEST_FILENAME: Final = "manifest.json"
-# the cache directory name is a short prefix of the source digest
-CACHE_DIGEST_MIN_LENGTH: Final = 7
 
 # ==============================================================================
 # types
@@ -70,30 +68,16 @@ class CacheInspection:
 # ==============================================================================
 
 
-# the source projection: a pure function of the canonical source string
+# the source identity is a pure function of the registered source string
 # it is the cache identity and is not the Merkle root of the content
-def source_digest(canonical_source: str) -> str:
-    return sha256(canonical_source.encode("utf-8")).hexdigest()
+def source_digest(identity: str) -> str:
+    return sha256(identity.encode("utf-8")).hexdigest()
 
 
-# return the existing entry for the source, or the default short name
-# the short name is a display form; the source digest is the real identity
-def cache_path(cache_root: Path, canonical_source: str) -> Path:
-    existing = find_cache_entry(cache_root, canonical_source)
-    if existing is not None:
-        return existing
-    return cache_root / source_digest(canonical_source)[:CACHE_DIGEST_MIN_LENGTH]
-
-
-# find the entry whose stored source digest matches the source
-# match on the full digest, so a short directory name stays unambiguous
-def find_cache_entry(cache_root: Path, canonical_source: str) -> Path | None:
-    digest = source_digest(canonical_source)
-    for entry in _cache_entries(cache_root):
-        metadata = _read_cache_metadata(entry)
-        if metadata is not None and metadata.source_digest == digest:
-            return entry
-    return None
+# map one identity to one deterministic cache entry
+# the full digest is the directory name, so an entry is never renamed
+def cache_path(cache_root: Path, identity: str) -> Path:
+    return cache_root / source_digest(identity)
 
 
 # ==============================================================================
@@ -192,9 +176,9 @@ def write_manifest(path: Path, manifest: Mapping[str, str]) -> None:
 
 
 @contextmanager
-def staging_cache(cache_root: Path, canonical_source: str) -> Iterator[Path]:
+def staging_cache(cache_root: Path, identity: str) -> Iterator[Path]:
     cache_root.mkdir(parents=True, exist_ok=True)
-    final_path = _prepare_cache_entry(cache_root, canonical_source)
+    final_path = cache_path(cache_root, identity)
     staging_path = Path(tempfile.mkdtemp(prefix=f".{final_path.name}.", dir=cache_root))
     promoted = False
     try:
@@ -285,79 +269,6 @@ def _promote(staging_path: Path, final_path: Path) -> None:
             os.replace(backup_path, final_path)
         raise
     _remove_path(backup_path)
-
-
-# reuse an existing entry or choose the shortest unique prefix
-# colliding entries extend together
-def _prepare_cache_entry(cache_root: Path, canonical_source: str) -> Path:
-    existing = find_cache_entry(cache_root, canonical_source)
-    if existing is not None:
-        return existing
-
-    digest = source_digest(canonical_source)
-    known: dict[str, Path] = {}
-    for entry in _cache_entries(cache_root):
-        metadata = _read_cache_metadata(entry)
-        if metadata is not None:
-            known[metadata.source_digest] = entry
-
-    names = _assign_cache_names([*known, digest])
-    for known_digest, entry in known.items():
-        target = cache_root / names[known_digest]
-        _rename_entry(entry, target)
-    return cache_root / names[digest]
-
-
-# assign the shortest prefix that distinguishes each digest from the others
-def _assign_cache_names(digests: list[str]) -> dict[str, str]:
-    names: dict[str, str] = {}
-    for digest in digests:
-        length = CACHE_DIGEST_MIN_LENGTH
-        while length < len(digest):
-            prefix = digest[:length]
-            if all(other[:length] != prefix for other in digests if other != digest):
-                break
-            length += 1
-        names[digest] = digest[:length]
-    return names
-
-
-# rename an entry, moving any target aside first to avoid overwriting it
-def _rename_entry(entry: Path, target: Path) -> None:
-    if entry == target:
-        return
-    temporary = target.with_name(f".{target.name}.rename")
-    _remove_path(temporary)
-    if target.exists():
-        target.rename(temporary)
-    try:
-        entry.rename(target)
-    except OSError:
-        if temporary.exists():
-            temporary.rename(target)
-        raise
-    _remove_path(temporary)
-
-
-# return the directories that hold a cache entry, in name order
-def _cache_entries(cache_root: Path) -> list[Path]:
-    if not cache_root.is_dir():
-        return []
-    entries = [child for child in cache_root.iterdir() if child.is_dir() and _is_hex_name(child.name)]
-    return sorted(entries, key=lambda path: path.name)
-
-
-# read the metadata of an entry, or None when the entry is unreadable
-def _read_cache_metadata(entry: Path) -> CacheMetadata | None:
-    try:
-        content = (entry / CACHE_METADATA_FILENAME).read_text(encoding="utf-8")
-        return CacheMetadata.model_validate_json(content)
-    except (OSError, TypeError, ValueError, ValidationError):
-        return None
-
-
-def _is_hex_name(name: str) -> bool:
-    return bool(name) and all(character in "0123456789abcdef" for character in name)
 
 
 def _remove_path(path: Path) -> None:

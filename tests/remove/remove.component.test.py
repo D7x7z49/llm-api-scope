@@ -64,8 +64,8 @@ def test_remove_global_deletes_a_home_source(
             {
                 "$schema": CONFIG_SCHEMA_REF,
                 "source": {
-                    "docs": {"doc_type": "filesystem", "doc_src": "./docs"},
-                    "api": {"doc_type": "openapi", "doc_src": "./api.json"},
+                    "docs": {"doc_type": "filesystem", "doc_src": str(isolated_home / "docs")},
+                    "api": {"doc_type": "openapi", "doc_src": str(isolated_home / "api.json")},
                 },
             }
         )
@@ -81,7 +81,7 @@ def test_remove_global_deletes_a_home_source(
     assert "docs" not in config["source"]
     assert config["source"]["api"] == {
         "doc_type": "openapi",
-        "doc_src": "./api.json",
+        "doc_src": str(isolated_home / "api.json"),
         "doc_ttl": None,
     }
 

@@ -21,6 +21,9 @@ text is the default output; `--json` prints the data layer instead.
 `apiscope remove` deletes it.
 `apiscope list` shows what is registered, filtered by type.
 
+a source link is registered once; a repeated link fails, even under another name or type.
+a private source in the home configuration uses an absolute path, and a project source uses a path relative to the project root.
+
 five document types share one command surface:
 
 - `filesystem` reads a local file or directory

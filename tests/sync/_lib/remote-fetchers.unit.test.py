@@ -16,10 +16,10 @@ from apiscope.sync._lib.rfc.fetcher import RfcFetcher
 def _remote_source(doc_type: DocumentType, url: str) -> OpenapiSource | RfcSource | LlmstxtSource:
     location = RemoteLocation(url)
     if doc_type == "openapi":
-        return OpenapiSource(original=url, canonical=url, location=location)
+        return OpenapiSource(original=url, location=location)
     if doc_type == "rfc":
-        return RfcSource(original=url, canonical=url, location=location)
-    return LlmstxtSource(original=url, canonical=url, location=location)
+        return RfcSource(original=url, location=location)
+    return LlmstxtSource(original=url, location=location)
 
 
 @pytest.mark.parametrize(

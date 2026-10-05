@@ -26,6 +26,7 @@ from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, emit_report
 from apiscope.schema import SOURCE_SELECTOR_ALL, DocumentType, RuntimeSource, SourceSelector
+from apiscope.source import cache_identity
 from apiscope.sync._lib.errors import SourceError, SourceParseError
 from apiscope.sync._lib.registry import fetch_source, parse_source
 from apiscope.sync._lib.schema import ParsedSource
@@ -81,6 +82,7 @@ class SyncTarget:
     name: str
     source: RuntimeSource
     parsed: ParsedSource
+    identity: str
     inspection: CacheInspection
 
 
@@ -232,14 +234,15 @@ def _prepare_sync_target(
     try:
         base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
         parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
-        cache_entry = cache_path(runtime.paths.home.cache, parsed.canonical)
+        identity = cache_identity(parsed, base_dir=base_dir)
+        cache_entry = cache_path(runtime.paths.home.cache, identity)
         ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
         inspection = inspect_cache(
             cache_entry,
             ttl_days=ttl_days,
-            expected_source=parsed.canonical,
+            expected_source=parsed.original,
             expected_doc_type=parsed.doc_type,
-            expected_digest=source_digest(parsed.canonical),
+            expected_digest=source_digest(identity),
         )
     except SourceError as error:
         raise _source_error_message(error) from error
@@ -247,12 +250,13 @@ def _prepare_sync_target(
         raise
     except (OSError, TypeError, ValueError, ValidationError) as error:
         raise MessageError("sync.error.cache_failed", {"name": name}) from error
-    return SyncTarget(name=name, source=source, parsed=parsed, inspection=inspection)
+    return SyncTarget(name=name, source=source, parsed=parsed, identity=identity, inspection=inspection)
 
 
 def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
+    identity = target.identity
     try:
-        with staging_cache(runtime.paths.home.cache, target.parsed.canonical) as staging:
+        with staging_cache(runtime.paths.home.cache, identity) as staging:
             result = fetch_source(
                 target.parsed,
                 destination=staging,
@@ -266,8 +270,8 @@ def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
                 CacheMetadata(
                     format_version=CACHE_FORMAT_VERSION,
                     doc_type=target.parsed.doc_type,
-                    source=target.parsed.canonical,
-                    source_digest=source_digest(target.parsed.canonical),
+                    source=target.parsed.original,
+                    source_digest=source_digest(identity),
                     fetched_at=result.fetched_at,
                     content_kind=result.content_kind,
                     content_name=result.content_name,

@@ -31,6 +31,7 @@ from apiscope.schema import (
     ProjectConfigFile,
     RuntimeSource,
 )
+from apiscope.source import LocalLocation, SourceResolutionError, is_absolute_path, parse_source
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -62,6 +63,7 @@ def main_callback(
         options = AddOptions(name=name, doc_type=cast(DocumentType, doc_type), doc_src=source, doc_ttl=ttl)
         command_context = AddCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)
+        _validate_source(runtime_context, options)
         _add_source(command_context)
     except ValidationError:
         error = MessageError("add.error.invalid_options", {"name": name})
@@ -82,6 +84,24 @@ def main_callback(
     )
 
 
+def _validate_source(runtime: RuntimeContext, options: AddOptions) -> None:
+    base_dir = runtime.paths.project.root if runtime.paths.project is not None else Path.cwd()
+    try:
+        parsed = parse_source(options.doc_type, options.doc_src, base_dir=base_dir)
+    except SourceResolutionError as error:
+        raise MessageError(
+            "add.error.invalid_source",
+            {"source": options.doc_src, "reason": error.reason_code},
+        ) from error
+    if not isinstance(parsed.location, LocalLocation):
+        return
+    absolute = is_absolute_path(options.doc_src)
+    if runtime.options.global_only and not absolute:
+        raise MessageError("add.error.source_path_absolute", {"source": options.doc_src})
+    if not runtime.options.global_only and absolute:
+        raise MessageError("add.error.source_path_relative", {"source": options.doc_src})
+
+
 def _add_source(command_context: AddCommandContext) -> None:
     runtime = command_context.runtime
     path, model = _config_target(runtime)
@@ -93,6 +113,7 @@ def _add_source(command_context: AddCommandContext) -> None:
     sources = extract_config_sources(config_file)
     if command_context.options.name in sources:
         raise MessageError("add.error.duplicate_name", {"name": command_context.options.name})
+    _reject_duplicate_source(runtime, command_context.options)
 
     source = RuntimeSource(
         doc_type=command_context.options.doc_type,
@@ -105,6 +126,12 @@ def _add_source(command_context: AddCommandContext) -> None:
         save_config_file(path, updated_config)
     except ConfigError as error:
         raise MessageError("add.error.persistence.write_failed", {"path": str(path)}) from error
+
+
+def _reject_duplicate_source(runtime: RuntimeContext, options: AddOptions) -> None:
+    for name, source in runtime.config.source.items():
+        if source.doc_src == options.doc_src:
+            raise MessageError("add.error.duplicate_source", {"name": name, "source": options.doc_src})
 
 
 def _config_target(runtime: RuntimeContext) -> tuple[Path, type[BaseModel]]:

@@ -73,6 +73,13 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "root.error.config.read_failed": "cannot read the file at {path} because it is missing or inaccessible",
     "root.error.config.write_failed": "cannot write the file at {path} because the path is not writable",
     "root.error.config.invalid": "configuration at {path} is invalid. fix or remove it before retrying",
+    "root.error.config.duplicate_source": "the source {source} is already registered as {name}",
+    "root.error.config.source_path_absolute": (
+        "the source {source} must use an absolute path in the home configuration"
+    ),
+    "root.error.config.source_path_relative": (
+        "the source {source} must use a relative path in the project configuration"
+    ),
     "root.error.config.schema_generation_failed": "cannot generate the schema at {path}",
     "root.error.config.unsupported_home_layout": (
         "cannot use the apiscope home at {path} because its layout is unsupported. "

@@ -26,6 +26,10 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.name_not_found": "source {name} does not exist",
     "sync.error.parse_failed": "cannot parse source {source} because its location is invalid",
     "sync.error.source.parse.source_empty": "cannot parse source {source} because the source is empty",
+    "sync.error.source.parse.source_whitespace": ("cannot parse source {source} because it has surrounding whitespace"),
+    "sync.error.source.parse.path_home_unsupported": (
+        "cannot parse source {source} because a home-relative path is not supported"
+    ),
     "sync.error.source.parse.unsupported_scheme": (
         "cannot parse source {source} because scheme {scheme} is not supported"
     ),
