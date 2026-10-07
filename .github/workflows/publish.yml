@@ -2,13 +2,15 @@
 
 # GitHub Actions workflow for automated package release and publishing
 # Handles semantic versioning, GitHub releases, and PyPI publishing
+# runs after the CI workflow succeeds on main, so a failing commit is never released
 
 name: Continuous Delivery
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -16,8 +18,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # a workflow_run fires for every conclusion, so gate on the result and origin
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     concurrency:
-      group: ${{ github.workflow }}-release-${{ github.ref_name }}
+      group: ${{ github.workflow }}-release-${{ github.event.workflow_run.head_branch }}
       cancel-in-progress: false
 
     permissions:
@@ -27,12 +34,12 @@ jobs:
       - name: Setup | Checkout Repository on Release Branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
 
-      - name: Setup | Force release branch to be at workflow sha
+      - name: Setup | Force release branch to be at the ci commit
         run: |
-          git reset --hard ${{ github.sha }}
+          git reset --hard ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup | Set up PDM
         uses: pdm-project/setup-pdm@v4
