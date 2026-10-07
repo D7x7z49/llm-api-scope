@@ -57,6 +57,14 @@ repos:
         files: ^(apiscope/.*\.py|scripts/ci/usage\.py|docs/usage\.txt)$
         pass_filenames: false
 
+      - id: layout
+        name: Check the apiscope layout
+        entry: bash -c "git ls-tree -r --name-only \"${PRE_COMMIT_TO_REF:-HEAD}\" apiscope | pdm run python scripts/ci/layout.py"
+        language: unsupported
+        files: ^(apiscope/.*|scripts/ci/layout\.py)$
+        pass_filenames: false
+        stages: [pre-push, manual]
+
       - id: pytest
         name: Run the tests
         entry: pdm run pytest

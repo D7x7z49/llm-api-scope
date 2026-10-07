@@ -30,7 +30,7 @@ CONTRACT
 - keep behavior local; extract a shared helper only when the copies are identical and need no flag
 
 GRAMMAR
-- this file states the rules; `apiscope/layout.ebnf` holds the current concrete scopes
-- add or rename a scope in the instance file, not here
+- this file states the rules; `apiscope/layout.txt` holds the scope shape
+- a new command is recorded by its directory, not by a rule here
 
 ---

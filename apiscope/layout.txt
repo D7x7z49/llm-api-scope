@@ -1,0 +1,39 @@
+(* apiscope/layout.txt *)
+
+(* ========================================================================== *)
+(* COMMAND SCOPE SHAPE                                                        *)
+(* ========================================================================== *)
+
+(*
+fixed modules, in order:
+- app.py       behavior: the command entry point
+- constants.py text: the user-facing words
+- context.py   state: the resolved inputs for the act
+- preflight.py gate: the checks that run before the act
+- schema.py    contract: the types and payloads
+*)
+fixed
+    = "app.py", "constants.py", "context.py", "preflight.py", "schema.py";
+
+(* a command named n is its scope plus an optional public module *)
+command(n)
+    = scope, [ public(n) ];
+
+(* a scope holds the fixed modules, custom modules, child commands, and a private module *)
+scope
+    = fixed, { module }, { command(m) }, [ "_lib" ];
+
+(* a public module reuses the command name when it exists *)
+public(n)
+    = n, "_lib";
+
+(* a custom module owns one local concern and takes any name *)
+module
+    = name, ".py";
+
+(* a command name is usually one word *)
+name
+    = letter, { letter | digit | "_" };
+
+letter
+    = "a".."z" | "A".."Z";

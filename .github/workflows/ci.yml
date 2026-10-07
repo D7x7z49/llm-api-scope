@@ -45,6 +45,9 @@ jobs:
       - name: check the usage reference
         run: pdm run python scripts/ci/usage.py --check docs/usage.txt
 
+      - name: check the apiscope layout
+        run: git ls-tree -r --name-only HEAD apiscope | pdm run python scripts/ci/layout.py
+
       - name: run tests
         run: pdm run pytest
 
