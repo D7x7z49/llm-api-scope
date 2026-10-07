@@ -48,16 +48,17 @@ def main_callback(
         _emit_error(runtime_context, error)
         raise typer.Exit(code=1) from error
 
+    rows = [_row(runtime_context, data, entry) for entry in entries]
     emit_report(
         Report(
             status="ok",
             scope=runtime_context.scope,
             action=COMMAND_NAME,
-            data=[_row(runtime_context, data, entry) for entry in entries],
-            extra={"count": len(entries)},
+            data=rows,
+            extra={"count": len(rows)},
         ),
         output_format=runtime_context.options.output_format,
-        body=_render_body(runtime_context, data, entries),
+        body=_render_body(rows),
     )
 
 
@@ -84,13 +85,10 @@ def _row(runtime: RuntimeContext, data: BookmarkFile, entry: BookmarkEntry) -> d
     }
 
 
-def _render_body(runtime: RuntimeContext, data: BookmarkFile, entries: list[BookmarkEntry]) -> str:
-    if not entries:
+def _render_body(rows: list[dict[str, str]]) -> str:
+    if not rows:
         return MESSAGE_TEMPLATES["bookmark.list.body.empty"]
-    return "\n".join(
-        f"- [{entry.id}] {entry.mode} {entry.target} ({entry_status(runtime, data.bookmarks, entry)})"
-        for entry in entries
-    )
+    return "\n".join(f"- [{row['id']}] {row['mode']} {row['target']} ({row['status']})" for row in rows)
 
 
 def _runtime_context(ctx: typer.Context) -> RuntimeContext:
