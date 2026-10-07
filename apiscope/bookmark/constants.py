@@ -34,6 +34,7 @@ GROUP_MAX_MEMBERS: Final = 9
 
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "bookmark.help.command": "manage saved references to cached sources",
+    "bookmark.error.runtime_context_unavailable": "runtime context is unavailable",
     "bookmark.error.store.directory_prepare_failed": (
         "cannot prepare the bookmark directory at {path} because it cannot be created or written"
     ),

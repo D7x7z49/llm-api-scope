@@ -1,12 +1,12 @@
 # apiscope/bookmark/prune/app.py
 
 from collections.abc import Mapping
-from pathlib import Path
 
 import typer
 from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
+from apiscope.bookmark.context import resolve_context
 from apiscope.bookmark.prune.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.bookmark.prune.context import PruneCommandContext
 from apiscope.bookmark.prune.preflight import run_preflight
@@ -14,11 +14,10 @@ from apiscope.bookmark.prune.schema import PruneOptions
 from apiscope.bookmark.schema import BookmarkEntry
 from apiscope.bookmark.store import (
     entry_status,
-    global_path,
     isolated_ids,
+    layers,
     load_bookmarks,
     load_layer,
-    project_path,
     save_layer,
 )
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
@@ -46,7 +45,7 @@ def main_callback(
     ctx: typer.Context,
     invalid: bool = typer.Option(False, "--invalid", help=MESSAGE_TEMPLATES["bookmark.prune.help.option.invalid"]),
 ) -> None:
-    runtime_context = _runtime_context(ctx)
+    runtime_context = resolve_context(ctx)
     try:
         lock = acquire_write_lock(runtime_context.paths.home.root)
         ctx.call_on_close(lock.release)
@@ -55,7 +54,7 @@ def main_callback(
         run_preflight(command_context)
         pruned = _prune(command_context)
     except ValidationError as error:
-        _emit_error(runtime_context, MessageError("bookmark.prune.error.runtime_context_unavailable"))
+        _emit_error(runtime_context, MessageError("bookmark.prune.error.invalid_options"))
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -87,7 +86,7 @@ def _prune(command_context: PruneCommandContext) -> int:
     isolated = isolated_ids(merged.bookmarks)
 
     pruned: set[str] = set()
-    for path in _layers(runtime):
+    for path in layers(runtime):
         data = load_layer(path)
         doomed = {
             bookmark_id
@@ -114,21 +113,6 @@ def _prunable(
     if status == "removed":
         return True
     return options.invalid and status == "invalid"
-
-
-# a project entry shadows a global entry, so search the project layer first
-def _layers(runtime: RuntimeContext) -> tuple[Path, ...]:
-    path = project_path(runtime)
-    if path is None:
-        return (global_path(runtime),)
-    return (path, global_path(runtime))
-
-
-def _runtime_context(ctx: typer.Context) -> RuntimeContext:
-    runtime_context = ctx.find_object(RuntimeContext)
-    if runtime_context is None:
-        raise MessageError("bookmark.prune.error.runtime_context_unavailable")
-    return runtime_context
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:

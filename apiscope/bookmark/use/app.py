@@ -8,6 +8,7 @@ import typer
 from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
+from apiscope.bookmark.context import resolve_context
 from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile
 from apiscope.bookmark.store import base_directory, entry_status, load_bookmarks
 from apiscope.bookmark.use.constants import COMMAND_NAME, MESSAGE_TEMPLATES
@@ -55,7 +56,7 @@ def main_callback(
     ctx: typer.Context,
     bookmark_id: str = typer.Argument(..., metavar="ID", help=MESSAGE_TEMPLATES["bookmark.use.help.argument.id"]),
 ) -> None:
-    runtime_context = _runtime_context(ctx)
+    runtime_context = resolve_context(ctx)
     try:
         options = UseOptions(id=bookmark_id)
         command_context = UseCommandContext(runtime=runtime_context, options=options)
@@ -250,13 +251,6 @@ def _load_source(
 
 def _meta(entry: BookmarkEntry) -> dict[str, object]:
     return {"id": entry.id, "mode": entry.mode, "target": entry.target}
-
-
-def _runtime_context(ctx: typer.Context) -> RuntimeContext:
-    runtime_context = ctx.find_object(RuntimeContext)
-    if runtime_context is None:
-        raise MessageError("bookmark.use.error.runtime_context_unavailable")
-    return runtime_context
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:

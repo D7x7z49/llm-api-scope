@@ -4,6 +4,7 @@ import typer
 from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
+from apiscope.bookmark.context import resolve_context
 from apiscope.bookmark.list.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.bookmark.list.context import ListCommandContext
 from apiscope.bookmark.list.preflight import run_preflight
@@ -34,7 +35,7 @@ def main_callback(
     ctx: typer.Context,
     group: str | None = typer.Argument(None, help=MESSAGE_TEMPLATES["bookmark.list.help.argument.group"]),
 ) -> None:
-    runtime_context = _runtime_context(ctx)
+    runtime_context = resolve_context(ctx)
     try:
         options = ListOptions(group=group)
         command_context = ListCommandContext(runtime=runtime_context, options=options)
@@ -89,13 +90,6 @@ def _render_body(rows: list[dict[str, str]]) -> str:
     if not rows:
         return MESSAGE_TEMPLATES["bookmark.list.body.empty"]
     return "\n".join(f"- [{row['id']}] {row['mode']} {row['target']} ({row['status']})" for row in rows)
-
-
-def _runtime_context(ctx: typer.Context) -> RuntimeContext:
-    runtime_context = ctx.find_object(RuntimeContext)
-    if runtime_context is None:
-        raise MessageError("bookmark.list.error.runtime_context_unavailable")
-    return runtime_context
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:

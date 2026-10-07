@@ -12,10 +12,6 @@ COMMAND_NAME: Final = "install"
 # skill markdown
 # ==============================================================================
 
-SKILL_DESCRIPTION: Final = (
-    "browse cached sources with add, remove, list, sync, view, and read; "
-    "use when reading api specs, rfc standards, or synced repo docs"
-)
 SKILL_FILENAME: Final = "SKILL.md"
 DEFAULT_INSTALL_TARGET: Final = "~/.agents/skills/apiscope"
 

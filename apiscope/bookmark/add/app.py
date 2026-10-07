@@ -10,6 +10,7 @@ from apiscope.bookmark.add.context import AddCommandContext
 from apiscope.bookmark.add.preflight import run_preflight
 from apiscope.bookmark.add.schema import AddOptions
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
+from apiscope.bookmark.context import resolve_context
 from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile, BookmarkMode
 from apiscope.bookmark.store import ensure_bookmarks, load_bookmarks, save_bookmarks, target_digest, validate_acyclic
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
@@ -60,7 +61,7 @@ def main_callback(
     ),
     force: bool = typer.Option(False, "--force", help=MESSAGE_TEMPLATES["bookmark.add.help.option.force"]),
 ) -> None:
-    runtime_context = _runtime_context(ctx)
+    runtime_context = resolve_context(ctx)
     try:
         lock = acquire_write_lock(runtime_context.paths.home.root)
         ctx.call_on_close(lock.release)
@@ -156,13 +157,6 @@ def _build_group(merged: BookmarkFile, options: AddOptions) -> BookmarkEntry:
         mode="group",
         members=members,
     )
-
-
-def _runtime_context(ctx: typer.Context) -> RuntimeContext:
-    runtime_context = ctx.find_object(RuntimeContext)
-    if runtime_context is None:
-        raise MessageError("bookmark.add.error.runtime_context_unavailable")
-    return runtime_context
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:

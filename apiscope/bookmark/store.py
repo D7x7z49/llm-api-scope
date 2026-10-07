@@ -35,6 +35,14 @@ def project_path(runtime: RuntimeContext) -> Path | None:
     return runtime.paths.project.config.parent / BOOKMARK_FILENAME
 
 
+# a project entry shadows a global entry, so search the project layer first
+def layers(runtime: RuntimeContext) -> tuple[Path, ...]:
+    path = project_path(runtime)
+    if path is None:
+        return (global_path(runtime),)
+    return (path, global_path(runtime))
+
+
 # write into the project layer when one exists, otherwise into the global layer
 def write_path(runtime: RuntimeContext) -> Path:
     path = project_path(runtime)

@@ -21,7 +21,6 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "bookmark.add.help.option.start": "the first line for a file bookmark",
     "bookmark.add.help.option.offset": "how many lines a file bookmark reads",
     "bookmark.add.help.option.force": "replace an existing bookmark with the same id",
-    "bookmark.add.error.runtime_context_unavailable": "runtime context is unavailable",
     "bookmark.add.error.invalid_options": "the bookmark options are invalid",
     "bookmark.add.error.duplicate_id": "a bookmark with the id {id} already exists",
     "bookmark.add.error.target_count": "the {mode} mode needs exactly one target, but got {count}",

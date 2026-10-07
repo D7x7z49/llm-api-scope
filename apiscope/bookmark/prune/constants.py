@@ -15,5 +15,5 @@ COMMAND_NAME: Final = "prune"
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "bookmark.prune.help.command": "delete removed and isolated references",
     "bookmark.prune.help.option.invalid": "also delete invalid and isolated references",
-    "bookmark.prune.error.runtime_context_unavailable": "runtime context is unavailable",
+    "bookmark.prune.error.invalid_options": "invalid prune options",
 }

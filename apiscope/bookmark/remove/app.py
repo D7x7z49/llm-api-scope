@@ -1,22 +1,15 @@
 # apiscope/bookmark/remove/app.py
 
-from pathlib import Path
-
 import typer
 from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
+from apiscope.bookmark.context import resolve_context
 from apiscope.bookmark.remove.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.bookmark.remove.context import RemoveCommandContext
 from apiscope.bookmark.remove.preflight import run_preflight
 from apiscope.bookmark.remove.schema import RemoveOptions
-from apiscope.bookmark.store import (
-    ensure_bookmarks,
-    global_path,
-    load_layer,
-    project_path,
-    save_layer,
-)
+from apiscope.bookmark.store import ensure_bookmarks, layers, load_layer, save_layer
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
@@ -42,7 +35,7 @@ def main_callback(
     ctx: typer.Context,
     bookmark_id: str = typer.Argument(..., metavar="ID", help=MESSAGE_TEMPLATES["bookmark.remove.help.argument.id"]),
 ) -> None:
-    runtime_context = _runtime_context(ctx)
+    runtime_context = resolve_context(ctx)
     try:
         lock = acquire_write_lock(runtime_context.paths.home.root)
         ctx.call_on_close(lock.release)
@@ -77,7 +70,7 @@ def _remove(command_context: RemoveCommandContext) -> None:
     runtime = command_context.runtime
     options = command_context.options
     ensure_bookmarks(runtime)
-    for path in _layers(runtime):
+    for path in layers(runtime):
         data = load_layer(path)
         entry = data.bookmarks.get(options.id)
         if entry is None:
@@ -92,21 +85,6 @@ def _remove(command_context: RemoveCommandContext) -> None:
         save_layer(path, data)
         return
     raise MessageError("bookmark.remove.error.id_not_found", {"id": options.id})
-
-
-# a project entry shadows a global entry, so search the project layer first
-def _layers(runtime: RuntimeContext) -> tuple[Path, ...]:
-    path = project_path(runtime)
-    if path is None:
-        return (global_path(runtime),)
-    return (path, global_path(runtime))
-
-
-def _runtime_context(ctx: typer.Context) -> RuntimeContext:
-    runtime_context = ctx.find_object(RuntimeContext)
-    if runtime_context is None:
-        raise MessageError("bookmark.remove.error.runtime_context_unavailable")
-    return runtime_context
 
 
 def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
