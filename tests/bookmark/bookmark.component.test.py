@@ -325,12 +325,12 @@ def test_use_runs_a_view_bookmark(
     _synced_filesystem_source(project_cwd)
     runner = CliRunner()
 
-    added = _add_source_bookmark(runner, "docs-view", "view", "docs/readme.txt")
+    added = _add_source_bookmark(runner, "docs-view", "view", "docs")
     used = runner.invoke(app, ["bookmark", "use", "docs-view"])
 
     assert added.exit_code == 0
     assert used.exit_code == 0
-    assert "readme.txt" in used.output
+    assert "- [1] readme.txt" in used.output
 
 
 def test_use_runs_a_read_bookmark(
