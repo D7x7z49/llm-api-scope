@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-# CI — commit messages, lock, lint, format, usage, layout, tests, types
+# CI — commit messages, lock, lint, format, usage, layout, types, tests
 # runs on pull requests and on main pushes so a direct push is still checked
 # every step is read-only: CI checks, it never edits files
 
@@ -21,7 +21,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # full quality pass on the lowest supported python
+  # static checks, run once: ruff and mypy already target 3.12,
+  # so their result does not change with the interpreter
   check:
     runs-on: ubuntu-latest
     steps:
@@ -58,25 +59,16 @@ jobs:
       - name: check the apiscope layout
         run: git ls-tree -r --name-only HEAD apiscope | pdm run python scripts/ci/layout.py
 
-      - name: run tests
-        run: pdm run pytest
-
       - name: type check with mypy
         run: pdm run mypy apiscope/ tests/
 
-  # the test suite on the newer stable versions
-  # a release younger than its dependencies is allowed to fail until they catch up
-  compat:
+  # the test suite on every supported python
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - python-version: "3.14"
-            experimental: false
-          - python-version: "3.15"
-            experimental: true
-    continue-on-error: ${{ matrix.experimental }}
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
