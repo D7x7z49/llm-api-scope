@@ -20,3 +20,4 @@ def test_render_usage_lists_the_root_options_and_commands() -> None:
     assert "  + [--global]?" in text
     assert "  + [--json]?" in text
     assert "  - skill #" in text
+    assert "      + [TARGET]...? # the target path, address, or the group member ids" in text

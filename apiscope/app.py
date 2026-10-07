@@ -4,6 +4,8 @@ import typer
 
 from apiscope.add.app import app as add_app
 from apiscope.add.constants import COMMAND_NAME as ADD_COMMAND_NAME
+from apiscope.bookmark.app import app as bookmark_app
+from apiscope.bookmark.constants import COMMAND_NAME as BOOKMARK_COMMAND_NAME
 from apiscope.config import ConfigError, build_home_paths, resolve_home
 from apiscope.constants import MESSAGE_TEMPLATES
 from apiscope.context import RootOptions
@@ -42,6 +44,7 @@ app.add_typer(list_app, name=LIST_COMMAND_NAME)
 app.add_typer(sync_app, name=SYNC_COMMAND_NAME)
 app.add_typer(view_app, name=VIEW_COMMAND_NAME)
 app.add_typer(skill_app, name=SKILL_COMMAND_NAME)
+app.add_typer(bookmark_app, name=BOOKMARK_COMMAND_NAME)
 
 # write commands prepare assets; read commands only load and project
 _WRITE_COMMANDS = {ADD_COMMAND_NAME, REMOVE_COMMAND_NAME, SYNC_COMMAND_NAME}
