@@ -26,3 +26,20 @@
     - show # print the skill content
     - install # install the skill directory
       + [TARGET]? # install directory, defaulting to ~/.agents/skills/apiscope
+  - bookmark # manage saved references to cached sources
+    - add # save a new named reference
+      + [ID] # the bookmark id, a lower-case kebab-case name
+      + [MODE] # the target kind: file, view, read, or group
+      + [TARGET]...? # the target path, address, or the group member ids
+      + [--description] # a short description of the reference
+      + [--start]? # the first line for a file bookmark
+      + [--offset]? # how many lines a file bookmark reads
+      + [--force]? # replace an existing bookmark with the same id
+    - remove # mark a saved reference as removed
+      + [ID] # the bookmark id to mark removed
+    - list # list saved references, or the members of one group
+      + [GROUP]? # an optional group id whose members are listed
+    - use # run a saved reference
+      + [ID] # the bookmark id to run
+    - prune # delete removed and isolated references
+      + [--invalid]? # also delete invalid and isolated references

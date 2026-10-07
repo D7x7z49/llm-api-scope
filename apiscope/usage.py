@@ -53,7 +53,9 @@ def _render_params(command: Command, level: int, lines: list[str]) -> None:
 
 def _render_param(param: object) -> str | None:
     if isinstance(param, TyperArgument):
-        return _render_entry((param.name or "").upper(), param.required, param.multiple, param.help)
+        name = param.metavar or (param.name or "").upper()
+        multiple = param.multiple or param.nargs == -1
+        return _render_entry(name, param.required, multiple, param.help)
     if isinstance(param, TyperOption):
         options = list(param.opts)
         if not options:

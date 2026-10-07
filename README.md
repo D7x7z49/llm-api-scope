@@ -152,6 +152,21 @@ apiscope read <address> [<index>]
 
 the index is optional when the address already points at a leaf.
 
+### bookmark
+
+save a named reference and reopen it later:
+
+```bash
+apiscope bookmark add <id> <mode> <target>... --description <text>
+apiscope bookmark list [<group>]
+apiscope bookmark use <id>
+apiscope bookmark remove <id>
+apiscope bookmark prune [--invalid]
+```
+
+mode is file, view, read, or group; a group takes five to nine member ids.
+bookmarks live in a global file and a project file, and the project wins.
+
 ### skill
 
 print or install the agent skill:
