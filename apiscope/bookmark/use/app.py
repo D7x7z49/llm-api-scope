@@ -14,7 +14,7 @@ from apiscope.bookmark.use.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.bookmark.use.context import UseCommandContext
 from apiscope.bookmark.use.preflight import run_preflight
 from apiscope.bookmark.use.schema import UseOptions
-from apiscope.cache import digest_content
+from apiscope.cache import CacheMetadata, digest_content
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
 from apiscope.content import ContentSnapshot, load_content
 from apiscope.context import RuntimeContext
@@ -181,9 +181,7 @@ def _member_row(runtime: RuntimeContext, data: BookmarkFile, entry: BookmarkEntr
 
 
 def _run_view(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    _name, route, source, snapshot = _load_source(runtime, entry)
-    metadata = snapshot.metadata
-    assert metadata is not None
+    _name, route, source, snapshot, metadata = _load_source(runtime, entry)
     try:
         tree = build_tree(source.doc_type, snapshot.content, metadata)
         nodes = tree.select(route)
@@ -200,9 +198,7 @@ def _run_view(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
 
 
 def _run_read(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    _name, route, source, snapshot = _load_source(runtime, entry)
-    metadata = snapshot.metadata
-    assert metadata is not None
+    _name, route, source, snapshot, metadata = _load_source(runtime, entry)
     if not supports_reading(source.doc_type):
         raise MessageError("bookmark.use.error.read_failed", {"target": entry.target})
     try:
@@ -225,7 +221,7 @@ def _run_read(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
 def _load_source(
     runtime: RuntimeContext,
     entry: BookmarkEntry,
-) -> tuple[str, str, RuntimeSource, ContentSnapshot]:
+) -> tuple[str, str, RuntimeSource, ContentSnapshot, CacheMetadata]:
     name, route = split_address(entry.target, runtime.config.source)
     source = runtime.config.source.get(name)
     if source is None:
@@ -239,11 +235,12 @@ def _load_source(
 
     ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
     snapshot = load_content(runtime.paths.home.cache, parsed, base_dir=base_dir, ttl_days=ttl_days)
-    if snapshot.inspection.state in {"missing", "invalid"} or snapshot.metadata is None:
+    metadata = snapshot.metadata
+    if snapshot.inspection.state in {"missing", "invalid"} or metadata is None:
         raise MessageError("bookmark.use.error.cache_missing", {"name": name})
-    if snapshot.metadata.content_digest != entry.expected_digest:
+    if metadata.content_digest != entry.expected_digest:
         raise MessageError("bookmark.use.error.invalid", {"id": entry.id})
-    return name, route, source, snapshot
+    return name, route, source, snapshot, metadata
 
 
 # ==============================================================================
