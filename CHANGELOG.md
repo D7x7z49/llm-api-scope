@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-10-07)
+
+### Documentation
+
+- **bookmark**: Document the command in the readme
+  ([`640a3ae`](https://github.com/D7x7z49/llm-api-scope/commit/640a3ae6967e11bec85e6bbc5f0ba7c5232a40eb))
+
+### Features
+
+- **bookmark**: Save and reopen references to cached sources
+  ([`107aaab`](https://github.com/D7x7z49/llm-api-scope/commit/107aaabc209e8e6fb17941bfbd7891737fc245b2))
+
+### Refactoring
+
+- **bookmark**: Derive the list status once
+  ([`7059123`](https://github.com/D7x7z49/llm-api-scope/commit/7059123c06fede6373729e6ef7b079fafb700593))
+
+- **bookmark**: Return the cache metadata from load_source
+  ([`0516bd4`](https://github.com/D7x7z49/llm-api-scope/commit/0516bd40ec185d9cd8802aa101e3b5960bf4d6aa))
+
+### Testing
+
+- **bookmark**: Assert the rendered view body
+  ([`5756f81`](https://github.com/D7x7z49/llm-api-scope/commit/5756f811235f9a057917b480dc2b64609fbf471e))
+
+
 ## v0.10.0 (2026-10-05)
 
 ### Bug Fixes
