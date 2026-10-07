@@ -26,7 +26,6 @@ requires-python = ">=3.12,<4.0"
 dependencies = [
     "typer>=0.26.3",
     "pydantic>=2.13.4",
-    "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
     "httpx>=0.28.1",
 ]
