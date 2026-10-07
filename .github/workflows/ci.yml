@@ -1,18 +1,27 @@
 # .github/workflows/ci.yml
 
-# PR validation — commit messages, lock, lint, format, usage, tests, types.
-# Every step is read-only: CI checks, it never edits files.
+# CI — commit messages, lock, lint, format, usage, layout, tests, types
+# runs on pull requests and on main pushes so a direct push is still checked
+# every step is read-only: CI checks, it never edits files
 
 name: CI
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
+# cancel a superseded pull request run, but let a main run finish
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # full quality pass on the lowest supported python
   check:
     runs-on: ubuntu-latest
     steps:
@@ -29,6 +38,7 @@ jobs:
         run: pdm sync -d
 
       - name: check the commit messages
+        if: github.event_name == 'pull_request'
         run: >-
           pdm run cz check --rev-range
           ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
@@ -53,3 +63,30 @@ jobs:
 
       - name: type check with mypy
         run: pdm run mypy apiscope/ tests/
+
+  # the test suite on the newer stable versions
+  # a release younger than its dependencies is allowed to fail until they catch up
+  compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.14"
+            experimental: false
+          - python-version: "3.15"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: true
+
+      - name: install dependencies
+        run: pdm sync -d
+
+      - name: run tests
+        run: pdm run pytest
