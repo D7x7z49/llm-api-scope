@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Final
 from urllib.parse import unquote, urlsplit
 
-import httpx
+import httpx2
 
 from apiscope.cache import digest_content
 from apiscope.sync._lib.errors import TransportError
@@ -70,10 +70,10 @@ def fetch_remote_bytes(url: str, *, proxy: str | None = None, no_proxy: str | No
 
 # the program reads the proxy only from configuration; a configured proxy is used
 # unless the target host is in the configured bypass list.
-def _client(proxy: str | None, no_proxy: str | None, url: str) -> httpx.Client:
+def _client(proxy: str | None, no_proxy: str | None, url: str) -> httpx2.Client:
     if not proxy or _is_bypassed(url, no_proxy):
-        return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, trust_env=False)
-    return httpx.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, proxy=proxy, trust_env=False)
+        return httpx2.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, trust_env=False)
+    return httpx2.Client(follow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS, proxy=proxy, trust_env=False)
 
 
 def _is_bypassed(url: str, no_proxy: str | None) -> bool:

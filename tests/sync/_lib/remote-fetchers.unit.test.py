@@ -2,7 +2,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 
 from apiscope.schema import DocumentType
@@ -34,15 +34,15 @@ def test_remote_fetchers_store_mocked_content(
     fetcher_type: type[OpenapiFetcher] | type[RfcFetcher] | type[LlmstxtFetcher],
     doc_type: DocumentType,
     url: str,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
 ) -> None:
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx.Response(200, content=b"remote content")
+        return httpx2.Response(200, content=b"remote content")
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     source = _remote_source(doc_type, url)
     destination = tmp_path / "staging"
 
@@ -57,18 +57,18 @@ def test_remote_fetchers_store_mocked_content(
 
 def test_llmstxt_fetcher_downloads_the_index_and_pages(
     tmp_path: Path,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
 ) -> None:
     requests: list[str] = []
     index = b"# Docs\n\n- [Guide](guide/intro.md): the guide\n"
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(str(request.url))
         if str(request.url) == "https://example.test/docs/llms.txt":
-            return httpx.Response(200, content=index)
-        return httpx.Response(200, content=b"page content")
+            return httpx2.Response(200, content=index)
+        return httpx2.Response(200, content=b"page content")
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     url = "https://example.test/docs/llms.txt"
     source = _remote_source("llmstxt", url)
     destination = tmp_path / "staging"
@@ -84,15 +84,15 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
 
 def test_rfc_fetcher_uses_xml_when_present(
     tmp_path: Path,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
 ) -> None:
     requests: list[str] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(str(request.url))
-        return httpx.Response(200, content=b"<rfc/>")
+        return httpx2.Response(200, content=b"<rfc/>")
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     source = _remote_source("rfc", "https://example.test/rfc9110.xml")
     destination = tmp_path / "staging"
 
@@ -104,17 +104,17 @@ def test_rfc_fetcher_uses_xml_when_present(
 
 def test_rfc_fetcher_falls_back_to_text_when_xml_is_absent(
     tmp_path: Path,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
 ) -> None:
     requests: list[str] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(str(request.url))
         if str(request.url).endswith(".xml"):
-            return httpx.Response(404, request=request)
-        return httpx.Response(200, content=b"rfc text")
+            return httpx2.Response(404, request=request)
+        return httpx2.Response(200, content=b"rfc text")
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     source = _remote_source("rfc", "https://example.test/rfc9110.xml")
     destination = tmp_path / "staging"
 
@@ -137,16 +137,16 @@ def test_remote_fetchers_translate_http_errors_with_the_original_cause(
     fetcher_type: type[OpenapiFetcher] | type[RfcFetcher] | type[LlmstxtFetcher],
     doc_type: DocumentType,
     url: str,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
 ) -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(503, request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(503, request=request)
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     source = _remote_source(doc_type, url)
 
     with pytest.raises(SourceFetchError) as raised:
         fetcher_type().fetch(source, destination=tmp_path / "staging")
 
     assert raised.value.reason_code == "fetch.transport_failed"
-    assert isinstance(raised.value.__cause__, httpx.HTTPStatusError)
+    assert isinstance(raised.value.__cause__, httpx2.HTTPStatusError)

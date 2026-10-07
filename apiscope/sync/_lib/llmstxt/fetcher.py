@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
-import httpx
+import httpx2
 
 from apiscope.cache import CACHE_CONTENT_DIRECTORY, digest_content
 from apiscope.sync._lib.errors import SourceFetchError, TransportError
@@ -35,7 +35,7 @@ class LlmstxtFetcher:
             )
         except TransportError as error:
             raise SourceFetchError(source.original, error.reason_code, error.values) from error
-        except (OSError, ValueError, httpx.HTTPError) as error:
+        except (OSError, ValueError, httpx2.HTTPError) as error:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": str(error)}) from error
         if content_kind != "file" or index_name is None:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": "the index is not a file"})
@@ -50,7 +50,7 @@ class LlmstxtFetcher:
             try:
                 page = content_path / _route(base, target)
                 data = _page_bytes(target, index_dir, proxy=proxy, no_proxy=no_proxy)
-            except (OSError, ValueError, httpx.HTTPError):
+            except (OSError, ValueError, httpx2.HTTPError):
                 continue
             page.parent.mkdir(parents=True, exist_ok=True)
             page.write_bytes(data)

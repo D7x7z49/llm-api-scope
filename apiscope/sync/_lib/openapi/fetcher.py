@@ -3,7 +3,7 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
+import httpx2
 
 from apiscope.sync._lib.errors import SourceFetchError, TransportError
 from apiscope.sync._lib.schema import FetchResult, ParsedSource
@@ -25,7 +25,7 @@ class OpenapiFetcher:
             )
         except TransportError as error:
             raise SourceFetchError(source.original, error.reason_code, error.values) from error
-        except (OSError, ValueError, shutil.Error, httpx.HTTPError) as error:
+        except (OSError, ValueError, shutil.Error, httpx2.HTTPError) as error:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": str(error)}) from error
         return FetchResult(
             fetched_at=datetime.now(timezone.utc),

@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 
 from apiscope.constants import APISCOPE_HOME_ENV
@@ -46,24 +46,24 @@ def git_executable() -> str:
 
 
 @pytest.fixture
-def httpx_client_options() -> dict[str, Any]:
+def http_client_options() -> dict[str, Any]:
     return {}
 
 
 @pytest.fixture
-def install_httpx_mock_client(
+def install_mock_client(
     monkeypatch: pytest.MonkeyPatch,
-    httpx_client_options: dict[str, Any],
-) -> Callable[[Callable[[httpx.Request], httpx.Response]], None]:
-    real_client = httpx.Client
+    http_client_options: dict[str, Any],
+) -> Callable[[Callable[[httpx2.Request], httpx2.Response]], None]:
+    real_client = httpx2.Client
 
-    def install(handler: Callable[[httpx.Request], httpx.Response]) -> None:
-        def client_factory(**kwargs: Any) -> httpx.Client:
-            httpx_client_options.update(kwargs)
+    def install(handler: Callable[[httpx2.Request], httpx2.Response]) -> None:
+        def client_factory(**kwargs: Any) -> httpx2.Client:
+            http_client_options.update(kwargs)
             mock_kwargs = dict(kwargs)
             mock_kwargs.pop("proxy", None)
-            return real_client(transport=httpx.MockTransport(handler), **mock_kwargs)
+            return real_client(transport=httpx2.MockTransport(handler), **mock_kwargs)
 
-        monkeypatch.setattr(transport.httpx, "Client", client_factory)
+        monkeypatch.setattr(transport.httpx2, "Client", client_factory)
 
     return install

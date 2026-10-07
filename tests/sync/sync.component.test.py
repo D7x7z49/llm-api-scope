@@ -3,7 +3,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 from typer.testing import CliRunner
 
@@ -46,8 +46,8 @@ def test_sync_fetches_a_filesystem_source(
 def test_sync_uses_local_proxy_for_a_remote_source(
     isolated_home: Path,
     project_cwd: Path,
-    install_httpx_mock_client: Callable[[Callable[[httpx.Request], httpx.Response]], None],
-    httpx_client_options: dict[str, object],
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+    http_client_options: dict[str, object],
 ) -> None:
     proxy = "http://proxy.example.test:8080"
     runner = CliRunner()
@@ -67,16 +67,16 @@ def test_sync_uses_local_proxy_for_a_remote_source(
         encoding="utf-8",
     )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, request=request, content=b"openapi")
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, request=request, content=b"openapi")
 
-    install_httpx_mock_client(handler)
+    install_mock_client(handler)
     result = runner.invoke(app, ["sync", "all", "api"], catch_exceptions=False)
 
     assert added.exit_code == 0
     assert result.exit_code == 0
-    assert httpx_client_options["proxy"] == proxy
-    assert httpx_client_options["trust_env"] is False
+    assert http_client_options["proxy"] == proxy
+    assert http_client_options["trust_env"] is False
     assert (isolated_home / ".apiscope" / "cache").is_dir()
 
 

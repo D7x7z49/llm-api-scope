@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 import yaml
 from typer.testing import CliRunner
@@ -334,22 +334,22 @@ def test_read_returns_one_rfc_txt_page(
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_client = httpx.Client
+    original_client = httpx2.Client
 
-    def handle(request: httpx.Request) -> httpx.Response:
+    def handle(request: httpx2.Request) -> httpx2.Response:
         if str(request.url).endswith(".xml"):
-            return httpx.Response(404, request=request)
-        return httpx.Response(
+            return httpx2.Response(404, request=request)
+        return httpx2.Response(
             200,
             headers={"content-type": "text/plain; charset=utf-8"},
             content=b"cover\fcontents\fbody page\n",
             request=request,
         )
 
-    def client_factory(**kwargs: Any) -> httpx.Client:
-        return original_client(transport=httpx.MockTransport(handle), **kwargs)
+    def client_factory(**kwargs: Any) -> httpx2.Client:
+        return original_client(transport=httpx2.MockTransport(handle), **kwargs)
 
-    monkeypatch.setattr(httpx, "Client", client_factory)
+    monkeypatch.setattr(httpx2, "Client", client_factory)
     runner = CliRunner()
 
     _register_and_sync(runner, "rfc", "9110", doc_type="rfc")
@@ -375,28 +375,28 @@ def test_sync_downloads_llmstxt_pages_and_read_returns_them(
         "- [API](https://example.test/docs/api.md)\n"
     )
     requested: list[str] = []
-    original_client = httpx.Client
+    original_client = httpx2.Client
 
-    def handle(request: httpx.Request) -> httpx.Response:
+    def handle(request: httpx2.Request) -> httpx2.Response:
         requested.append(str(request.url))
         if str(request.url) == "https://example.test/llms.txt":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 headers={"content-type": "text/plain; charset=utf-8"},
                 content=index.encode(),
                 request=request,
             )
-        return httpx.Response(
+        return httpx2.Response(
             200,
             headers={"content-type": "text/markdown; charset=utf-8"},
             content=b"# Guide\n",
             request=request,
         )
 
-    def client_factory(**kwargs: Any) -> httpx.Client:
-        return original_client(transport=httpx.MockTransport(handle), **kwargs)
+    def client_factory(**kwargs: Any) -> httpx2.Client:
+        return original_client(transport=httpx2.MockTransport(handle), **kwargs)
 
-    monkeypatch.setattr(httpx, "Client", client_factory)
+    monkeypatch.setattr(httpx2, "Client", client_factory)
     runner = CliRunner()
 
     _register_and_sync(runner, "docs", "https://example.test/llms.txt", doc_type="llmstxt")
@@ -417,22 +417,22 @@ def test_sync_skips_a_failed_llmstxt_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     index = b"# Docs\n\n## Guides\n- [Guide](https://example.test/docs/guide.md)\n"
-    original_client = httpx.Client
+    original_client = httpx2.Client
 
-    def handle(request: httpx.Request) -> httpx.Response:
+    def handle(request: httpx2.Request) -> httpx2.Response:
         if str(request.url) == "https://example.test/llms.txt":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 headers={"content-type": "text/plain; charset=utf-8"},
                 content=index,
                 request=request,
             )
-        return httpx.Response(404, request=request)
+        return httpx2.Response(404, request=request)
 
-    def client_factory(**kwargs: Any) -> httpx.Client:
-        return original_client(transport=httpx.MockTransport(handle), **kwargs)
+    def client_factory(**kwargs: Any) -> httpx2.Client:
+        return original_client(transport=httpx2.MockTransport(handle), **kwargs)
 
-    monkeypatch.setattr(httpx, "Client", client_factory)
+    monkeypatch.setattr(httpx2, "Client", client_factory)
     runner = CliRunner()
 
     added = runner.invoke(
