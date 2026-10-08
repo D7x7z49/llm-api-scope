@@ -14,7 +14,7 @@ FORMS
 - a python file is a conftest or a test file; the tree holds no `__init__.py`
 
 FIXTURES
-- a conftest is the root conftest or sits inside a mirror scope
+- a conftest is the root conftest, sits inside a mirror scope, or sits in e2e
 - a conftest holds the fixtures for its scope
 - a test module defines no fixture
 - an autouse fixture is rare and carries a one line reason

@@ -112,7 +112,8 @@ def loopback() -> Iterator[Callable[[Path], str]]:
 # ==============================================================================
 
 
-@pytest.fixture
+# autouse: a test must not read or write the real apiscope home
+@pytest.fixture(autouse=True)
 def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home = tmp_path / "isolated-home"
     monkeypatch.setenv(APISCOPE_HOME_ENV, str(home))

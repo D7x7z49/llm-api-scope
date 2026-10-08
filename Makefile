@@ -14,9 +14,10 @@ typecheck:
 test:
 	pdm run pytest
 
-# rewrite the golden output files from the current behavior
+# rewrite golden output for one test path, for example: make golden GOLDEN=tests/list
 golden:
-	UPDATE_GOLDEN=1 pdm run pytest
+	@: $${GOLDEN:?set GOLDEN to a test path, for example tests/list}
+	UPDATE_GOLDEN=1 pdm run pytest $(GOLDEN)
 
 # run the installed console script end to end, apart from the fast suite
 e2e:

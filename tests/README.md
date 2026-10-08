@@ -6,23 +6,23 @@ Write tests that verify necessary conditions only. No test suite covers infinite
 Before writing a test, decide its type by scope.
 
 - Unit tests
-  - File pattern: `*.unit.test.*`
+  - File pattern: `*.unit.test.py`
   - One test per cyclomatic complexity branch
   - No external calls; use in-memory fakes
 
 - Component tests
-  - File pattern: `*.component.test.*`
+  - File pattern: `*.component.test.py`
   - Cover public interface main scenarios
   - Also cover critical exceptions
 
 - Integration tests
-  - File pattern: `*.integration.test.*`
+  - File pattern: `*.integration.test.py`
   - Test only actually used component combinations
   - Mock only at component boundaries
 
 - End-to-end tests
-  - File pattern: `*.e2e.test.*`
-  - Limit to five or fifteen workflows
+  - File pattern: `*.e2e.test.py`
+  - Limit to five to fifteen workflows
   - Include only workflows with direct business impact
 
 After writing a test, run it with your language's standard test runner. Filter by naming patterns via regex or name matching. No specific command is given; adapt to your toolchain.
