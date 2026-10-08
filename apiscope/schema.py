@@ -13,7 +13,7 @@ from pydantic_core import MISSING
 # ==============================================================================
 
 
-DocumentType = Literal["filesystem", "repo", "openapi", "rfc", "llmstxt"]
+DocumentType = Literal["filesystem", "repo", "openapi", "rfc", "llmstxt", "arxiv"]
 
 SOURCE_SELECTOR_ALL: Final = "all"
 SourceSelector = Literal["all"] | DocumentType

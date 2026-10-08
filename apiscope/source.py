@@ -28,6 +28,7 @@ class SourceParseReason(StrEnum):
     REF_INVALID = "source.parse.ref_invalid"
     SUBPATH_INVALID = "source.parse.subpath_invalid"
     RFC_NUMBER_INVALID = "source.parse.rfc_number_invalid"
+    ARXIV_IDENTIFIER_INVALID = "source.parse.arxiv_identifier_invalid"
     LOCAL_FORM_UNSUPPORTED = "source.parse.local_form_unsupported"
     SCP_UNSUPPORTED = "source.parse.scp_unsupported"
 
@@ -38,6 +39,7 @@ _REMOTE_SCHEMES: dict[DocumentType, frozenset[str]] = {
     "openapi": frozenset({"http", "https"}),
     "rfc": frozenset(),
     "llmstxt": frozenset({"http", "https"}),
+    "arxiv": frozenset(),
 }
 
 # only these types accept a local path
@@ -46,6 +48,7 @@ _LOCAL_TYPES: frozenset[DocumentType] = frozenset({"filesystem", "repo", "openap
 _REPO_PATH_MARKER = ".git/"
 # the rfc number form prefers the xml form; the fetcher falls back to text
 _RFC_TARGET = "https://www.rfc-editor.org/rfc/rfc{number}.xml"
+_ARXIV_HTML_TARGET = "https://arxiv.org/html/{identifier}"
 # an scp-style location is out of scope and is not a local path
 _SCP_LOCATION = re.compile(r"^[^/@:]+@[^/@:]+:")
 
@@ -90,12 +93,16 @@ class RfcSource(SourceIdentity):
     doc_type: Literal["rfc"] = "rfc"
 
 
+class ArxivSource(SourceIdentity):
+    doc_type: Literal["arxiv"] = "arxiv"
+
+
 class LlmstxtSource(SourceIdentity):
     doc_type: Literal["llmstxt"] = "llmstxt"
 
 
 Source: TypeAlias = Annotated[
-    FilesystemSource | RepoSource | OpenapiSource | RfcSource | LlmstxtSource,
+    FilesystemSource | RepoSource | OpenapiSource | RfcSource | LlmstxtSource | ArxivSource,
     Field(discriminator="doc_type"),
 ]
 
@@ -163,6 +170,44 @@ def _parse_rfc(source: str, *, base_dir: Path) -> RfcSource:
     )
 
 
+def _parse_arxiv(source: str, *, base_dir: Path) -> ArxivSource:
+    identifier = source
+    version_match = re.fullmatch(r"(?P<identifier>.+)v(?P<version>[1-9][0-9]*)", source)
+    if version_match is not None:
+        identifier = version_match.group("identifier")
+    if not _valid_arxiv_identifier(identifier):
+        raise SourceResolutionError(source, SourceParseReason.ARXIV_IDENTIFIER_INVALID, {"identifier": source})
+    return ArxivSource(original=source, location=RemoteLocation(url=_ARXIV_HTML_TARGET.format(identifier=source)))
+
+
+def _valid_arxiv_identifier(identifier: str) -> bool:
+    new_match = re.fullmatch(r"(?P<year>[0-9]{2})(?P<month>[0-9]{2})\.(?P<sequence>[0-9]+)", identifier)
+    if new_match is not None:
+        year_part = int(new_match.group("year"))
+        month = int(new_match.group("month"))
+        year = 2100 + year_part if year_part <= 6 else 2000 + year_part
+        if not 1 <= month <= 12 or (year, month) < (2007, 4):
+            return False
+        expected_width = 4 if (year, month) <= (2014, 12) else 5
+        sequence = new_match.group("sequence")
+        return len(sequence) == expected_width and int(sequence) > 0
+
+    old_match = re.fullmatch(
+        r"(?P<archive>[a-z][a-z-]*(?:\.[A-Z]{2})?)/(?P<year>[0-9]{2})(?P<month>[0-9]{2})(?P<sequence>[0-9]{3})",
+        identifier,
+    )
+    if old_match is None:
+        return False
+    year_part = int(old_match.group("year"))
+    month = int(old_match.group("month"))
+    year = 1900 + year_part if year_part >= 91 else 2000 + year_part
+    if year_part < 91 and year_part > 7:
+        return False
+    if not 1 <= month <= 12 or (year, month) < (1991, 7) or (year, month) > (2007, 3):
+        return False
+    return int(old_match.group("sequence")) > 0
+
+
 def _parse_llmstxt(source: str, *, base_dir: Path) -> LlmstxtSource:
     location = _resolve_location("llmstxt", source, source, base_dir)
     return LlmstxtSource(original=source, location=location)
@@ -174,6 +219,7 @@ _PARSERS: dict[DocumentType, SourceParser] = {
     "openapi": _parse_openapi,
     "rfc": _parse_rfc,
     "llmstxt": _parse_llmstxt,
+    "arxiv": _parse_arxiv,
 }
 
 
@@ -347,6 +393,7 @@ def is_local_form(doc_type: DocumentType, source: str) -> bool:
 
 
 __all__ = [
+    "ArxivSource",
     "FilesystemSource",
     "LlmstxtSource",
     "LocalLocation",

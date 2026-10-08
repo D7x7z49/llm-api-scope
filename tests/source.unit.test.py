@@ -5,6 +5,7 @@ import pytest
 
 from apiscope.schema import DocumentType
 from apiscope.source import (
+    ArxivSource,
     LocalLocation,
     RemoteLocation,
     RepoSource,
@@ -100,6 +101,55 @@ def test_parse_rfc_source_wraps_an_integer_conversion_limit(tmp_path: Path) -> N
         parse_source("rfc", "9" * 5000, base_dir=tmp_path)
 
     assert raised.value.reason_code == "source.parse.rfc_number_invalid"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "0704.0001",
+        "1412.9999",
+        "1501.00001",
+        "1706.03762v7",
+        "hep-th/9901001",
+        "math.GT/0309136v1",
+        "astro-ph/9107001",
+    ],
+)
+def test_parse_arxiv_accepts_canonical_identifiers(tmp_path: Path, source: str) -> None:
+    parsed = parse_source("arxiv", source, base_dir=tmp_path)
+
+    assert isinstance(parsed, ArxivSource)
+    assert parsed.original == source
+    assert isinstance(parsed.location, RemoteLocation)
+    assert parsed.location.url == f"https://arxiv.org/html/{source}"
+    assert cache_identity(parsed, base_dir=tmp_path) == source
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "0703.0001",
+        "0704.00001",
+        "1412.00001",
+        "1501.0001",
+        "1313.0001",
+        "1501.00000",
+        "1706.03762v0",
+        "1706.03762v01",
+        "hep-th/9106001",
+        "hep-th/0704001",
+        "hep-th/9913001",
+        "math.Gt/0309136",
+        "arXiv:1706.03762",
+        "https://arxiv.org/abs/1706.03762",
+        "\u0661\u0667\u0660\u0666.\u0660\u0660\u0660\u0661",
+    ],
+)
+def test_parse_arxiv_rejects_noncanonical_identifiers(tmp_path: Path, source: str) -> None:
+    with pytest.raises(SourceResolutionError) as raised:
+        parse_source("arxiv", source, base_dir=tmp_path)
+
+    assert raised.value.reason_code == "source.parse.arxiv_identifier_invalid"
 
 
 def test_parse_llmstxt_source_rejects_a_local_path(tmp_path: Path) -> None:

@@ -12,11 +12,11 @@
     + [ADDRESS] # the registered source name and route
     + [INDEX]? # the numeric tree index shown by view; omit it to read a leaf address directly
   - list # list configured sources by document type
-    + [SELECTOR] # choose one of all, filesystem, repo, openapi, rfc, or llmstxt
+    + [SELECTOR] # choose one of all, filesystem, repo, openapi, rfc, llmstxt, or arxiv
     + [--limit]? # show at most this many sources
     + [--offset]? # skip this many sources before showing
   - sync # fetch registered sources into the cache
-    + [SELECTOR] # choose one of all, filesystem, repo, openapi, rfc, or llmstxt
+    + [SELECTOR] # choose one of all, filesystem, repo, openapi, rfc, llmstxt, or arxiv
     + [NAME]? # narrow the range to one source name
     + [--force]? # refresh selected sources regardless of freshness
   - view # show the structure of a cached source

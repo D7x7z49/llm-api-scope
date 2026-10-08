@@ -15,7 +15,7 @@ COMMAND_NAME: Final = "sync"
 
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.help.command": "fetch registered sources into the cache",
-    "sync.help.argument.selector": "choose one of all, filesystem, repo, openapi, rfc, or llmstxt",
+    "sync.help.argument.selector": "choose one of all, filesystem, repo, openapi, rfc, llmstxt, or arxiv",
     "sync.help.argument.name": "narrow the range to one source name",
     "sync.help.option.force": "refresh selected sources regardless of freshness",
     "sync.error.runtime_context_unavailable": "runtime context is unavailable",
@@ -58,6 +58,9 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.error.source.parse.rfc_number_invalid": (
         "cannot parse source {source} because an RFC source must be a decimal number ({number})"
     ),
+    "sync.error.source.parse.arxiv_identifier_invalid": (
+        "cannot parse source {source} because it is not a canonical arXiv identifier"
+    ),
     "sync.error.source.parse.local_form_unsupported": (
         "cannot parse source {source} because this document type has no local form"
     ),
@@ -90,6 +93,10 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
         "cannot fetch source {source} because the repository path {path} does not exist"
     ),
     "sync.error.fetch.transport_failed": ("cannot fetch source {source} because the transport reported {detail}"),
+    "sync.error.fetch.arxiv_no_structured_source": (
+        "cannot fetch source {source} because it has no structured HTML or TeX source"
+    ),
+    "sync.error.fetch.arxiv_source_invalid": ("cannot fetch source {source} because its e-print payload is invalid"),
     "sync.error.cache_failed": "cannot update cache for {name} because the cache operation failed",
     "sync.error.partial_failed": "sync failed for {failed} of {total} selected sources",
 }

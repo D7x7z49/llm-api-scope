@@ -149,7 +149,7 @@ def test_read_result_omits_binary_body_with_the_library_template() -> None:
 
 
 def test_reader_registry_supports_all_document_types() -> None:
-    document_types: tuple[DocumentType, ...] = ("filesystem", "repo", "openapi", "rfc", "llmstxt")
+    document_types: tuple[DocumentType, ...] = ("filesystem", "repo", "openapi", "rfc", "llmstxt", "arxiv")
     assert all(supports_reading(doc_type) for doc_type in document_types)
 
 

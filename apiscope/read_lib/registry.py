@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from apiscope.cache import CacheMetadata
+from apiscope.read_lib.arxiv.reader import ArxivReader
 from apiscope.read_lib.constants import ReadReason
 from apiscope.read_lib.errors import ReadError
 from apiscope.read_lib.filesystem.reader import FilesystemReader
@@ -20,6 +21,7 @@ _READERS: dict[DocumentType, SourceReader] = {
     "openapi": OpenapiReader(),
     "rfc": RfcReader(),
     "llmstxt": LlmstxtReader(),
+    "arxiv": ArxivReader(),
 }
 
 
