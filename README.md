@@ -24,17 +24,19 @@ text is the default output; `--json` prints the data layer instead.
 a source link is registered once; a repeated link fails, even under another name or type.
 a private source in the home configuration uses an absolute path, and a project source uses a path relative to the project root.
 
-five document types share one command surface:
+six document types share one command surface:
 
 - `filesystem` reads a local file or directory
 - `repo` reads a directory inside a [git](https://git-scm.com) repository
 - `openapi` reads an [OpenAPI](https://www.openapis.org) specification
 - `rfc` reads an [IETF](https://www.ietf.org) document
 - `llmstxt` reads a [site index](https://llmstxt.org) that lists documentation pages
+- `arxiv` reads one arXiv paper by its canonical identifier
 
 ```bash
 apiscope add docs https://example.test/docs/llms.txt --type llmstxt
 apiscope add api https://github.com/example/api.git/docs@main --type repo
+apiscope add paper 1706.03762 --type arxiv
 apiscope list all
 ```
 
@@ -101,6 +103,8 @@ register a source:
 apiscope add <name> <source> --type <type> [--ttl <days>]
 ```
 
+`arxiv` accepts a canonical identifier such as `1706.03762` or `hep-th/9901001`; append `vN` for a fixed version. URL forms are not accepted.
+
 ### remove
 
 delete a source:
@@ -117,7 +121,7 @@ list registered sources:
 apiscope list <selector> [--limit <n>] [--offset <n>]
 ```
 
-the selector is one of all, filesystem, repo, openapi, rfc, or llmstxt.
+the selector is one of all, filesystem, repo, openapi, rfc, llmstxt, or arxiv.
 
 ### sync
 
@@ -131,6 +135,7 @@ the selector is the same as in list, and the optional name narrows the range to 
 a source refreshes when its cache is older than its ttl, and `--force` ignores the ttl.
 `repo` clones with shallow depth, and a subpath selects files with a sparse checkout.
 `llmstxt` reads the index page, downloads the pages it lists, and skips a failed page.
+`arxiv` prefers structured HTML, falls back to TeX source, and does not parse PDF-, PostScript-, or DVI-only submissions.
 
 ### view
 

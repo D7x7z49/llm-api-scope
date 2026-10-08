@@ -4,6 +4,7 @@ from pathlib import Path
 from apiscope.schema import DocumentType
 from apiscope.source import SourceResolutionError
 from apiscope.source import parse_source as resolve_source
+from apiscope.sync._lib.arxiv.fetcher import ArxivFetcher
 from apiscope.sync._lib.errors import SourceParseError
 from apiscope.sync._lib.filesystem.fetcher import FilesystemFetcher
 from apiscope.sync._lib.llmstxt.fetcher import LlmstxtFetcher
@@ -19,6 +20,7 @@ _FETCHERS: dict[DocumentType, SourceFetcher] = {
     "openapi": OpenapiFetcher(),
     "rfc": RfcFetcher(),
     "llmstxt": LlmstxtFetcher(),
+    "arxiv": ArxivFetcher(),
 }
 
 

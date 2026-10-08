@@ -6,7 +6,7 @@ COMMAND_NAME: Final = "list"
 
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "list.help.command": "list configured sources by document type",
-    "list.help.argument.selector": ("choose one of all, filesystem, repo, openapi, rfc, or llmstxt"),
+    "list.help.argument.selector": ("choose one of all, filesystem, repo, openapi, rfc, llmstxt, or arxiv"),
     "list.help.option.limit": "show at most this many sources",
     "list.help.option.offset": "skip this many sources before showing",
     "list.error.runtime_context_unavailable": "runtime context is unavailable",

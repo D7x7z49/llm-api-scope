@@ -3,6 +3,7 @@ from pathlib import Path
 
 from apiscope.cache import CacheMetadata
 from apiscope.schema import DocumentType
+from apiscope.view_lib.arxiv.viewer import ArxivViewer
 from apiscope.view_lib.filesystem.viewer import FilesystemViewer
 from apiscope.view_lib.llmstxt.viewer import LlmstxtViewer
 from apiscope.view_lib.openapi.viewer import OpenapiViewer
@@ -17,6 +18,7 @@ _VIEWERS: dict[DocumentType, SourceViewer] = {
     "openapi": OpenapiViewer(),
     "rfc": RfcViewer(),
     "llmstxt": LlmstxtViewer(),
+    "arxiv": ArxivViewer(),
 }
 
 

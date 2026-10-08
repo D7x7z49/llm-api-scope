@@ -16,7 +16,7 @@ SKILL_NAME: Final = "apiscope"
 
 SKILL_DESCRIPTION: Final = (
     "browse cached sources with add, remove, list, sync, view, and read; "
-    "use when reading api specs, rfc standards, or synced repo docs"
+    "use when reading api specs, rfc standards, arXiv papers, or synced repo docs"
 )
 
 # ==============================================================================

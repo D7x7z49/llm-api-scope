@@ -466,6 +466,49 @@ def test_read_rejects_a_path_outside_the_cached_tree(
     assert "Traceback" not in result.output
 
 
+def test_arxiv_source_can_be_added_synced_viewed_and_read(
+    isolated_home: Path,
+    project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    html = (
+        '<html><article class="ltx_document"><section id="S1" class="ltx_section">'
+        '<h2 class="ltx_title ltx_title_section">Introduction</h2><p>Paper text.</p>'
+        "</section></article></html>"
+    )
+    requested: list[str] = []
+    original_client = httpx2.Client
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return httpx2.Response(200, content=html.encode(), request=request)
+
+    def client_factory(**kwargs: Any) -> httpx2.Client:
+        return original_client(transport=httpx2.MockTransport(handle), **kwargs)
+
+    monkeypatch.setattr(httpx2, "Client", client_factory)
+    runner = CliRunner()
+
+    added = runner.invoke(app, ["add", "paper", "1706.03762v7", "--type", "arxiv"], catch_exceptions=False)
+    listed = runner.invoke(app, ["--json", "list", "arxiv"], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "arxiv", "paper"], catch_exceptions=False)
+    viewed = runner.invoke(app, ["--json", "view", "paper"], catch_exceptions=False)
+    read = runner.invoke(app, ["--json", "read", "paper/S1"], catch_exceptions=False)
+
+    assert added.exit_code == 0
+    assert listed.exit_code == 0
+    assert json.loads(listed.output)["data"][0]["type"] == "arxiv"
+    assert synced.exit_code == 0
+    assert viewed.exit_code == 0
+    assert any(node["path"] == "S1" for node in json.loads(viewed.output)["data"])
+    assert read.exit_code == 0
+    assert json.loads(read.output)["data"][0]["content"] == (
+        '<section id="S1" class="ltx_section">'
+        '<h2 class="ltx_title ltx_title_section">Introduction</h2><p>Paper text.</p></section>'
+    )
+    assert requested == ["https://arxiv.org/html/1706.03762v7"]
+
+
 def _register_and_sync(
     runner: CliRunner,
     name: str,
