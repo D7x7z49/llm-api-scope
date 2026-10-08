@@ -19,8 +19,4 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "bookmark.use.error.id_not_found": "no bookmark has the id {id}",
     "bookmark.use.error.removed": "the bookmark {id} is marked as removed",
     "bookmark.use.error.invalid": "the bookmark {id} is invalid because its target changed or disappeared",
-    "bookmark.use.error.source_not_found": "the address {target} names an unknown source",
-    "bookmark.use.error.cache_missing": "the source {name} has no cached content; run sync first",
-    "bookmark.use.error.projection_failed": "cannot project the target {target}",
-    "bookmark.use.error.read_failed": "cannot read the target {target}",
 }

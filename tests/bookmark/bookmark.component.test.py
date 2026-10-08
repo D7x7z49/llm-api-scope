@@ -330,6 +330,16 @@ def _add_source_bookmark(runner: CliRunner, bookmark_id: str, mode: str, address
     )
 
 
+def _synced_directory_source(project_cwd: Path) -> None:
+    source = project_cwd / "docs"
+    (source / "api").mkdir(parents=True)
+    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    (source / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
+    runner = CliRunner()
+    runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"])
+    runner.invoke(app, ["sync", "all", "docs"])
+
+
 def _synced_filesystem_source(project_cwd: Path) -> None:
     source = project_cwd / "docs" / "readme.txt"
     source.parent.mkdir()
@@ -367,6 +377,41 @@ def test_use_runs_a_read_bookmark(
     assert added.exit_code == 0
     assert used.exit_code == 0
     assert "hello" in used.output
+
+
+def test_add_rejects_a_read_target_that_use_cannot_project(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    _synced_directory_source(project_cwd)
+    runner = CliRunner()
+
+    rejected = _add_source_bookmark(runner, "docs-nonleaf", "read", "docs")
+    used = runner.invoke(app, ["bookmark", "use", "docs-nonleaf"])
+
+    assert rejected.exit_code == 1
+    assert rejected.output == (
+        "[error] [scope=project] [action=add] [code=bookmark.error.target.route_not_found] [target=docs]: "
+        "cannot resolve the target docs because the route does not exist. "
+        "view the source to pick a route\n"
+    )
+    assert used.exit_code == 1
+    assert "bookmark.use.error.id_not_found" in used.output
+
+
+def test_add_and_use_agree_on_a_leaf_read_target(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    _synced_directory_source(project_cwd)
+    runner = CliRunner()
+
+    added = _add_source_bookmark(runner, "docs-leaf", "read", "docs/README.md")
+    used = runner.invoke(app, ["bookmark", "use", "docs-leaf"])
+
+    assert added.exit_code == 0
+    assert used.exit_code == 0
+    assert "readme" in used.output
 
 
 def test_project_write_ignores_the_state_directory(

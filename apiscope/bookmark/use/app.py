@@ -9,25 +9,20 @@ from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
 from apiscope.bookmark.context import resolve_context
+from apiscope.bookmark.resolve import base_directory, resolve_read_target, resolve_view_target
 from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile
-from apiscope.bookmark.store import base_directory, entry_status, load_bookmarks
+from apiscope.bookmark.store import entry_status, load_bookmarks
 from apiscope.bookmark.use.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.bookmark.use.context import UseCommandContext
 from apiscope.bookmark.use.preflight import run_preflight
 from apiscope.bookmark.use.schema import UseOptions
 from apiscope.cache import CacheMetadata, digest_content
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
-from apiscope.content import ContentSnapshot, load_content
 from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.output import Report, emit_report
-from apiscope.read_lib.registry import read_content, supports_reading
+from apiscope.read_lib.registry import read_content
 from apiscope.read_lib.schema import ReadResult
-from apiscope.schema import RuntimeSource
-from apiscope.source import SourceResolutionError, parse_source
-from apiscope.view_lib.address import split_address
-from apiscope.view_lib.errors import ProjectionError
-from apiscope.view_lib.registry import build_tree
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **BOOKMARK_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -182,66 +177,34 @@ def _member_row(runtime: RuntimeContext, data: BookmarkFile, entry: BookmarkEntr
 
 
 def _run_view(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    _name, route, source, snapshot, metadata = _load_source(runtime, entry)
-    try:
-        tree = build_tree(source.doc_type, snapshot.content, metadata)
-        nodes = tree.select(route)
-    except ProjectionError as error:
-        raise MessageError("bookmark.use.error.projection_failed", {"target": entry.target}) from error
-
+    resolved = resolve_view_target(runtime, entry.target)
+    _require_expected(entry, resolved.metadata)
+    nodes = resolved.nodes
     body = "\n".join(f"- [{node.index}] {node.key}" for node in nodes) or MESSAGE_TEMPLATES["bookmark.use.body.empty"]
     return UseResult(
         meta=_meta(entry),
         data=[node.as_data() for node in nodes],
-        extra={"entries": len(nodes), "cache": snapshot.inspection.state},
+        extra={"entries": len(nodes), "cache": resolved.snapshot.inspection.state},
         body=body,
     )
 
 
 def _run_read(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    _name, route, source, snapshot, metadata = _load_source(runtime, entry)
-    if not supports_reading(source.doc_type):
-        raise MessageError("bookmark.use.error.read_failed", {"target": entry.target})
-    try:
-        tree = build_tree(source.doc_type, snapshot.content, metadata)
-        node = tree.resolve(route)
-        if not node.is_leaf:
-            raise MessageError("bookmark.use.error.read_failed", {"target": entry.target})
-        content = read_content(source.doc_type, snapshot.content, metadata, node)
-    except ProjectionError as error:
-        raise MessageError("bookmark.use.error.projection_failed", {"target": entry.target}) from error
-
+    resolved = resolve_read_target(runtime, entry.target)
+    _require_expected(entry, resolved.metadata)
+    content = read_content(resolved.source.doc_type, resolved.snapshot.content, resolved.metadata, resolved.node)
     return UseResult(
         meta=_meta(entry),
         data=content.as_data(),
-        extra=content.as_extra(snapshot.inspection.state),
+        extra=content.as_extra(resolved.snapshot.inspection.state),
         body=content.render_body(),
     )
 
 
-def _load_source(
-    runtime: RuntimeContext,
-    entry: BookmarkEntry,
-) -> tuple[str, str, RuntimeSource, ContentSnapshot, CacheMetadata]:
-    name, route = split_address(entry.target, runtime.config.source)
-    source = runtime.config.source.get(name)
-    if source is None:
-        raise MessageError("bookmark.use.error.source_not_found", {"target": entry.target})
-
-    base_dir = base_directory(runtime)
-    try:
-        parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
-    except SourceResolutionError as error:
-        raise MessageError("bookmark.use.error.source_not_found", {"target": entry.target}) from error
-
-    ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
-    snapshot = load_content(runtime.paths.home.cache, parsed, base_dir=base_dir, ttl_days=ttl_days)
-    metadata = snapshot.metadata
-    if snapshot.inspection.state in {"missing", "invalid"} or metadata is None:
-        raise MessageError("bookmark.use.error.cache_missing", {"name": name})
+# the stored digest is the contract; both cache modes compare it the same way
+def _require_expected(entry: BookmarkEntry, metadata: CacheMetadata) -> None:
     if metadata.content_digest != entry.expected_digest:
         raise MessageError("bookmark.use.error.invalid", {"id": entry.id})
-    return name, route, source, snapshot, metadata
 
 
 # ==============================================================================
