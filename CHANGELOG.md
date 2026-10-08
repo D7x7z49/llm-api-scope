@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v0.12.1 (2026-10-08)
+
+### Bug Fixes
+
+- **bookmark**: Map the target reason to each boundary code
+  ([`2a5e0f6`](https://github.com/D7x7z49/llm-api-scope/commit/2a5e0f6f9622173854283ca9bfd6cbed0f9d4e6a))
+
+- **bookmark**: Reject a read target that bookmark use cannot project
+  ([`6e50eda`](https://github.com/D7x7z49/llm-api-scope/commit/6e50eda5c4df2531be9931fde35a7996646928e7))
+
+- **validation**: Name the field, rule, and value on invalid options
+  ([`2bb9aea`](https://github.com/D7x7z49/llm-api-scope/commit/2bb9aeab6f69d7eacf00da866e238aa8b4350bb6))
+
+### Code Style
+
+- Drop the non command docstrings
+  ([`88f3e69`](https://github.com/D7x7z49/llm-api-scope/commit/88f3e69b2efcf4caaa80c031aab5f83ccc1d33ca))
+
+### Refactoring
+
+- **bookmark**: Drop unused resolver state
+  ([`3f91506`](https://github.com/D7x7z49/llm-api-scope/commit/3f91506e33338c29aeb6243663de817d80fb89de))
+
+### Testing
+
+- Divide the library tests by type and lift data into fixtures
+  ([`f6db740`](https://github.com/D7x7z49/llm-api-scope/commit/f6db74063cb58410e3113f6f3f236f34715dd410))
+
+- Make the home rule true and align the test tree
+  ([`af9640a`](https://github.com/D7x7z49/llm-api-scope/commit/af9640a18ba0d280b14101e68bf182dd1ad1a2bf))
+
+- Unblock the lock test and reuse the transport fake
+  ([`fd26ff4`](https://github.com/D7x7z49/llm-api-scope/commit/fd26ff4d5305abbccb420e611709676debb9337e))
+
+- **coverage**: Report branch coverage for the fast suite
+  ([`0558b92`](https://github.com/D7x7z49/llm-api-scope/commit/0558b92dabcce6f43fbc82416b83c9c66fffc850))
+
+- **e2e**: Add an installed console script scope
+  ([`60f222f`](https://github.com/D7x7z49/llm-api-scope/commit/60f222fd3f62515824fc78a9ea9fe652b6a60043))
+
+- **tests**: Constrain the tree shape and lift data into fixtures
+  ([`6259186`](https://github.com/D7x7z49/llm-api-scope/commit/625918684c3a8074d5744a7236f7f04b8d0df67b))
+
+- **validation**: Cover the finding branches
+  ([`4cf5b04`](https://github.com/D7x7z49/llm-api-scope/commit/4cf5b04290fed3dfa7f394a866b116d1d2a4ae1d))
+
+- **validation**: Table the describe finding cases
+  ([`ed8f5f0`](https://github.com/D7x7z49/llm-api-scope/commit/ed8f5f026fb5a54b74f3371e2c7b2fa25a217daa))
+
+
 ## v0.12.0 (2026-10-08)
 
 ### Build System
