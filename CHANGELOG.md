@@ -2,6 +2,51 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-10-08)
+
+### Build System
+
+- **deps**: Drop the unused python-dotenv
+  ([`8a28b34`](https://github.com/D7x7z49/llm-api-scope/commit/8a28b3400f92b786ca31cbe3017ebc7374c575c9))
+
+- **deps**: Switch the http client to httpx2
+  ([`04739f3`](https://github.com/D7x7z49/llm-api-scope/commit/04739f3bff85c88b18b10e7d00a25174d8ac1db9))
+
+### Chores
+
+- **packaging**: Declare the supported python versions
+  ([`7e556a2`](https://github.com/D7x7z49/llm-api-scope/commit/7e556a2af8aa1443a94462184ec160993ea93785))
+
+### Continuous Integration
+
+- Check the apiscope scope shape
+  ([`7714b28`](https://github.com/D7x7z49/llm-api-scope/commit/7714b287ce6c708e13ef635961f233639d558acb))
+
+- Check the supported python versions
+  ([`8a502c4`](https://github.com/D7x7z49/llm-api-scope/commit/8a502c417b8448f92d03c914ead3a4556620ce86))
+
+- Release only after the ci run on main succeeds
+  ([`8b5403a`](https://github.com/D7x7z49/llm-api-scope/commit/8b5403a1d04903a78be709612e0c389250a46be5))
+
+- Test every supported python version
+  ([`85d5abd`](https://github.com/D7x7z49/llm-api-scope/commit/85d5abda36882518f5a94b3c8d340d68ad642c32))
+
+### Documentation
+
+- **experience**: Record the function purpose guidance
+  ([`a0e70e6`](https://github.com/D7x7z49/llm-api-scope/commit/a0e70e6d5149489aa101f4c2de207dbdd1019fbb))
+
+### Features
+
+- **arxiv**: Add arXiv paper source support
+  ([`7889ed1`](https://github.com/D7x7z49/llm-api-scope/commit/7889ed11a82ff050a5026ea14c90b35e124e7fd0))
+
+### Refactoring
+
+- **apiscope**: Align the group scopes with the scope shape
+  ([`f98967d`](https://github.com/D7x7z49/llm-api-scope/commit/f98967d4f97a86d0abb2404c4bc828d0439435ce))
+
+
 ## v0.11.0 (2026-10-07)
 
 ### Documentation
