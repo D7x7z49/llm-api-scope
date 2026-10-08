@@ -1,5 +1,8 @@
 [pytest]
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "-m", "not e2e"]
+markers = [
+    "e2e: runs the installed console script against a throwaway home",
+]
 testpaths = ["tests"]
 python_files = [
     "*.unit.test.py",

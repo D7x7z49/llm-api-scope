@@ -1,9 +1,12 @@
 # tests/conftest.py
 
 import difflib
+import functools
 import os
 import shutil
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +34,23 @@ def document() -> Callable[[str], str]:
 
 
 @pytest.fixture
+def document_path() -> Callable[[str], Path]:
+    def path(name: str) -> Path:
+        return DOCUMENTS / name
+
+    return path
+
+
+@pytest.fixture
+def fixture_tree() -> Callable[[str, Path], Path]:
+    def copy(name: str, destination: Path) -> Path:
+        shutil.copytree(DOCUMENTS / name, destination)
+        return destination
+
+    return copy
+
+
+@pytest.fixture
 def golden() -> Callable[[str, str], None]:
     def check(actual: str, name: str) -> None:
         path = GOLDEN / name
@@ -55,6 +75,36 @@ def golden() -> Callable[[str, str], None]:
         pytest.fail(f"golden mismatch for {name}\n{diff}")
 
     return check
+
+
+# ==============================================================================
+# common network fixtures
+# ==============================================================================
+
+
+class _QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *args: Any) -> None:
+        pass
+
+
+@pytest.fixture
+def loopback() -> Iterator[Callable[[Path], str]]:
+    servers: list[tuple[ThreadingHTTPServer, threading.Thread]] = []
+
+    def serve(directory: Path) -> str:
+        handler = functools.partial(_QuietHandler, directory=str(directory))
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        servers.append((server, thread))
+        return f"http://127.0.0.1:{server.server_address[1]}"
+
+    yield serve
+
+    for server, thread in servers:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
 
 
 # ==============================================================================

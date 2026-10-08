@@ -10,13 +10,17 @@ typecheck:
 
 # Testing
 # -------
-.PHONY: test golden
+.PHONY: test golden e2e
 test:
 	pdm run pytest
 
 # rewrite the golden output files from the current behavior
 golden:
 	UPDATE_GOLDEN=1 pdm run pytest
+
+# run the installed console script end to end, apart from the fast suite
+e2e:
+	pdm run pytest tests/e2e -o addopts="--import-mode=importlib"
 
 # All-in-one
 # ----------
