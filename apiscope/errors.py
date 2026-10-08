@@ -24,12 +24,12 @@ class MessageError(RuntimeError):
 
     @property
     def meta(self) -> dict[str, Any]:
-        """Return the values that belong to the report metadata."""
+        # the values that belong to the report metadata
         return {key: value for key, value in self.values.items() if key not in _MESSAGE_ONLY_KEYS}
 
     @property
     def message_values(self) -> dict[str, Any] | None:
-        """Return the values that shape the message only."""
+        # the values that shape the message only
         extra = {key: value for key, value in self.values.items() if key in _MESSAGE_ONLY_KEYS}
         return extra or None
 

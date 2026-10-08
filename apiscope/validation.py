@@ -10,12 +10,9 @@ from pydantic import ValidationError
 _VALUE_LIMIT: Final = 48
 
 
+# render each finding as field, rule, and observed value, so the caller can recover
+# without trial and error
 def describe(error: ValidationError, labels: Mapping[str, str] | None = None) -> str:
-    """Render a validation error as a short, actionable clause.
-
-    Each finding names the field, the rule, and the observed value, so the
-    caller can recover without trial and error.
-    """
     names = {} if labels is None else labels
     return "; ".join(_finding(item, names) for item in error.errors())
 
