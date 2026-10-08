@@ -33,97 +33,110 @@ class _Items(BaseModel):
     items: list[int]
 
 
-def _failure(model: type[BaseModel], **values: Any) -> ValidationError:
+def _error(model: type[BaseModel], values: dict[str, Any]) -> ValidationError:
     with pytest.raises(ValidationError) as raised:
         model(**values)
     return raised.value
 
 
-def _error(**values: Any) -> ValidationError:
-    return _failure(_Sample, **values)
-
-
-def test_describe_reports_a_length_rule_and_the_observed_size() -> None:
-    actual = describe(_error(name="ab", mode="file", count=1, code="ok"))
-
-    assert actual == "[name] must be at least 3 characters, but 2 characters were given"
-
-
-def test_describe_reports_a_literal_choice_and_the_observed_value() -> None:
-    actual = describe(_error(name="abc", mode="read", count=1, code="ok"))
-
-    assert actual == "[mode] must be one of 'file' or 'view', but [read] was given"
-
-
-def test_describe_reports_a_lower_bound_and_the_observed_value() -> None:
-    actual = describe(_error(name="abc", mode="file", count=0, code="ok"))
-
-    assert actual == "[count] must be at least 1, but [0] was given"
-
-
-def test_describe_reports_a_pattern_and_the_observed_value() -> None:
-    actual = describe(_error(name="abc", mode="file", count=1, code="UP"))
-
-    assert actual == "[code] must match the pattern ^[a-z]+$, but [UP] was given"
+# one behavior, describe renders a finding; the error type is the enumerable input
+@pytest.mark.parametrize(
+    ("model", "values", "expected"),
+    [
+        pytest.param(
+            _Sample,
+            {"name": "ab", "mode": "file", "count": 1, "code": "ok"},
+            "[name] must be at least 3 characters, but 2 characters were given",
+            id="string-too-short",
+        ),
+        pytest.param(
+            _Sample,
+            {"name": "abcdefghi", "mode": "file", "count": 1, "code": "ok"},
+            "[name] must be at most 8 characters, but 9 characters were given",
+            id="string-too-long",
+        ),
+        pytest.param(
+            _Sample,
+            {"name": "abc", "mode": "read", "count": 1, "code": "ok"},
+            "[mode] must be one of 'file' or 'view', but [read] was given",
+            id="literal-choice",
+        ),
+        pytest.param(
+            _Sample,
+            {"name": "abc", "mode": "file", "count": 0, "code": "ok"},
+            "[count] must be at least 1, but [0] was given",
+            id="lower-bound",
+        ),
+        pytest.param(
+            _Sample,
+            {"name": "abc", "mode": "file", "count": 1, "code": "UP"},
+            "[code] must match the pattern ^[a-z]+$, but [UP] was given",
+            id="pattern",
+        ),
+        pytest.param(
+            _Bounds,
+            {"gt": "x"},
+            "[gt] must be an integer, but [x] was given",
+            id="integer-parse",
+        ),
+        pytest.param(
+            _Bounds,
+            {"gt": 0},
+            "[gt] must be greater than 0, but [0] was given",
+            id="strict-lower-bound",
+        ),
+        pytest.param(
+            _Bounds,
+            {"le": 6},
+            "[le] must be at most 5, but [6] was given",
+            id="upper-bound",
+        ),
+        pytest.param(
+            _Bounds,
+            {"lt": 10},
+            "[lt] must be less than 10, but [10] was given",
+            id="strict-upper-bound",
+        ),
+        pytest.param(
+            _Text,
+            {"text": 5},
+            "[text] must be text, but [5] was given",
+            id="text-type",
+        ),
+        pytest.param(
+            _Items,
+            {"items": 1},
+            "[items] input should be a valid list",
+            id="message-fallback",
+        ),
+    ],
+)
+def test_describe_renders_a_finding(
+    model: type[BaseModel],
+    values: dict[str, Any],
+    expected: str,
+) -> None:
+    assert describe(_error(model, values)) == expected
 
 
 def test_describe_reports_a_required_field_and_an_unexpected_field() -> None:
-    actual = describe(_error(name="abc", mode="file", extra="x"))
+    actual = describe(_error(_Sample, {"name": "abc", "mode": "file", "extra": "x"}))
 
     assert "[code] is required" in actual
     assert "[extra] is not an accepted option" in actual
 
 
 def test_describe_maps_a_field_name_to_its_option_label() -> None:
-    actual = describe(_error(name="ab", mode="file", count=1, code="ok"), {"name": "--name"})
+    actual = describe(
+        _error(_Sample, {"name": "ab", "mode": "file", "count": 1, "code": "ok"}),
+        {"name": "--name"},
+    )
 
     assert actual.startswith("[--name] must be at least 3 characters")
 
 
 def test_describe_truncates_a_long_value() -> None:
-    actual = describe(_error(name="abc", mode="file", count=1, code="A" * 100))
+    actual = describe(_error(_Sample, {"name": "abc", "mode": "file", "count": 1, "code": "A" * 100}))
 
     assert "..." in actual
     assert actual.endswith("] was given")
-
-
-def test_describe_reports_an_upper_length_rule() -> None:
-    actual = describe(_error(name="abcdefghi", mode="file", count=1, code="ok"))
-
-    assert actual == "[name] must be at most 8 characters, but 9 characters were given"
-
-
-def test_describe_reports_an_integer_rule() -> None:
-    actual = describe(_failure(_Bounds, gt="x"))
-
-    assert actual == "[gt] must be an integer, but [x] was given"
-
-
-def test_describe_reports_a_strict_lower_bound() -> None:
-    actual = describe(_failure(_Bounds, gt=0))
-
-    assert actual == "[gt] must be greater than 0, but [0] was given"
-
-
-def test_describe_reports_a_non_strict_upper_bound() -> None:
-    actual = describe(_failure(_Bounds, le=6))
-
-    assert actual == "[le] must be at most 5, but [6] was given"
-
-
-def test_describe_reports_a_strict_upper_bound() -> None:
-    actual = describe(_failure(_Bounds, lt=10))
-
-    assert actual == "[lt] must be less than 10, but [10] was given"
-
-
-def test_describe_reports_a_text_type_rule() -> None:
-    actual = describe(_failure(_Text, text=5))
-
-    assert actual == "[text] must be text, but [5] was given"
-
-
-def test_describe_falls_back_to_the_error_message() -> None:
-    actual = describe(_failure(_Items, items=1))
-
-    assert actual == "[items] input should be a valid list"
