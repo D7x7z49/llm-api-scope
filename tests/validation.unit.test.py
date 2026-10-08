@@ -17,10 +17,30 @@ class _Sample(BaseModel):
     code: str = Field(pattern=r"^[a-z]+$")
 
 
-def _error(**values: Any) -> ValidationError:
+class _Bounds(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    gt: int = Field(default=1, gt=0)
+    le: int = Field(default=1, le=5)
+    lt: int = Field(default=1, lt=10)
+
+
+class _Text(BaseModel):
+    text: str
+
+
+class _Items(BaseModel):
+    items: list[int]
+
+
+def _failure(model: type[BaseModel], **values: Any) -> ValidationError:
     with pytest.raises(ValidationError) as raised:
-        _Sample(**values)
+        model(**values)
     return raised.value
+
+
+def _error(**values: Any) -> ValidationError:
+    return _failure(_Sample, **values)
 
 
 def test_describe_reports_a_length_rule_and_the_observed_size() -> None:
@@ -65,3 +85,45 @@ def test_describe_truncates_a_long_value() -> None:
 
     assert "..." in actual
     assert actual.endswith("] was given")
+
+
+def test_describe_reports_an_upper_length_rule() -> None:
+    actual = describe(_error(name="abcdefghi", mode="file", count=1, code="ok"))
+
+    assert actual == "[name] must be at most 8 characters, but 9 characters were given"
+
+
+def test_describe_reports_an_integer_rule() -> None:
+    actual = describe(_failure(_Bounds, gt="x"))
+
+    assert actual == "[gt] must be an integer, but [x] was given"
+
+
+def test_describe_reports_a_strict_lower_bound() -> None:
+    actual = describe(_failure(_Bounds, gt=0))
+
+    assert actual == "[gt] must be greater than 0, but [0] was given"
+
+
+def test_describe_reports_a_non_strict_upper_bound() -> None:
+    actual = describe(_failure(_Bounds, le=6))
+
+    assert actual == "[le] must be at most 5, but [6] was given"
+
+
+def test_describe_reports_a_strict_upper_bound() -> None:
+    actual = describe(_failure(_Bounds, lt=10))
+
+    assert actual == "[lt] must be less than 10, but [10] was given"
+
+
+def test_describe_reports_a_text_type_rule() -> None:
+    actual = describe(_failure(_Text, text=5))
+
+    assert actual == "[text] must be text, but [5] was given"
+
+
+def test_describe_falls_back_to_the_error_message() -> None:
+    actual = describe(_failure(_Items, items=1))
+
+    assert actual == "[items] input should be a valid list"
