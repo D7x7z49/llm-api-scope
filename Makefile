@@ -10,9 +10,13 @@ typecheck:
 
 # Testing
 # -------
-.PHONY: test golden e2e
+.PHONY: test coverage golden e2e
 test:
 	pdm run pytest
+
+# report branch coverage for the fast suite, apart from e2e
+coverage:
+	pdm run pytest --cov=apiscope --cov-branch --cov-report=term-missing
 
 # rewrite golden output for one test path, for example: make golden GOLDEN=tests/list
 golden:

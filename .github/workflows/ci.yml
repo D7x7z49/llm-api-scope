@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-# CI — commit messages, lock, lint, format, usage, layout, types, tests, e2e
+# CI — commit messages, lock, lint, format, usage, layout, types, tests, coverage, e2e
 # runs on pull requests and on main pushes so a direct push is still checked
 # every step is read-only: CI checks, it never edits files
 
@@ -64,6 +64,10 @@ jobs:
 
       - name: type check with mypy
         run: pdm run mypy apiscope/ tests/
+
+      # one report is enough, because coverage does not depend on the interpreter
+      - name: run the coverage report
+        run: make coverage
 
   # the test suite and the installed console script on every supported python
   test:
