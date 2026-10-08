@@ -10,9 +10,13 @@ typecheck:
 
 # Testing
 # -------
-.PHONY: test
+.PHONY: test golden
 test:
 	pdm run pytest
+
+# rewrite the golden output files from the current behavior
+golden:
+	UPDATE_GOLDEN=1 pdm run pytest
 
 # All-in-one
 # ----------

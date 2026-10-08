@@ -1,0 +1,10 @@
+[ok] [scope=project] [action=list] [filter=all] [limit=1]
+
+---
+
+[openapi]
+- [petstore] ./openapi.json
+
+---
+
+[count=1] [total=2] [next=1]

@@ -1,5 +1,4 @@
 # tests/skill/skill.component.test.py
-# ruff: noqa: N999
 
 import json
 from pathlib import Path

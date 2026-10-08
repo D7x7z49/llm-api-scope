@@ -1,4 +1,5 @@
 # tests/view_lib/viewers.unit.test.py
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -116,36 +117,13 @@ def test_repo_viewer_hides_git_metadata(tmp_path: Path) -> None:
     assert [node.key for node in tree.indexed()] == ["README.md"]
 
 
-def test_openapi_viewer_keeps_path_hints_and_method_order(tmp_path: Path) -> None:
+def test_openapi_viewer_keeps_path_hints_and_method_order(
+    tmp_path: Path,
+    document: Callable[[str], str],
+) -> None:
     content = tmp_path / "content"
     content.mkdir()
-    (content / "openapi.yaml").write_text(
-        """
-openapi: 3.2.1
-paths:
-  /pets/{petId}:
-    summary: one pet
-    post:
-      summary: update a pet
-    get:
-      summary: get a pet
-  /pets:
-    summary: pet collection
-    get:
-      summary: list pets
-    query:
-      summary: query pets
-    additionalOperations:
-      COPY:
-        summary: copy pets
-webhooks:
-  orderCreated:
-    post:
-      summary: order created
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
+    (content / "openapi.yaml").write_text(document("openapi/viewer.yaml"), encoding="utf-8")
 
     tree = OpenapiViewer().build(content, _metadata("openapi", name="openapi.yaml"))
 

@@ -1,0 +1,13 @@
+[ok] [scope=project] [action=list] [filter=all]
+
+---
+
+[openapi]
+- [petstore] https://example.test/openapi.json
+
+[rfc]
+- [rfc-http] https://example.test/rfc.txt
+
+---
+
+[count=2] [total=2]

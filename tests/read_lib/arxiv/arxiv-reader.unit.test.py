@@ -1,4 +1,5 @@
 # tests/read_lib/arxiv/arxiv-reader.unit.test.py
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -6,18 +7,6 @@ from apiscope.cache import CacheMetadata, ContentKind
 from apiscope.read_lib.arxiv.reader import ArxivReader
 from apiscope.view_lib.arxiv.viewer import ArxivViewer
 
-_HTML = """<!doctype html>
-<html><body><article class="ltx_document">
-<section id="S1" class="ltx_section">
-<h2 class="ltx_title ltx_title_section">Introduction</h2>
-<p>Parent text.</p>
-<section id="S1.SS1" class="ltx_subsection">
-<h3 class="ltx_title ltx_title_subsection">Child</h3>
-<p>Child text.</p>
-</section>
-</section>
-</article></body></html>
-"""
 _CHILD = """<section id="S1.SS1" class="ltx_subsection">
 <h3 class="ltx_title ltx_title_subsection">Child</h3>
 <p>Child text.</p>
@@ -37,10 +26,13 @@ def _metadata(*, kind: ContentKind, name: str | None) -> CacheMetadata:
     )
 
 
-def test_arxiv_reader_returns_the_original_html_section(tmp_path: Path) -> None:
+def test_arxiv_reader_returns_the_original_html_section(
+    tmp_path: Path,
+    document: Callable[[str], str],
+) -> None:
     content = tmp_path / "content"
     content.mkdir()
-    (content / "paper.html").write_text(_HTML, encoding="utf-8")
+    (content / "paper.html").write_text(document("arxiv/reader.html"), encoding="utf-8")
     metadata = _metadata(kind="file", name="paper.html")
     tree = ArxivViewer().build(content, metadata)
     target = tree.resolve("S1.SS1")
@@ -53,10 +45,13 @@ def test_arxiv_reader_returns_the_original_html_section(tmp_path: Path) -> None:
     assert result.content == _CHILD
 
 
-def test_arxiv_reader_returns_tex_source_without_rewriting_it(tmp_path: Path) -> None:
+def test_arxiv_reader_returns_tex_source_without_rewriting_it(
+    tmp_path: Path,
+    document: Callable[[str], str],
+) -> None:
     content = tmp_path / "content"
     content.mkdir()
-    tex = "\\documentclass{article}\n\\begin{document}\nraw source\n\\end{document}\n"
+    tex = document("arxiv/source.tex")
     (content / "paper.tex").write_text(tex, encoding="utf-8")
     metadata = _metadata(kind="file", name="paper.tex")
     target = ArxivViewer().build(content, metadata).resolve("paper.tex")

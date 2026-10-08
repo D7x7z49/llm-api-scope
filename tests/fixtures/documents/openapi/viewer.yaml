@@ -1,0 +1,21 @@
+openapi: 3.2.1
+paths:
+  /pets/{petId}:
+    summary: one pet
+    post:
+      summary: update a pet
+    get:
+      summary: get a pet
+  /pets:
+    summary: pet collection
+    get:
+      summary: list pets
+    query:
+      summary: query pets
+    additionalOperations:
+      COPY:
+        summary: copy pets
+webhooks:
+  orderCreated:
+    post:
+      summary: order created

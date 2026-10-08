@@ -1,5 +1,4 @@
 # tests/read/read.component.test.py
-# ruff: noqa: N999
 
 import json
 import shutil
@@ -13,8 +12,8 @@ from typer.testing import CliRunner
 
 from apiscope.main import app
 
-OPENAPI_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "read" / "openapi" / "openapi.yaml"
-READ_FILESYSTEM_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "read" / "filesystem"
+OPENAPI_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "documents" / "openapi" / "openapi.yaml"
+READ_FILESYSTEM_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "documents" / "filesystem"
 
 
 def test_read_returns_cached_text_at_a_view_index(

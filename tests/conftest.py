@@ -1,5 +1,7 @@
 # tests/conftest.py
 
+import difflib
+import os
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -10,6 +12,50 @@ import pytest
 
 from apiscope.constants import APISCOPE_HOME_ENV
 from apiscope.sync._lib import transport
+
+# ==============================================================================
+# fixture data
+# ==============================================================================
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+DOCUMENTS = FIXTURES / "documents"
+GOLDEN = FIXTURES / "golden"
+
+
+@pytest.fixture
+def document() -> Callable[[str], str]:
+    def load(name: str) -> str:
+        return (DOCUMENTS / name).read_text(encoding="utf-8")
+
+    return load
+
+
+@pytest.fixture
+def golden() -> Callable[[str, str], None]:
+    def check(actual: str, name: str) -> None:
+        path = GOLDEN / name
+        if os.environ.get("UPDATE_GOLDEN") == "1":
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(actual, encoding="utf-8")
+            return
+        if not path.is_file():
+            pytest.fail(f"golden file is missing: {name}; run with UPDATE_GOLDEN=1")
+        expected = path.read_text(encoding="utf-8")
+        if actual == expected:
+            return
+        diff = "\n".join(
+            difflib.unified_diff(
+                expected.splitlines(),
+                actual.splitlines(),
+                fromfile=f"{name} expected",
+                tofile=f"{name} actual",
+                lineterm="",
+            )
+        )
+        pytest.fail(f"golden mismatch for {name}\n{diff}")
+
+    return check
+
 
 # ==============================================================================
 # common filesystem fixtures

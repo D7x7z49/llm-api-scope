@@ -1,7 +1,7 @@
 # tests/view/view.component.test.py
-# ruff: noqa: N999
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -12,6 +12,7 @@ from apiscope.main import app
 def test_view_shows_a_cached_filesystem_tree(
     isolated_home: Path,
     project_cwd: Path,
+    golden: Callable[[str, str], None],
 ) -> None:
     source = project_cwd / "docs"
     (source / "api").mkdir(parents=True)
@@ -26,15 +27,7 @@ def test_view_shows_a_cached_filesystem_tree(
     assert added.exit_code == 0
     assert synced.exit_code == 0
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=view] [name=docs] [path=.]\n\n"
-        "---\n\n"
-        "- [1] api\n"
-        "- [1.1] overview.md\n"
-        "- [2] README.md\n"
-        "\n---\n\n"
-        "[entries=3] [cache=fresh]\n"
-    )
+    golden(result.output, "view/filesystem-tree.txt")
 
 
 def test_view_path_filter_relays_out_the_index(

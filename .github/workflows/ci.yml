@@ -1,6 +1,6 @@
 # .github/workflows/ci.yml
 
-# CI — commit messages, lock, lint, format, usage, layout, types, tests
+# CI — commit messages, lock, lint, format, usage, package layout, tests layout, types, tests
 # runs on pull requests and on main pushes so a direct push is still checked
 # every step is read-only: CI checks, it never edits files
 
@@ -58,6 +58,9 @@ jobs:
 
       - name: check the apiscope layout
         run: git ls-tree -r --name-only HEAD apiscope | pdm run python scripts/ci/layout.py
+
+      - name: check the tests layout
+        run: pdm run python scripts/ci/tests_layout.py
 
       - name: type check with mypy
         run: pdm run mypy apiscope/ tests/
