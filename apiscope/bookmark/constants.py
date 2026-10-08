@@ -39,21 +39,4 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
         "cannot prepare the bookmark directory at {path} because it cannot be created or written"
     ),
     "bookmark.error.store.reference_cycle": "the reference graph would contain a cycle through {id}",
-    "bookmark.error.target.source_not_found": (
-        "cannot resolve the target {target} because the source {name} is not registered"
-    ),
-    "bookmark.error.target.source_invalid": (
-        "cannot resolve the target {target} because its source definition is invalid"
-    ),
-    "bookmark.error.target.cache_missing": (
-        "cannot resolve the target {target} because its cache is missing. sync the source before retrying"
-    ),
-    "bookmark.error.target.unsupported": ("cannot use the target {target} because this source type has no reader"),
-    "bookmark.error.target.projection_failed": (
-        "cannot resolve the target {target} because its structure cannot be projected"
-    ),
-    "bookmark.error.target.route_not_found": (
-        "cannot resolve the target {target} because the route does not exist. view the source to pick a route"
-    ),
-    "bookmark.error.target_not_leaf": ("cannot use the target {target} because it is not a leaf. choose a leaf route"),
 }

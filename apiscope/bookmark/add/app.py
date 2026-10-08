@@ -5,13 +5,18 @@ from typing import cast
 import typer
 from pydantic import ValidationError
 
-from apiscope.bookmark.add.constants import COMMAND_NAME, MESSAGE_TEMPLATES
+from apiscope.bookmark.add.constants import (
+    COMMAND_NAME,
+    FILE_MISSING_REASON,
+    MESSAGE_TEMPLATES,
+    TARGET_REASON_TEXTS,
+)
 from apiscope.bookmark.add.context import AddCommandContext
 from apiscope.bookmark.add.preflight import run_preflight
 from apiscope.bookmark.add.schema import AddOptions
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
 from apiscope.bookmark.context import resolve_context
-from apiscope.bookmark.resolve import resolve_read_target, resolve_view_target, target_digest
+from apiscope.bookmark.resolve import TargetResolutionError, resolve_read_target, resolve_view_target, target_digest
 from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile, BookmarkMode
 from apiscope.bookmark.store import ensure_bookmarks, load_bookmarks, save_bookmarks, validate_acyclic
 from apiscope.constants import MESSAGE_TEMPLATES as ROOT_MESSAGE_TEMPLATES
@@ -152,11 +157,20 @@ def _target_digest(runtime: RuntimeContext, mode: BookmarkMode, target: str) -> 
     if mode == "file":
         digest = target_digest(runtime, mode, target)
         if digest is None:
-            raise MessageError("bookmark.add.error.target_unresolved", {"mode": mode, "target": target})
+            raise MessageError(
+                "bookmark.add.error.target_unresolved",
+                {"mode": mode, "target": target, "detail": FILE_MISSING_REASON},
+            )
         return digest
-    if mode == "read":
-        return resolve_read_target(runtime, target).metadata.content_digest
-    return resolve_view_target(runtime, target).metadata.content_digest
+    try:
+        if mode == "read":
+            return resolve_read_target(runtime, target).metadata.content_digest
+        return resolve_view_target(runtime, target).metadata.content_digest
+    except TargetResolutionError as error:
+        raise MessageError(
+            "bookmark.add.error.target_unresolved",
+            {"mode": mode, "target": target, "detail": TARGET_REASON_TEXTS[error.reason.value]},
+        ) from error
 
 
 def _build_group(merged: BookmarkFile, options: AddOptions) -> BookmarkEntry:

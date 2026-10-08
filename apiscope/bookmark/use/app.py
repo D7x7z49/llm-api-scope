@@ -2,14 +2,20 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import typer
 from pydantic import ValidationError
 
 from apiscope.bookmark.constants import MESSAGE_TEMPLATES as BOOKMARK_MESSAGE_TEMPLATES
 from apiscope.bookmark.context import resolve_context
-from apiscope.bookmark.resolve import base_directory, resolve_read_target, resolve_view_target
+from apiscope.bookmark.resolve import (
+    TargetReason,
+    TargetResolutionError,
+    base_directory,
+    resolve_read_target,
+    resolve_view_target,
+)
 from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile
 from apiscope.bookmark.store import entry_status, load_bookmarks
 from apiscope.bookmark.use.constants import COMMAND_NAME, MESSAGE_TEMPLATES
@@ -23,8 +29,20 @@ from apiscope.errors import MessageError
 from apiscope.output import Report, emit_report
 from apiscope.read_lib.registry import read_content
 from apiscope.read_lib.schema import ReadResult
+from apiscope.validation import describe
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **BOOKMARK_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
+
+# the resolver reports a reason, and the use boundary maps it to its own code
+_TARGET_CODES: Final[dict[TargetReason, str]] = {
+    TargetReason.SOURCE_NOT_FOUND: "bookmark.use.error.source_not_found",
+    TargetReason.SOURCE_INVALID: "bookmark.use.error.source_invalid",
+    TargetReason.CACHE_MISSING: "bookmark.use.error.cache_missing",
+    TargetReason.UNSUPPORTED: "bookmark.use.error.read_failed",
+    TargetReason.PROJECTION_FAILED: "bookmark.use.error.projection_failed",
+    TargetReason.ROUTE_NOT_FOUND: "bookmark.use.error.projection_failed",
+    TargetReason.NOT_LEAF: "bookmark.use.error.read_failed",
+}
 
 # ==============================================================================
 # app
@@ -59,7 +77,10 @@ def main_callback(
         entry = _entry(runtime_context, options.id)
         result = _run(runtime_context, entry)
     except ValidationError as error:
-        _emit_error(runtime_context, MessageError("bookmark.use.error.id_not_found", {"id": bookmark_id}))
+        detail = describe(error)
+        _emit_error(
+            runtime_context, MessageError("bookmark.use.error.invalid_id", {"id": bookmark_id, "detail": detail})
+        )
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -177,7 +198,10 @@ def _member_row(runtime: RuntimeContext, data: BookmarkFile, entry: BookmarkEntr
 
 
 def _run_view(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    resolved = resolve_view_target(runtime, entry.target)
+    try:
+        resolved = resolve_view_target(runtime, entry.target)
+    except TargetResolutionError as error:
+        raise _target_error(error) from error
     _require_expected(entry, resolved.metadata)
     nodes = resolved.nodes
     body = "\n".join(f"- [{node.index}] {node.key}" for node in nodes) or MESSAGE_TEMPLATES["bookmark.use.body.empty"]
@@ -190,7 +214,10 @@ def _run_view(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
 
 
 def _run_read(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
-    resolved = resolve_read_target(runtime, entry.target)
+    try:
+        resolved = resolve_read_target(runtime, entry.target)
+    except TargetResolutionError as error:
+        raise _target_error(error) from error
     _require_expected(entry, resolved.metadata)
     content = read_content(resolved.source.doc_type, resolved.snapshot.content, resolved.metadata, resolved.node)
     return UseResult(
@@ -199,6 +226,10 @@ def _run_read(runtime: RuntimeContext, entry: BookmarkEntry) -> UseResult:
         extra=content.as_extra(resolved.snapshot.inspection.state),
         body=content.render_body(),
     )
+
+
+def _target_error(error: TargetResolutionError) -> MessageError:
+    return MessageError(_TARGET_CODES[error.reason], dict(error.values))
 
 
 # the stored digest is the contract; both cache modes compare it the same way
@@ -223,8 +254,9 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
             scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )
