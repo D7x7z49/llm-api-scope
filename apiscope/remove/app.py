@@ -22,6 +22,7 @@ from apiscope.remove.context import RemoveCommandContext
 from apiscope.remove.preflight import run_preflight
 from apiscope.remove.schema import RemoveOptions
 from apiscope.schema import SOURCE_SELECTOR_ALL, GlobalConfigFile, ProjectConfigFile
+from apiscope.validation import describe
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -49,9 +50,10 @@ def main_callback(
         command_context = RemoveCommandContext(runtime=runtime_context, options=options)
         run_preflight(command_context)
         _remove_source(command_context)
-    except ValidationError:
-        error = MessageError("remove.error.invalid_options", {"name": name})
-        _emit_error(runtime_context, error)
+    except ValidationError as error:
+        detail = describe(error)
+        message = MessageError("remove.error.invalid_options", {"name": name, "detail": detail})
+        _emit_error(runtime_context, message)
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -103,8 +105,9 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
             scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )

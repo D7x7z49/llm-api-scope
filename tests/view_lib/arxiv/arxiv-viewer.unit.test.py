@@ -1,4 +1,5 @@
 # tests/view_lib/arxiv/arxiv-viewer.unit.test.py
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,23 +9,6 @@ from apiscope.cache import CacheMetadata, ContentKind
 from apiscope.view_lib.arxiv.viewer import ArxivViewer
 from apiscope.view_lib.constants import ProjectionReason
 from apiscope.view_lib.errors import ProjectionError
-
-_HTML = """<!doctype html>
-<html><body><article class="ltx_document">
-<section id="S1" class="ltx_section">
-<h2 class="ltx_title ltx_title_section"><span>1 </span>Introduction</h2>
-<p>Parent text.</p>
-<section id="S1.SS1" class="ltx_subsection">
-<h3 class="ltx_title ltx_title_subsection"><span>1.1 </span>Child</h3>
-<p>Child text.</p>
-</section>
-</section>
-<section id="S2" class="ltx_section">
-<h2 class="ltx_title ltx_title_section">Conclusion</h2>
-<p>Final text.</p>
-</section>
-</article></body></html>
-"""
 
 
 def _metadata(*, kind: ContentKind, name: str | None) -> CacheMetadata:
@@ -40,10 +24,13 @@ def _metadata(*, kind: ContentKind, name: str | None) -> CacheMetadata:
     )
 
 
-def test_arxiv_viewer_builds_nested_section_routes(tmp_path: Path) -> None:
+def test_arxiv_viewer_builds_nested_section_routes(
+    tmp_path: Path,
+    document: Callable[[str], str],
+) -> None:
     content = tmp_path / "content"
     content.mkdir()
-    (content / "paper.html").write_text(_HTML, encoding="utf-8")
+    (content / "paper.html").write_text(document("arxiv/viewer.html"), encoding="utf-8")
 
     tree = ArxivViewer().build(content, _metadata(kind="file", name="paper.html"))
 

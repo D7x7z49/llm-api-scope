@@ -47,6 +47,7 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.15",
     "commitizen>=4.19.0",
+    "pytest-cov>=7.1.0",
 ]
 
 # ==============================================================================
@@ -79,8 +80,24 @@ _.env_file = ".env"
 
 [tool.mypy]
 python_version = "3.12"
+# the test tree has more than one conftest.py and no package __init__.py
+explicit_package_bases = true
 warn_return_any = true
 warn_unused_configs = true
+
+# ==============================================================================
+# coverage configuration
+# ==============================================================================
+
+[tool.coverage.run]
+source = ["apiscope"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = ["pragma: no cover"]
+# a ratchet, not a goal: the floor stops a silent drop, it does not ask for more tests
+fail_under = 90
 
 # ==============================================================================
 # python-semantic-release

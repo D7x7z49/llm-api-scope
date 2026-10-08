@@ -41,25 +41,10 @@ def test_fetch_location_writes_redirected_remote_content(
 
 def test_fetch_location_passes_a_proxy_to_the_client(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+    http_client_options: dict[str, Any],
 ) -> None:
-    options: dict[str, Any] = {}
-
-    class FakeClient:
-        def __enter__(self) -> "FakeClient":
-            return self
-
-        def __exit__(self, exception_type: Any, exception: Any, traceback: Any) -> None:
-            del exception_type, exception, traceback
-
-        def get(self, url: str) -> httpx2.Response:
-            return httpx2.Response(200, request=httpx2.Request("GET", url), content=b"rfc")
-
-    def client_factory(**kwargs: Any) -> FakeClient:
-        options.update(kwargs)
-        return FakeClient()
-
-    monkeypatch.setattr(transport.httpx2, "Client", client_factory)
+    install_mock_client(lambda request: httpx2.Response(200, request=request, content=b"rfc"))
 
     transport.fetch_location(
         RemoteLocation("https://example.test/rfc.txt"),
@@ -67,7 +52,7 @@ def test_fetch_location_passes_a_proxy_to_the_client(
         proxy="http://proxy.example.test:8080",
     )
 
-    assert options == {
+    assert http_client_options == {
         "follow_redirects": True,
         "timeout": transport.HTTP_TIMEOUT_SECONDS,
         "proxy": "http://proxy.example.test:8080",
@@ -77,25 +62,10 @@ def test_fetch_location_passes_a_proxy_to_the_client(
 
 def test_fetch_location_bypasses_the_proxy_for_a_no_proxy_host(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+    http_client_options: dict[str, Any],
 ) -> None:
-    options: dict[str, Any] = {}
-
-    class FakeClient:
-        def __enter__(self) -> "FakeClient":
-            return self
-
-        def __exit__(self, exception_type: Any, exception: Any, traceback: Any) -> None:
-            del exception_type, exception, traceback
-
-        def get(self, url: str) -> httpx2.Response:
-            return httpx2.Response(200, request=httpx2.Request("GET", url), content=b"direct")
-
-    def client_factory(**kwargs: Any) -> FakeClient:
-        options.update(kwargs)
-        return FakeClient()
-
-    monkeypatch.setattr(transport.httpx2, "Client", client_factory)
+    install_mock_client(lambda request: httpx2.Response(200, request=request, content=b"direct"))
 
     transport.fetch_location(
         RemoteLocation("https://api.example.test/rfc.txt"),
@@ -104,8 +74,8 @@ def test_fetch_location_bypasses_the_proxy_for_a_no_proxy_host(
         no_proxy="example.test",
     )
 
-    assert "proxy" not in options
-    assert options["trust_env"] is False
+    assert "proxy" not in http_client_options
+    assert http_client_options["trust_env"] is False
 
 
 def test_fetch_location_ignores_proxy_environment(

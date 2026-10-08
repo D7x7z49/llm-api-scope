@@ -1,0 +1,68 @@
+(* tests/layout.txt *)
+
+(* ========================================================================== *)
+(* TEST SCOPE SHAPE                                                           *)
+(* ========================================================================== *)
+
+(*
+a node is one of:
+- scope      a directory that mirrors an apiscope directory
+- test_file  a test module that names its topic and its kind
+- conftest   the fixture surface for one scope
+- fixtures   the data surface: documents and golden
+the tree root holds a conftest and the non mirror scopes.
+e2e is its own scope and mirrors nothing.
+*)
+
+tree
+    = [ conftest ], { entry };
+
+entry
+    = e2e_scope
+    | scope
+    | test_file
+    | conftest
+    | fixtures
+    ;
+
+scope
+    = ( name | private ), [ conftest ], { entry };
+
+private
+    = "_", name;
+
+e2e_scope
+    = "e2e", [ conftest ], { e2e_file | fixtures };
+
+test_file
+    = topic, ".", kind, ".test.py";
+
+e2e_file
+    = topic, ".e2e.test.py";
+
+conftest
+    = "conftest.py";
+
+fixtures
+    = "fixtures", ( document | golden );
+
+document
+    = "documents", { segment };
+
+golden
+    = "golden", { segment };
+
+kind
+    = "unit" | "component" | "integration";
+
+topic
+    = name, { "-", name };
+
+name
+    = small, { small | digit | "_" };
+
+small
+    = "a".."z";
+
+segment
+    = ? one path segment ?;

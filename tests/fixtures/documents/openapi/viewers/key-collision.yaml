@@ -1,0 +1,8 @@
+openapi: 3.2.1
+paths:
+  /pets:
+    get:
+      summary: List pets
+  /pets/GET:
+    post:
+      summary: Create a GET-named pet resource

@@ -1,0 +1,12 @@
+[ok] [scope=project] [action=read] [name=docs] [target=api/overview.md]
+
+---
+
+# API overview
+
+The service exposes a health endpoint.
+
+
+---
+
+[cache=fresh] [kind=markdown] [media_type=text/markdown] [encoding=utf-8] [size=55]

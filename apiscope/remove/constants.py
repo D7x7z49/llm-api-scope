@@ -8,7 +8,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "remove.help.command": "remove a source from the selected configuration",
     "remove.help.argument.name": "the source name",
     "remove.error.runtime_context_unavailable": "runtime context is unavailable",
-    "remove.error.invalid_options": "source name {name} is invalid",
+    "remove.error.invalid_options": "source name {name} is invalid, {detail}",
     "remove.error.project_required": "a Git project is required unless --global is used",
     "remove.error.name_not_found": "source {name} was not found",
     "remove.error.reserved_name": "source name {name} is reserved",

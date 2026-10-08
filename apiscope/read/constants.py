@@ -18,7 +18,11 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "read.help.argument.address": "the registered source name and route",
     "read.help.argument.index": "the numeric tree index shown by view; omit it to read a leaf address directly",
     "read.error.runtime_context_unavailable": "runtime context is unavailable",
-    "read.error.invalid_options": "invalid read options",
+    "read.error.invalid_options": "the read options are invalid, {detail}",
+    "read.error.index_form": (
+        "the [index] argument received [{index}], but it must be a numeric index. "
+        "put the route in the address, as in [apiscope read {suggestion}]"
+    ),
     "read.error.name_not_found": "source {name} does not exist",
     "read.error.source_invalid": "cannot read source {name} because its definition is invalid",
     "read.error.cache_missing": "cannot read source {name} because its cache is missing. sync it before retrying",

@@ -19,7 +19,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "sync.help.argument.name": "narrow the range to one source name",
     "sync.help.option.force": "refresh selected sources regardless of freshness",
     "sync.error.runtime_context_unavailable": "runtime context is unavailable",
-    "sync.error.invalid_options": "invalid sync options",
+    "sync.error.invalid_options": "the sync options are invalid, {detail}",
     "sync.error.preflight.git_missing": "cannot sync {target} because the Git executable is not available",
     "sync.error.invalid_selector": "sync selector {selector} is invalid. choose all or a supported document type",
     "sync.error.selector_conflict": "source name {name} does not match selector {selector}",

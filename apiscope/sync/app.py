@@ -34,6 +34,7 @@ from apiscope.sync.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.sync.context import SyncCommandContext
 from apiscope.sync.preflight import run_preflight
 from apiscope.sync.schema import SyncOptions
+from apiscope.validation import describe
 
 # ==============================================================================
 # constants
@@ -109,7 +110,7 @@ def main_callback(
         command_context = SyncCommandContext(runtime=runtime_context, options=options)
         summary = _run_sync(command_context)
     except ValidationError as error:
-        message = MessageError("sync.error.invalid_options")
+        message = MessageError("sync.error.invalid_options", {"detail": describe(error)})
         _emit_error(runtime_context, message)
         raise typer.Exit(code=1) from error
     except MessageError as error:
@@ -330,8 +331,9 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
             scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )

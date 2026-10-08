@@ -1,0 +1,9 @@
+[ok] [scope=project] [action=list] [filter=all] [offset=5]
+
+---
+
+(no items in this window)
+
+---
+
+[count=0] [total=1]

@@ -31,6 +31,6 @@ description: {description}
 MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "skill.install.help.command": "install the skill directory",
     "skill.install.help.argument.target": "install directory, defaulting to ~/.agents/skills/apiscope",
-    "skill.install.error.invalid_options": "invalid install options",
+    "skill.install.error.invalid_options": "the install options are invalid, {detail}",
     "skill.install.error.install_failed": "cannot install the skill at {path}",
 }

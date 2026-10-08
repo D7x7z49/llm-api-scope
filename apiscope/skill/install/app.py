@@ -26,6 +26,7 @@ from apiscope.skill.install.preflight import run_preflight
 from apiscope.skill.install.schema import InstallOptions
 from apiscope.skill.preflight import render_document
 from apiscope.skill.schema import SkillDocument
+from apiscope.validation import describe
 
 # ==============================================================================
 # constants
@@ -60,7 +61,8 @@ def main_callback(
         resolved = _resolve_target(options.target)
         _write_skill(resolved, document)
     except ValidationError as error:
-        _emit_error(runtime_context, MessageError("skill.install.error.invalid_options"))
+        detail = describe(error)
+        _emit_error(runtime_context, MessageError("skill.install.error.invalid_options", {"detail": detail}))
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -108,8 +110,9 @@ def _emit_error(runtime_context: RuntimeContext, error: MessageError) -> None:
             scope=runtime_context.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime_context.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )

@@ -32,6 +32,7 @@ from apiscope.schema import (
     RuntimeSource,
 )
 from apiscope.source import LocalLocation, SourceResolutionError, is_absolute_path, parse_source
+from apiscope.validation import describe
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
 
@@ -65,9 +66,10 @@ def main_callback(
         run_preflight(command_context)
         _validate_source(runtime_context, options)
         _add_source(command_context)
-    except ValidationError:
-        error = MessageError("add.error.invalid_options", {"name": name})
-        _emit_error(runtime_context, error)
+    except ValidationError as error:
+        detail = describe(error)
+        message = MessageError("add.error.invalid_options", {"name": name, "detail": detail})
+        _emit_error(runtime_context, message)
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -149,8 +151,9 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
             scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )

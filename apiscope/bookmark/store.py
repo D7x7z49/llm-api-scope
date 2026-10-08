@@ -11,14 +11,11 @@ from apiscope.bookmark.constants import (
     BOOKMARK_SCHEMA_REF,
 )
 from apiscope.bookmark.errors import BookmarkError
-from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile, BookmarkMode
-from apiscope.cache import digest_content
+from apiscope.bookmark.resolve import target_digest
+from apiscope.bookmark.schema import BookmarkEntry, BookmarkFile
 from apiscope.config import ensure_config_file, ensure_schema_file, load_config_file, save_config_file
-from apiscope.content import load_content
 from apiscope.context import RuntimeContext
 from apiscope.gitignore import ensure_project_gitignore
-from apiscope.source import SourceResolutionError, parse_source
-from apiscope.view_lib.address import split_address
 
 # ==============================================================================
 # storage paths
@@ -105,27 +102,6 @@ def save_bookmarks(runtime: RuntimeContext, data: BookmarkFile) -> None:
     save_config_file(target, data)
 
 
-# ==============================================================================
-# target resolution
-# ==============================================================================
-
-
-def base_directory(runtime: RuntimeContext) -> Path:
-    if runtime.paths.project is not None:
-        return runtime.paths.project.root
-    return Path.cwd()
-
-
-# return the current digest of the target, or none when it cannot be resolved
-# a group carries no target, so its digest is empty
-def target_digest(runtime: RuntimeContext, mode: BookmarkMode, target: str) -> str | None:
-    if mode == "group":
-        return ""
-    if mode == "file":
-        return _file_digest(base_directory(runtime), target)
-    return _source_digest(runtime, target)
-
-
 # the stored digest is the contract; status is derived and never persisted
 def entry_status(
     runtime: RuntimeContext,
@@ -197,36 +173,7 @@ def _ensure_directory(path: Path) -> None:
         raise BookmarkError("bookmark.error.store.directory_prepare_failed", {"path": str(path)}) from error
 
 
-def _file_digest(base_dir: Path, target: str) -> str | None:
-    path = Path(target).expanduser()
-    if not path.is_absolute():
-        path = base_dir / path
-    if not path.is_file():
-        return None
-    return digest_content(path)
-
-
-def _source_digest(runtime: RuntimeContext, target: str) -> str | None:
-    name, _route = split_address(target, runtime.config.source)
-    source = runtime.config.source.get(name)
-    if source is None:
-        return None
-
-    base_dir = base_directory(runtime)
-    try:
-        parsed = parse_source(source.doc_type, source.doc_src, base_dir=base_dir)
-    except SourceResolutionError:
-        return None
-
-    ttl_days = source.doc_ttl or runtime.config.setting.public.doc_ttl
-    snapshot = load_content(runtime.paths.home.cache, parsed, base_dir=base_dir, ttl_days=ttl_days)
-    if snapshot.inspection.state in {"missing", "invalid"} or snapshot.metadata is None:
-        return None
-    return snapshot.metadata.content_digest
-
-
 __all__ = [
-    "base_directory",
     "ensure_bookmarks",
     "entry_status",
     "global_path",
@@ -236,7 +183,6 @@ __all__ = [
     "project_path",
     "save_bookmarks",
     "save_layer",
-    "target_digest",
     "validate_acyclic",
     "write_path",
 ]

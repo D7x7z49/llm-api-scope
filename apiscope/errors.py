@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from re import fullmatch
-from typing import Any
+from typing import Any, Final
 
 from apiscope.constants import MESSAGE_TEMPLATES
+
+# values that shape the message only and never appear as report metadata
+_MESSAGE_ONLY_KEYS: Final = frozenset({"detail"})
 
 
 class MessageError(RuntimeError):
@@ -18,6 +21,17 @@ class MessageError(RuntimeError):
         self.code = code
         self.values = {} if values is None else dict(values)
         super().__init__(code)
+
+    @property
+    def meta(self) -> dict[str, Any]:
+        # the values that belong to the report metadata
+        return {key: value for key, value in self.values.items() if key not in _MESSAGE_ONLY_KEYS}
+
+    @property
+    def message_values(self) -> dict[str, Any] | None:
+        # the values that shape the message only
+        extra = {key: value for key, value in self.values.items() if key in _MESSAGE_ONLY_KEYS}
+        return extra or None
 
     def __str__(self) -> str:
         template = MESSAGE_TEMPLATES.get(self.code)

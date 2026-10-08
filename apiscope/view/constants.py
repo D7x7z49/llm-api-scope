@@ -18,7 +18,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "view.help.argument.address": "the registered source name and optional route",
     "view.help.option.depth": "levels to show below the scope; the default is unlimited",
     "view.error.runtime_context_unavailable": "runtime context is unavailable",
-    "view.error.invalid_options": "invalid view options",
+    "view.error.invalid_options": "the view options are invalid, {detail}",
     "view.error.name_not_found": "source {name} does not exist",
     "view.error.source_invalid": "cannot view source {name} because its definition is invalid",
     "view.error.cache_missing": "cannot view source {name} because its cache is missing. sync it before retrying",

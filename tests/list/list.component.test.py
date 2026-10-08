@@ -1,5 +1,6 @@
 # tests/list/list.component.test.py
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,7 @@ def test_list_all_groups_effective_sources_by_type(
     isolated_home: Path,
     git_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    golden: Callable[[str, str], None],
 ) -> None:
     monkeypatch.chdir(git_project)
     _write_config(
@@ -79,17 +81,7 @@ def test_list_all_groups_effective_sources_by_type(
     result = CliRunner().invoke(app, ["list", "all"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all]\n\n"
-        "---\n\n"
-        "[openapi]\n"
-        "- [petstore] https://example.test/openapi.json\n"
-        "\n"
-        "[rfc]\n"
-        "- [rfc-http] https://example.test/rfc.txt\n\n"
-        "---\n\n"
-        "[count=2] [total=2]\n"
-    )
+    golden(result.output, "list/grouped-by-type.txt")
 
 
 def test_list_text_preserves_source_link(
@@ -205,15 +197,14 @@ def test_list_reports_an_empty_project_registry(
     isolated_home: Path,
     git_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    golden: Callable[[str, str], None],
 ) -> None:
     monkeypatch.chdir(git_project)
 
     result = CliRunner().invoke(app, ["list", "all"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all]\n\n---\n\n(no sources)\n\n---\n\n[count=0] [total=0]\n"
-    )
+    golden(result.output, "list/empty.txt")
 
 
 # list the home registry
@@ -254,6 +245,7 @@ def test_list_windows_the_sources_by_limit(
     isolated_home: Path,
     git_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    golden: Callable[[str, str], None],
 ) -> None:
     monkeypatch.chdir(git_project)
     _write_config(
@@ -269,20 +261,14 @@ def test_list_windows_the_sources_by_limit(
     result = CliRunner().invoke(app, ["list", "all", "--limit", "1"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all] [limit=1]\n\n"
-        "---\n\n"
-        "[openapi]\n"
-        "- [petstore] ./openapi.json\n\n"
-        "---\n\n"
-        "[count=1] [total=2] [next=1]\n"
-    )
+    golden(result.output, "list/limit.txt")
 
 
 def test_list_windows_the_sources_by_offset(
     isolated_home: Path,
     git_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    golden: Callable[[str, str], None],
 ) -> None:
     monkeypatch.chdir(git_project)
     _write_config(
@@ -298,20 +284,14 @@ def test_list_windows_the_sources_by_offset(
     result = CliRunner().invoke(app, ["list", "all", "--offset", "1"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all] [offset=1]\n\n"
-        "---\n\n"
-        "[rfc]\n"
-        "- [rfc-http] ./rfc.txt\n\n"
-        "---\n\n"
-        "[count=1] [total=2]\n"
-    )
+    golden(result.output, "list/offset.txt")
 
 
 def test_list_reports_an_empty_window(
     isolated_home: Path,
     git_project: Path,
     monkeypatch: pytest.MonkeyPatch,
+    golden: Callable[[str, str], None],
 ) -> None:
     monkeypatch.chdir(git_project)
     _write_config(
@@ -326,13 +306,7 @@ def test_list_reports_an_empty_window(
     result = CliRunner().invoke(app, ["list", "all", "--offset", "5"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert result.output == (
-        "[ok] [scope=project] [action=list] [filter=all] [offset=5]\n\n"
-        "---\n\n"
-        "(no items in this window)\n\n"
-        "---\n\n"
-        "[count=0] [total=1]\n"
-    )
+    golden(result.output, "list/empty-window.txt")
 
 
 def test_list_window_in_json(

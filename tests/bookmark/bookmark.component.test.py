@@ -1,5 +1,7 @@
 # tests/bookmark/bookmark.component.test.py
 import json
+import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -45,6 +47,27 @@ def test_add_stores_a_file_bookmark_and_list_shows_it_active(
     assert listed.exit_code == 0
     assert "- [my-note] file" in listed.output
     assert "(active)" in listed.output
+
+
+def test_add_rejects_a_short_description_with_an_actionable_message(
+    isolated_home: Path,
+    project_cwd: Path,
+    tmp_path: Path,
+) -> None:
+    target = _write(tmp_path, "note.md", "hello\n")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["bookmark", "add", "demo-short", "file", str(target), "--description", "short"],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=add] [code=bookmark.add.error.invalid_options]: "
+        "the bookmark options are invalid, [--description] must be at least 32 characters, "
+        "but 5 characters were given\n"
+    )
 
 
 def test_list_marks_a_changed_file_as_invalid(
@@ -309,6 +332,15 @@ def _add_source_bookmark(runner: CliRunner, bookmark_id: str, mode: str, address
     )
 
 
+def _synced_directory_source(project_cwd: Path, fixture_tree: Callable[[str, Path], Path]) -> None:
+    fixture_tree("filesystem", project_cwd / "docs")
+    runner = CliRunner()
+    added = runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"])
+    synced = runner.invoke(app, ["sync", "all", "docs"])
+    assert added.exit_code == 0
+    assert synced.exit_code == 0
+
+
 def _synced_filesystem_source(project_cwd: Path) -> None:
     source = project_cwd / "docs" / "readme.txt"
     source.parent.mkdir()
@@ -346,6 +378,127 @@ def test_use_runs_a_read_bookmark(
     assert added.exit_code == 0
     assert used.exit_code == 0
     assert "hello" in used.output
+
+
+def test_add_rejects_a_read_target_that_use_cannot_project(
+    isolated_home: Path,
+    project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
+) -> None:
+    _synced_directory_source(project_cwd, fixture_tree)
+    runner = CliRunner()
+
+    rejected = _add_source_bookmark(runner, "docs-nonleaf", "read", "docs")
+    used = runner.invoke(app, ["bookmark", "use", "docs-nonleaf"])
+
+    assert rejected.exit_code == 1
+    assert rejected.output == (
+        "[error] [scope=project] [action=add] [code=bookmark.add.error.target_unresolved] [mode=read] [target=docs]: "
+        "cannot resolve the read target docs because the route does not exist. "
+        "view the source to pick a route\n"
+    )
+    assert used.exit_code == 1
+    assert "bookmark.use.error.id_not_found" in used.output
+
+
+def test_add_and_use_agree_on_a_leaf_read_target(
+    isolated_home: Path,
+    project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
+) -> None:
+    _synced_directory_source(project_cwd, fixture_tree)
+    runner = CliRunner()
+
+    added = _add_source_bookmark(runner, "docs-leaf", "read", "docs/README.md")
+    used = runner.invoke(app, ["bookmark", "use", "docs-leaf"])
+
+    assert added.exit_code == 0
+    assert used.exit_code == 0
+    assert "API documentation" in used.output
+
+
+def test_use_reports_a_missing_cache_with_its_own_code(
+    isolated_home: Path,
+    project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
+) -> None:
+    _synced_directory_source(project_cwd, fixture_tree)
+    runner = CliRunner()
+    _add_source_bookmark(runner, "docs-leaf", "read", "docs/README.md")
+    cache = isolated_home / ".apiscope" / "cache"
+    for entry in cache.iterdir():
+        shutil.rmtree(entry)
+
+    used = runner.invoke(app, ["bookmark", "use", "docs-leaf"])
+
+    assert used.exit_code == 1
+    assert used.output == (
+        "[error] [scope=project] [action=use] [code=bookmark.use.error.cache_missing] "
+        "[name=docs] [target=docs/README.md]: "
+        "the source docs has no cached content; run sync first\n"
+    )
+
+
+def test_use_reports_an_unknown_source_with_its_own_code(
+    isolated_home: Path,
+    project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
+) -> None:
+    _synced_directory_source(project_cwd, fixture_tree)
+    runner = CliRunner()
+    _add_source_bookmark(runner, "docs-leaf", "read", "docs/README.md")
+    removed = runner.invoke(app, ["remove", "docs"])
+
+    used = runner.invoke(app, ["bookmark", "use", "docs-leaf"])
+
+    assert removed.exit_code == 0
+    assert used.exit_code == 1
+    assert used.output == (
+        "[error] [scope=project] [action=use] [code=bookmark.use.error.source_not_found] "
+        "[name=docs] [target=docs/README.md]: "
+        "the address docs/README.md names an unknown source\n"
+    )
+
+
+def test_use_reports_an_invalid_source_definition_with_its_own_code(
+    isolated_home: Path,
+    project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
+) -> None:
+    # a saved reference can outlive a hand edit that breaks its source definition
+    _synced_directory_source(project_cwd, fixture_tree)
+    runner = CliRunner()
+    added = _add_source_bookmark(runner, "docs-leaf", "read", "docs/README.md")
+    config_path = project_cwd / ".apiscope" / "config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["source"]["docs"]["doc_src"] = "https://example.test/readme.md"
+    config_path.write_text(json.dumps(config) + "\n", encoding="utf-8")
+
+    used = runner.invoke(app, ["bookmark", "use", "docs-leaf"])
+
+    assert added.exit_code == 0
+    assert used.exit_code == 1
+    assert used.output == (
+        "[error] [scope=project] [action=use] [code=bookmark.use.error.source_invalid] "
+        "[name=docs] [target=docs/README.md]: "
+        "the source docs has an invalid definition; check its type and location\n"
+    )
+
+
+def test_use_reports_a_malformed_id_as_a_format_error(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["bookmark", "use", "BAD_ID"])
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=use] [code=bookmark.use.error.invalid_id] [id=BAD_ID]: "
+        "the bookmark id BAD_ID is invalid, [id] must match the pattern "
+        "^[a-z][a-z0-9]*(-[a-z0-9]+){0,2}$, but [BAD_ID] was given\n"
+    )
 
 
 def test_project_write_ignores_the_state_directory(
