@@ -1,0 +1,8 @@
+openapi: 3.2.1
+paths:
+  /pets:
+    summary: Pet collection
+    parameters:
+      - name: limit
+    get:
+      $ref: '#/components/operations/ListPets'

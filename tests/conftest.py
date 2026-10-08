@@ -6,15 +6,19 @@ import os
 import shutil
 import threading
 from collections.abc import Callable, Iterator
+from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx2
 import pytest
 
+from apiscope.cache import CacheMetadata
 from apiscope.constants import APISCOPE_HOME_ENV
+from apiscope.schema import DocumentType
 from apiscope.sync._lib import transport
+from apiscope.view_lib.schema import IndexedNode, NodeType
 
 # ==============================================================================
 # fixture data
@@ -75,6 +79,55 @@ def golden() -> Callable[[str, str], None]:
         pytest.fail(f"golden mismatch for {name}\n{diff}")
 
     return check
+
+
+# ==============================================================================
+# common data builders
+# ==============================================================================
+
+
+@pytest.fixture
+def indexed_node() -> Callable[..., IndexedNode]:
+    def build(
+        path: str,
+        *,
+        key: str | None = None,
+        node_type: NodeType = "leaf",
+        source_target: str | None = None,
+    ) -> IndexedNode:
+        return IndexedNode(
+            address=(1,),
+            index="1",
+            key=key or path,
+            node_type=node_type,
+            path=path,
+            source_target=source_target,
+        )
+
+    return build
+
+
+@pytest.fixture
+def cache_metadata() -> Callable[..., CacheMetadata]:
+    def build(
+        doc_type: DocumentType,
+        *,
+        content_kind: Literal["file", "directory"] = "file",
+        content_name: str | None = None,
+        source: str = "file:///source",
+    ) -> CacheMetadata:
+        return CacheMetadata(
+            format_version="1",
+            doc_type=doc_type,
+            source=source,
+            source_digest="digest",
+            fetched_at=datetime.now(timezone.utc),
+            content_kind=content_kind,
+            content_name=content_name,
+            content_digest="digest",
+        )
+
+    return build
 
 
 # ==============================================================================

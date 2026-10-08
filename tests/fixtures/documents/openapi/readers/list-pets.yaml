@@ -1,0 +1,5 @@
+openapi: 3.2.1
+paths:
+  /pets:
+    get:
+      summary: List pets

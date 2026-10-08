@@ -12,12 +12,10 @@ from apiscope.main import app
 def test_view_shows_a_cached_filesystem_tree(
     isolated_home: Path,
     project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
     golden: Callable[[str, str], None],
 ) -> None:
-    source = project_cwd / "docs"
-    (source / "api").mkdir(parents=True)
-    (source / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
-    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    fixture_tree("filesystem", project_cwd / "docs")
     runner = CliRunner()
 
     added = runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
@@ -33,17 +31,17 @@ def test_view_shows_a_cached_filesystem_tree(
 def test_view_path_filter_relays_out_the_index(
     isolated_home: Path,
     project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
 ) -> None:
-    source = project_cwd / "docs"
-    (source / "api").mkdir(parents=True)
-    (source / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
-    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    fixture_tree("filesystem", project_cwd / "docs")
     runner = CliRunner()
 
-    runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
+    added = runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "docs/api"], catch_exceptions=False)
 
+    assert added.exit_code == 0
+    assert synced.exit_code == 0
     assert result.exit_code == 0
     assert "- [1] overview.md" in result.output
     assert "[path=api]" in result.output
@@ -77,17 +75,17 @@ def test_view_json_contains_the_same_semantic_nodes(
 def test_view_depth_caps_the_body(
     isolated_home: Path,
     project_cwd: Path,
+    fixture_tree: Callable[[str, Path], Path],
 ) -> None:
-    source = project_cwd / "docs"
-    (source / "api").mkdir(parents=True)
-    (source / "api" / "overview.md").write_text("overview\n", encoding="utf-8")
-    (source / "README.md").write_text("readme\n", encoding="utf-8")
+    fixture_tree("filesystem", project_cwd / "docs")
     runner = CliRunner()
 
-    runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
+    added = runner.invoke(app, ["add", "docs", "docs", "--type", "filesystem"], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "all", "docs"], catch_exceptions=False)
     result = runner.invoke(app, ["--json", "view", "docs", "--depth", "1"], catch_exceptions=False)
 
+    assert added.exit_code == 0
+    assert synced.exit_code == 0
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert [item["key"] for item in payload["data"]] == ["api", "README.md"]
@@ -134,19 +132,17 @@ def test_view_uses_the_projection_error_catalog_directly(
 def test_view_route_error_shows_the_valid_address_and_same_level(
     isolated_home: Path,
     project_cwd: Path,
+    document: Callable[[str], str],
 ) -> None:
-    (project_cwd / "openapi.yaml").write_text(
-        "openapi: 3.2.1\npaths:\n"
-        "  /pets:\n    get:\n      summary: List pets\n    post:\n      summary: Create a pet\n"
-        "  /pets/{petId}:\n    get:\n      summary: Get one pet\n",
-        encoding="utf-8",
-    )
+    (project_cwd / "openapi.yaml").write_text(document("openapi/view-route.yaml"), encoding="utf-8")
     runner = CliRunner()
 
-    runner.invoke(app, ["add", "pets", "openapi.yaml", "--type", "openapi"], catch_exceptions=False)
-    runner.invoke(app, ["sync", "all", "pets"], catch_exceptions=False)
+    added = runner.invoke(app, ["add", "pets", "openapi.yaml", "--type", "openapi"], catch_exceptions=False)
+    synced = runner.invoke(app, ["sync", "all", "pets"], catch_exceptions=False)
     result = runner.invoke(app, ["view", "pets/pets/x"], catch_exceptions=False)
 
+    assert added.exit_code == 0
+    assert synced.exit_code == 0
     assert result.exit_code == 1
     assert "route pets/x does not exist" in result.output
     assert "pets/pets\n" in result.output

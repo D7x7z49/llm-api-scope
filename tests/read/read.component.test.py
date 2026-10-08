@@ -2,6 +2,7 @@
 
 import json
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -213,6 +214,7 @@ def test_read_route_error_uses_the_shared_prefix_hint(
 def test_read_text_output_has_a_head_body_and_foot(
     isolated_home: Path,
     project_cwd: Path,
+    golden: Callable[[str, str], None],
 ) -> None:
     source = project_cwd / "docs"
     shutil.copytree(READ_FILESYSTEM_FIXTURE, source)
@@ -221,19 +223,8 @@ def test_read_text_output_has_a_head_body_and_foot(
     _register_and_sync(runner, "docs", "docs")
     result = runner.invoke(app, ["read", "docs", "1.1"], catch_exceptions=False)
 
-    expected_content = "# API overview\n\nThe service exposes a health endpoint.\n"
-    expected_foot = (
-        "[cache=fresh] [kind=markdown] [media_type=text/markdown] "
-        f"[encoding=utf-8] [size={len(expected_content.encode('utf-8'))}]"
-    )
     assert result.exit_code == 0
-    expected_output = (
-        "[ok] [scope=project] [action=read] [name=docs] [target=api/overview.md]\n\n"
-        "---\n\n"
-        f"{expected_content}\n\n---\n\n"
-        f"{expected_foot}\n"
-    )
-    assert result.output == expected_output, repr(result.output)
+    golden(result.output, "read/filesystem-node.txt")
 
 
 def test_read_supports_a_single_file_source(
@@ -489,12 +480,9 @@ def test_arxiv_source_can_be_added_synced_viewed_and_read(
     isolated_home: Path,
     project_cwd: Path,
     monkeypatch: pytest.MonkeyPatch,
+    document: Callable[[str], str],
 ) -> None:
-    html = (
-        '<html><article class="ltx_document"><section id="S1" class="ltx_section">'
-        '<h2 class="ltx_title ltx_title_section">Introduction</h2><p>Paper text.</p>'
-        "</section></article></html>"
-    )
+    html = document("arxiv/single-section.html")
     requested: list[str] = []
     original_client = httpx2.Client
 

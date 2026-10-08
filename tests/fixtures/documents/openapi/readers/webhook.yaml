@@ -1,0 +1,6 @@
+openapi: 3.2.1
+paths: {}
+webhooks:
+  orderCreated:
+    post:
+      summary: Notify the consumer
