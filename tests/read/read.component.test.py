@@ -329,6 +329,26 @@ def test_read_uses_the_shared_index_not_found_message(
     assert payload["message"] == "tree index 9 does not exist"
 
 
+def test_read_reports_a_route_placed_in_the_index_argument(
+    isolated_home: Path,
+    project_cwd: Path,
+) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["read", "docs", "guide/intro.md"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=read] [code=read.error.index_form]: "
+        "the [index] argument received [guide/intro.md], but it must be a numeric index. "
+        "put the route in the address, as in [apiscope read docs/guide/intro.md]\n"
+    )
+
+
 def test_read_returns_one_rfc_txt_page(
     isolated_home: Path,
     project_cwd: Path,

@@ -47,6 +47,27 @@ def test_add_stores_a_file_bookmark_and_list_shows_it_active(
     assert "(active)" in listed.output
 
 
+def test_add_rejects_a_short_description_with_an_actionable_message(
+    isolated_home: Path,
+    project_cwd: Path,
+    tmp_path: Path,
+) -> None:
+    target = _write(tmp_path, "note.md", "hello\n")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["bookmark", "add", "demo-short", "file", str(target), "--description", "short"],
+    )
+
+    assert result.exit_code == 1
+    assert result.output == (
+        "[error] [scope=project] [action=add] [code=bookmark.add.error.invalid_options]: "
+        "the bookmark options are invalid, [--description] must be at least 32 characters, "
+        "but 5 characters were given\n"
+    )
+
+
 def test_list_marks_a_changed_file_as_invalid(
     isolated_home: Path,
     project_cwd: Path,

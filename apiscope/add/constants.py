@@ -11,7 +11,7 @@ MESSAGE_TEMPLATES: Final[dict[str, str]] = {
     "add.help.option.type": "the source document type",
     "add.help.option.ttl": "the source cache TTL in days",
     "add.error.runtime_context_unavailable": "runtime context is unavailable",
-    "add.error.invalid_options": ("source {name} has an invalid definition. check its type, location, and TTL"),
+    "add.error.invalid_options": "source {name} has an invalid definition, {detail}",
     "add.error.project_required": "a Git project is required unless --global is used",
     "add.error.duplicate_name": "source {name} already exists",
     "add.error.duplicate_source": "source {source} is already registered as {name}",

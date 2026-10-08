@@ -15,6 +15,7 @@ from apiscope.errors import MessageError
 from apiscope.output import Report, emit_report
 from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
+from apiscope.validation import describe
 from apiscope.view.constants import COMMAND_NAME, MESSAGE_TEMPLATES
 from apiscope.view.context import ViewCommandContext
 from apiscope.view.preflight import run_preflight
@@ -84,7 +85,7 @@ def main_callback(
             raise MessageError("view.error.name_not_found", {"name": name})
         result = _run_view(command_context, source, name=name, path=path)
     except ValidationError as error:
-        message = MessageError("view.error.invalid_options")
+        message = MessageError("view.error.invalid_options", {"detail": describe(error)})
         _emit_error(runtime_context, message)
         raise typer.Exit(code=1) from error
     except MessageError as error:

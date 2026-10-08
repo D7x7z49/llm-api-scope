@@ -24,6 +24,7 @@ from apiscope.read_lib.registry import read_content, supports_reading
 from apiscope.read_lib.schema import ReadResult
 from apiscope.schema import RuntimeSource
 from apiscope.source import SourceResolutionError, parse_source
+from apiscope.validation import describe
 from apiscope.view_lib.address import split_address
 from apiscope.view_lib.constants import MESSAGE_TEMPLATES as VIEW_LIB_MESSAGE_TEMPLATES
 from apiscope.view_lib.constants import ProjectionReason
@@ -74,7 +75,7 @@ def main_callback(
             raise MessageError("read.error.name_not_found", {"name": name})
         result = _run_read(command_context, source, name=name, route=route)
     except ValidationError as error:
-        message = MessageError("read.error.invalid_options")
+        message = _read_options_error(error, address)
         _emit_error(runtime_context, message)
         raise typer.Exit(code=1) from error
     except MessageError as error:
@@ -191,6 +192,18 @@ def _require_cache(name: str, inspection: CacheInspection) -> None:
         raise MessageError("read.error.cache_missing", {"name": name})
     if inspection.state == "invalid" or inspection.metadata is None:
         raise MessageError("read.error.cache_invalid", {"name": name})
+
+
+def _read_options_error(error: ValidationError, address: str) -> MessageError:
+    for item in error.errors():
+        loc = item.get("loc", ())
+        value = item.get("input")
+        if item.get("type") == "string_pattern_mismatch" and loc and loc[-1] == "index":
+            text = "" if value is None else str(value)
+            if "/" in text:
+                suggestion = text if "/" in address else f"{address}/{text}"
+                return MessageError("read.error.index_form", {"index": text, "suggestion": suggestion})
+    return MessageError("read.error.invalid_options", {"detail": describe(error)})
 
 
 def _projection_message(error: ProjectionError, *, name: str, address: str) -> MessageError:

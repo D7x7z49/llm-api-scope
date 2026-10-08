@@ -18,8 +18,16 @@ from apiscope.context import RuntimeContext
 from apiscope.errors import MessageError
 from apiscope.lock import acquire_write_lock
 from apiscope.output import Report, emit_report
+from apiscope.validation import describe
 
 _MESSAGE_TEMPLATES = {**ROOT_MESSAGE_TEMPLATES, **BOOKMARK_MESSAGE_TEMPLATES, **MESSAGE_TEMPLATES}
+
+# the schema field names map to the option labels the user sees
+_OPTION_LABELS = {
+    "description": "--description",
+    "start": "--start",
+    "offset": "--offset",
+}
 
 # ==============================================================================
 # app
@@ -78,7 +86,8 @@ def main_callback(
         run_preflight(command_context)
         _add(command_context)
     except ValidationError as error:
-        _emit_error(runtime_context, MessageError("bookmark.add.error.invalid_options"))
+        detail = describe(error, _OPTION_LABELS)
+        _emit_error(runtime_context, MessageError("bookmark.add.error.invalid_options", {"detail": detail}))
         raise typer.Exit(code=1) from error
     except MessageError as error:
         _emit_error(runtime_context, error)
@@ -166,8 +175,9 @@ def _emit_error(runtime: RuntimeContext, error: MessageError) -> None:
             scope=runtime.scope,
             action=COMMAND_NAME,
             code=error.code,
-            meta=error.values,
+            meta=error.meta,
         ),
         output_format=runtime.options.output_format,
         message_templates=_MESSAGE_TEMPLATES,
+        message_values=error.message_values,
     )
