@@ -1,5 +1,6 @@
 # tests/lock.unit.test.py
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,8 @@ def test_acquire_write_lock_creates_an_empty_lock_database(tmp_path: Path) -> No
     finally:
         lock.release()
 
-    with sqlite3.connect(lock.path) as connection:
+    # a sqlite3 connection as a context manager commits or rolls back but does not close
+    with closing(sqlite3.connect(lock.path)) as connection:
         tables = connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
 
     assert tables == []
