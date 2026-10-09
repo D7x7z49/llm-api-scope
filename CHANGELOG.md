@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.3 (2026-10-09)
+
+### Bug Fixes
+
+- **llmstxt**: Cache the markdown version of a page
+  ([`8b8438a`](https://github.com/D7x7z49/llm-api-scope/commit/8b8438ad321b33d1dfa86e727f28c6f9453107b2))
+
+
 ## v0.12.2 (2026-10-09)
 
 ### Bug Fixes
