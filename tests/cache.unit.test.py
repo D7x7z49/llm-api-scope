@@ -198,14 +198,14 @@ def test_cache_accepts_a_directory_entry_with_a_manifest(tmp_path: Path) -> None
     assert inspection.state == "fresh"
 
 
-def test_cache_path_uses_the_full_source_digest(tmp_path: Path) -> None:
+def test_cache_path_uses_a_short_source_digest(tmp_path: Path) -> None:
     cache_root = tmp_path / "cache"
     identity = "file:///source.txt"
 
     entry = cache_path(cache_root, identity)
 
-    assert entry.name == cache_module.source_digest(identity)
-    assert len(entry.name) == 64
+    assert entry.name == cache_module.source_digest(identity)[: cache_module.DIGEST_PREFIX_LENGTH]
+    assert len(entry.name) == cache_module.DIGEST_PREFIX_LENGTH
 
 
 def test_cache_path_is_deterministic_and_keeps_other_entries(tmp_path: Path) -> None:
@@ -249,7 +249,7 @@ def test_cache_entry_keeps_the_full_source_digest(tmp_path: Path) -> None:
     entry = cache_path(cache_root, identity)
     metadata = json.loads((entry / "metadata.json").read_text(encoding="utf-8"))
 
-    assert entry.name == digest
+    assert entry.name == digest[: cache_module.DIGEST_PREFIX_LENGTH]
     assert metadata["source_digest"] == digest
     assert metadata["source"] == parsed.original
     assert metadata["content_digest"] != metadata["source_digest"]

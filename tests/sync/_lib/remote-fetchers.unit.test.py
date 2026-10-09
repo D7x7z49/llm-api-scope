@@ -1,5 +1,4 @@
 # tests/sync/_lib/remote-fetchers.unit.test.py
-import hashlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -78,13 +77,11 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
 
     result = LlmstxtFetcher().fetch(source, destination=destination)
 
-    index_digest = hashlib.sha256(index).hexdigest()
-    page_digest = hashlib.sha256(b"page content").hexdigest()
     assert result.content_kind == "directory"
     assert result.content_name is None
-    assert (destination / "content" / index_digest).read_bytes() == index
-    assert (destination / "content" / page_digest).read_bytes() == b"page content"
     assert result.manifest is not None
+    assert (destination / "content" / result.manifest["llms.txt"]).read_bytes() == index
+    assert (destination / "content" / result.manifest["guide/index"]).read_bytes() == b"page content"
     golden(json.dumps(result.manifest, indent=2, sort_keys=True) + "\n", "llmstxt/manifest.json")
     assert requests == [
         url,

@@ -7,7 +7,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx2
 
-from apiscope.cache import CACHE_CONTENT_DIRECTORY, digest_content
+from apiscope.cache import CACHE_CONTENT_DIRECTORY, DIGEST_PREFIX_LENGTH, digest_content
 from apiscope.sync._lib.errors import SourceFetchError, TransportError
 from apiscope.sync._lib.schema import FetchResult, LocalLocation, ParsedSource, RemoteLocation
 from apiscope.sync._lib.transport import fetch_location, fetch_remote_bytes
@@ -44,13 +44,14 @@ class LlmstxtFetcher:
         base, index_dir = _index_base(source)
         index_path = content_path / index_name
         try:
-            index_text = index_path.read_text(encoding="utf-8")
             index_bytes = index_path.read_bytes()
+            index_text = index_bytes.decode("utf-8")
         except (OSError, UnicodeError) as error:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": str(error)}) from error
         index_path.unlink(missing_ok=True)
 
-        digests: dict[str, str] = {index_name: _store_body(content_path, index_bytes)}
+        names: dict[str, str] = {}
+        digests: dict[str, str] = {index_name: _store_body(content_path, index_bytes, names)}
         page_routes: list[str] = []
         for link in _links(index_text):
             target = urljoin(base, link)
@@ -61,7 +62,7 @@ class LlmstxtFetcher:
                 continue
             if route == index_name:
                 continue
-            digests[route] = _store_body(content_path, data)
+            digests[route] = _store_body(content_path, data, names)
             page_routes.append(route)
 
         return FetchResult(
@@ -73,12 +74,18 @@ class LlmstxtFetcher:
         )
 
 
-def _store_body(content_path: Path, data: bytes) -> str:
+def _store_body(content_path: Path, data: bytes, names: dict[str, str]) -> str:
     digest = sha256(data).hexdigest()
-    body_path = content_path / digest
+    length = DIGEST_PREFIX_LENGTH
+    name = digest[:length]
+    while name in names and names[name] != digest:
+        length += 1
+        name = digest[:length]
+    names[name] = digest
+    body_path = content_path / name
     if not body_path.exists():
         body_path.write_bytes(data)
-    return digest
+    return name
 
 
 # a page route that is also a parent becomes an index leaf, so the tree stays a tree.

@@ -27,6 +27,8 @@ CACHE_CONTENT_DIRECTORY: Final = "content"
 CACHE_FORMAT_VERSION: Final = "2"
 CACHE_METADATA_FILENAME: Final = "metadata.json"
 CACHE_MANIFEST_FILENAME: Final = "manifest.json"
+# a cache name keeps the leading hex digits of a full sha256
+DIGEST_PREFIX_LENGTH: Final = 12
 
 # ==============================================================================
 # types
@@ -75,9 +77,9 @@ def source_digest(identity: str) -> str:
 
 
 # map one identity to one deterministic cache entry
-# the full digest is the directory name, so an entry is never renamed
+# a short digest prefix is the directory name, so an entry is never renamed
 def cache_path(cache_root: Path, identity: str) -> Path:
-    return cache_root / source_digest(identity)
+    return cache_root / source_digest(identity)[:DIGEST_PREFIX_LENGTH]
 
 
 # ==============================================================================

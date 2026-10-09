@@ -1,7 +1,7 @@
 {
-  ".": "e67fc2429016719afaa3319d1394f35a976d736567843defc79363c073933ead",
-  "guide": "e23a614818a94d0138a2a87ba0ef92e3217bf380f1b228f0991e4f173e9d7119",
-  "guide/index": "dae20db60bac9a4baf84b5a34ea4318b2e0e7d3784898bbb667a39815a0c37ee",
-  "guide/intro.md": "dae20db60bac9a4baf84b5a34ea4318b2e0e7d3784898bbb667a39815a0c37ee",
-  "llms.txt": "1d5f41682a2934fd0cc2fd654f7c2fe3985c1395f62a4acbdcb4234167533caa"
+  ".": "c96a66c9e20a3f00529bd772183355e5c6cf61c0ce21462bdd0aed82ed7ab84c",
+  "guide": "095b3dde1a5d8e6aac0ae3d9f7bdbf0539bc6c53f04ea2c343fcb1ce68107e46",
+  "guide/index": "dae20db60bac",
+  "guide/intro.md": "dae20db60bac",
+  "llms.txt": "1d5f41682a29"
 }

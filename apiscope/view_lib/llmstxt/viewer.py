@@ -18,7 +18,11 @@ class LlmstxtViewer:
             raise ProjectionError(ProjectionReason.CONTENT_INVALID)
 
         keys = sorted(key for key in manifest if key != ".")
-        sections = {key for key in keys if any(other != key and other.startswith(f"{key}/") for other in keys)}
+        sections: set[str] = set()
+        for key in keys:
+            parts = key.split("/")
+            for length in range(1, len(parts)):
+                sections.add("/".join(parts[:length]))
         children: dict[str, list[str]] = {}
         for key in keys:
             children.setdefault(key.rpartition("/")[0], []).append(key)
