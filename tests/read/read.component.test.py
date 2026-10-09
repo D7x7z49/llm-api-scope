@@ -437,6 +437,8 @@ def test_sync_caches_a_page_that_is_also_a_parent(
         url = str(request.url)
         if url == "https://example.test/docs/llms.txt":
             body = index.encode()
+        elif url.endswith("/en/actions.md"):
+            body = b"# Actions\n"
         elif url.endswith("/en/actions"):
             body = b"# Actions\n"
         else:

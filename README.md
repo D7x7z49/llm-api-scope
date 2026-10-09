@@ -134,7 +134,7 @@ apiscope sync <selector> [<name>] [--force]
 the selector is the same as in list, and the optional name narrows the range to one source.
 a source refreshes when its cache is older than its ttl, and `--force` ignores the ttl.
 `repo` clones with shallow depth, and a subpath selects files with a sparse checkout.
-`llmstxt` reads the index page, downloads the pages it lists, and skips a failed page.
+`llmstxt` reads the index page, prefers the markdown version of each page, and skips a failed page.
 `arxiv` prefers structured HTML, falls back to TeX source, and does not parse PDF-, PostScript-, or DVI-only submissions.
 
 ### view

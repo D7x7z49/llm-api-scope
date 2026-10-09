@@ -9,6 +9,7 @@ import httpx2
 
 from apiscope.cache import CACHE_CONTENT_DIRECTORY, DIGEST_PREFIX_LENGTH, digest_content
 from apiscope.sync._lib.errors import SourceFetchError, TransportError
+from apiscope.sync._lib.llmstxt.markdown import is_html, markdown_candidates
 from apiscope.sync._lib.schema import FetchResult, LocalLocation, ParsedSource, RemoteLocation
 from apiscope.sync._lib.transport import fetch_location, fetch_remote_bytes
 
@@ -57,7 +58,7 @@ class LlmstxtFetcher:
             target = urljoin(base, link)
             try:
                 route = _route(base, target)
-                data = _page_bytes(target, index_dir, proxy=proxy, no_proxy=no_proxy)
+                data = _page_bytes(target, index_dir, base=base, proxy=proxy, no_proxy=no_proxy)
             except (OSError, ValueError, httpx2.HTTPError):
                 continue
             if route == index_name:
@@ -147,13 +148,34 @@ def _index_base(source: ParsedSource) -> tuple[str, Path | None]:
     raise ValueError("the llmstxt source is unsupported")
 
 
-def _page_bytes(target: str, index_dir: Path | None, *, proxy: str | None, no_proxy: str | None) -> bytes:
+def _page_bytes(
+    target: str,
+    index_dir: Path | None,
+    *,
+    base: str,
+    proxy: str | None,
+    no_proxy: str | None,
+) -> bytes:
     parts = urlsplit(target)
     if parts.scheme.lower() in _REMOTE_SCHEMES and parts.netloc:
-        return fetch_remote_bytes(target, proxy=proxy, no_proxy=no_proxy)
+        return _remote_page_bytes(base, target, proxy=proxy, no_proxy=no_proxy)
     if index_dir is None:
         raise ValueError("a local link needs a local index")
     return Path(target).read_bytes()
+
+
+# follow the markdown page proposal: a page serves markdown at a sibling url.
+# a failed or html sibling falls through to the listed url.
+def _remote_page_bytes(base: str, target: str, *, proxy: str | None, no_proxy: str | None) -> bytes:
+    if _same_origin(base, target):
+        for candidate in markdown_candidates(target):
+            try:
+                data = fetch_remote_bytes(candidate, proxy=proxy, no_proxy=no_proxy)
+            except httpx2.HTTPError:
+                continue
+            if not is_html(data):
+                return data
+    return fetch_remote_bytes(target, proxy=proxy, no_proxy=no_proxy)
 
 
 def _links(text: str) -> list[str]:
@@ -165,17 +187,23 @@ def _links(text: str) -> list[str]:
     return urls
 
 
+def _same_origin(base: str, target: str) -> bool:
+    base_parts = urlsplit(base)
+    target_parts = urlsplit(target)
+    return (
+        bool(target_parts.netloc)
+        and base_parts.scheme.lower() == target_parts.scheme.lower()
+        and base_parts.netloc.lower() == target_parts.netloc.lower()
+    )
+
+
 def _route(base: str, target: str) -> str:
     source_parts = urlsplit(base)
     target_parts = urlsplit(target)
     if target_parts.username is not None or target_parts.password is not None:
         raise ValueError("credentials unsupported")
     path = target_parts.path
-    same_origin = (
-        source_parts.scheme.lower() == target_parts.scheme.lower()
-        and source_parts.netloc.lower() == target_parts.netloc.lower()
-        and bool(target_parts.netloc)
-    )
+    same_origin = _same_origin(base, target)
     if target_parts.netloc and not same_origin:
         path = f"{target_parts.netloc}/{path.lstrip('/')}"
     else:

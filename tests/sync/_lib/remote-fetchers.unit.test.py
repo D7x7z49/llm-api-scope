@@ -85,9 +85,104 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
     golden(json.dumps(result.manifest, indent=2, sort_keys=True) + "\n", "llmstxt/manifest.json")
     assert requests == [
         url,
-        "https://example.test/docs/guide",
+        "https://example.test/docs/guide.md",
         "https://example.test/docs/guide/intro.md",
     ]
+
+
+def test_llmstxt_fetcher_resolves_markdown_siblings(
+    tmp_path: Path,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+) -> None:
+    requests: list[str] = []
+    index = b"# Docs\n\n- [Guide](guide)\n- [Page](page.html)\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        url = str(request.url)
+        requests.append(url)
+        if url == "https://example.test/docs/llms.txt":
+            return httpx2.Response(200, content=index)
+        if url.endswith("/guide.md"):
+            return httpx2.Response(200, content=b"# Guide\n")
+        if url.endswith("/page.html.md"):
+            return httpx2.Response(200, content=b"# Page\n")
+        return httpx2.Response(404, request=request)
+
+    install_mock_client(handler)
+    source = _remote_source("llmstxt", "https://example.test/docs/llms.txt")
+    destination = tmp_path / "staging"
+
+    result = LlmstxtFetcher().fetch(source, destination=destination)
+
+    assert result.manifest is not None
+    assert requests == [
+        "https://example.test/docs/llms.txt",
+        "https://example.test/docs/guide.md",
+        "https://example.test/docs/page.md",
+        "https://example.test/docs/page.html.md",
+    ]
+    assert (destination / "content" / result.manifest["guide"]).read_bytes() == b"# Guide\n"
+    assert (destination / "content" / result.manifest["page.html"]).read_bytes() == b"# Page\n"
+
+
+def test_llmstxt_fetcher_skips_an_html_sibling(
+    tmp_path: Path,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+) -> None:
+    requests: list[str] = []
+    index = b"# Docs\n\n- [Guide](guide)\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        url = str(request.url)
+        requests.append(url)
+        if url == "https://example.test/docs/llms.txt":
+            return httpx2.Response(200, content=index)
+        if url.endswith("/guide.md"):
+            return httpx2.Response(200, content=b"<!doctype html><html></html>")
+        if url == "https://example.test/docs/guide":
+            return httpx2.Response(200, content=b"# Guide\n")
+        return httpx2.Response(404, request=request)
+
+    install_mock_client(handler)
+    source = _remote_source("llmstxt", "https://example.test/docs/llms.txt")
+    destination = tmp_path / "staging"
+
+    result = LlmstxtFetcher().fetch(source, destination=destination)
+
+    assert result.manifest is not None
+    assert requests == [
+        "https://example.test/docs/llms.txt",
+        "https://example.test/docs/guide.md",
+        "https://example.test/docs/guide/index.md",
+        "https://example.test/docs/guide/index.html.md",
+        "https://example.test/docs/guide",
+    ]
+    assert (destination / "content" / result.manifest["guide"]).read_bytes() == b"# Guide\n"
+
+
+def test_llmstxt_fetcher_does_not_probe_a_cross_origin_link(
+    tmp_path: Path,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+) -> None:
+    requests: list[str] = []
+    index = b"# Docs\n\n- [External](https://other.test/guide)\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        url = str(request.url)
+        requests.append(url)
+        if url == "https://example.test/docs/llms.txt":
+            return httpx2.Response(200, content=index)
+        return httpx2.Response(200, content=b"# External\n")
+
+    install_mock_client(handler)
+    source = _remote_source("llmstxt", "https://example.test/docs/llms.txt")
+    destination = tmp_path / "staging"
+
+    result = LlmstxtFetcher().fetch(source, destination=destination)
+
+    assert result.manifest is not None
+    assert requests == ["https://example.test/docs/llms.txt", "https://other.test/guide"]
+    assert (destination / "content" / result.manifest["other.test/guide"]).read_bytes() == b"# External\n"
 
 
 def test_rfc_fetcher_uses_xml_when_present(
