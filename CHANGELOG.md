@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.12.4 (2026-10-09)
+
+### Bug Fixes
+
+- **llmstxt**: Skip a page that only serves html
+  ([`1e469b3`](https://github.com/D7x7z49/llm-api-scope/commit/1e469b300a1756dfb33f3e3a404994399f2003ca))
+
+
 ## v0.12.3 (2026-10-09)
 
 ### Bug Fixes
