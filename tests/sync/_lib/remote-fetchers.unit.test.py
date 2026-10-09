@@ -185,6 +185,27 @@ def test_llmstxt_fetcher_does_not_probe_a_cross_origin_link(
     assert (destination / "content" / result.manifest["other.test/guide"]).read_bytes() == b"# External\n"
 
 
+def test_llmstxt_fetcher_skips_a_page_that_only_serves_html(
+    tmp_path: Path,
+    install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+) -> None:
+    index = b"# Docs\n\n- [Guide](guide)\n"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if str(request.url) == "https://example.test/docs/llms.txt":
+            return httpx2.Response(200, content=index)
+        return httpx2.Response(200, content=b"<!doctype html><html></html>")
+
+    install_mock_client(handler)
+    source = _remote_source("llmstxt", "https://example.test/docs/llms.txt")
+    destination = tmp_path / "staging"
+
+    result = LlmstxtFetcher().fetch(source, destination=destination)
+
+    assert result.manifest is not None
+    assert "guide" not in result.manifest
+
+
 def test_rfc_fetcher_uses_xml_when_present(
     tmp_path: Path,
     install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],

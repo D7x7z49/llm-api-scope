@@ -61,6 +61,8 @@ class LlmstxtFetcher:
                 data = _page_bytes(target, index_dir, base=base, proxy=proxy, no_proxy=no_proxy)
             except (OSError, ValueError, httpx2.HTTPError):
                 continue
+            if is_html(data):
+                continue
             if route == index_name:
                 continue
             digests[route] = _store_body(content_path, data, names)
@@ -164,8 +166,8 @@ def _page_bytes(
     return Path(target).read_bytes()
 
 
-# follow the markdown page proposal: a page serves markdown at a sibling url.
-# a failed or html sibling falls through to the listed url.
+# follow the markdown page proposal: try the markdown sibling, then the listed url.
+# the caller drops an html body, because that is not a qualified llmstxt target.
 def _remote_page_bytes(base: str, target: str, *, proxy: str | None, no_proxy: str | None) -> bytes:
     if _same_origin(base, target):
         for candidate in markdown_candidates(target):
