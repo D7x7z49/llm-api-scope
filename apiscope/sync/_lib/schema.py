@@ -1,6 +1,7 @@
 # apiscope/sync/_lib/schema.py
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, TypeAlias
@@ -19,3 +20,4 @@ class FetchResult:
     content_kind: ContentKind
     content_name: str | None
     content_digest: str
+    manifest: Mapping[str, str] | None = None

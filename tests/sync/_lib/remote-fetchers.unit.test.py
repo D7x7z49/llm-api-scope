@@ -1,4 +1,5 @@
 # tests/sync/_lib/remote-fetchers.unit.test.py
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -58,9 +59,10 @@ def test_remote_fetchers_store_mocked_content(
 def test_llmstxt_fetcher_downloads_the_index_and_pages(
     tmp_path: Path,
     install_mock_client: Callable[[Callable[[httpx2.Request], httpx2.Response]], None],
+    golden: Callable[[str, str], None],
 ) -> None:
     requests: list[str] = []
-    index = b"# Docs\n\n- [Guide](guide/intro.md): the guide\n"
+    index = b"# Docs\n\n- [Guide](guide)\n- [Intro](guide/intro.md)\n"
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(str(request.url))
@@ -77,9 +79,15 @@ def test_llmstxt_fetcher_downloads_the_index_and_pages(
 
     assert result.content_kind == "directory"
     assert result.content_name is None
-    assert (destination / "content" / "llms.txt").read_bytes() == index
-    assert (destination / "content" / "guide" / "intro.md").read_bytes() == b"page content"
-    assert requests == [url, "https://example.test/docs/guide/intro.md"]
+    assert result.manifest is not None
+    assert (destination / "content" / result.manifest["llms.txt"]).read_bytes() == index
+    assert (destination / "content" / result.manifest["guide/index"]).read_bytes() == b"page content"
+    golden(json.dumps(result.manifest, indent=2, sort_keys=True) + "\n", "llmstxt/manifest.json")
+    assert requests == [
+        url,
+        "https://example.test/docs/guide",
+        "https://example.test/docs/guide/intro.md",
+    ]
 
 
 def test_rfc_fetcher_uses_xml_when_present(

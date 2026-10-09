@@ -6,14 +6,14 @@ from apiscope.cache import CacheMetadata
 from apiscope.view_lib.llmstxt.viewer import LlmstxtViewer
 
 
-def test_llmstxt_viewer_builds_a_directory_tree(
+def test_llmstxt_viewer_builds_a_route_tree(
     tmp_path: Path,
+    expected: Callable[[str], str],
     cache_metadata: Callable[..., CacheMetadata],
 ) -> None:
     content = tmp_path / "content"
-    (content / "guide").mkdir(parents=True)
-    (content / "guide" / "intro.md").write_text("intro\n", encoding="utf-8")
-    (content / "llms.txt").write_text("# Docs\n", encoding="utf-8")
+    content.mkdir()
+    (tmp_path / "manifest.json").write_text(expected("llmstxt/manifest.json"), encoding="utf-8")
 
     tree = LlmstxtViewer().build(
         content,
@@ -22,6 +22,10 @@ def test_llmstxt_viewer_builds_a_directory_tree(
 
     assert [(node.index, node.key) for node in tree.indexed()] == [
         ("1", "guide"),
-        ("1.1", "intro.md"),
+        ("1.1", "index"),
+        ("1.2", "intro.md"),
         ("2", "llms.txt"),
     ]
+    assert not tree.resolve("guide").is_leaf
+    assert tree.resolve("guide/index").is_leaf
+    assert tree.resolve("guide/index").source_target
