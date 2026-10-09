@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.12.2 (2026-10-09)
+
+### Bug Fixes
+
+- **llmstxt**: Cache a page that is also a parent
+  ([`16a2588`](https://github.com/D7x7z49/llm-api-scope/commit/16a25883d85b8a6f3a58e1aad685764a58ce9d49))
+
+### Documentation
+
+- **branch**: Allow a number as a later name word
+  ([`2424508`](https://github.com/D7x7z49/llm-api-scope/commit/24245086d8ebb5c382256158edd417ed632a1df7))
+
+### Performance Improvements
+
+- **cache**: Shorten a cache name to a digest prefix
+  ([`6486d77`](https://github.com/D7x7z49/llm-api-scope/commit/6486d7795aebe32c35996208972a0e58007e5cab))
+
+
 ## v0.12.1 (2026-10-08)
 
 ### Bug Fixes
