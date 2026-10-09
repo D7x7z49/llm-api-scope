@@ -59,7 +59,7 @@ def test_cache_rejects_an_unknown_format_version(tmp_path: Path) -> None:
     write_metadata(
         entry,
         CacheMetadata(
-            format_version="2",
+            format_version="999",
             doc_type="filesystem",
             source="file:///source.txt",
             source_digest="digest",

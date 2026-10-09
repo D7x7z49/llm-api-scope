@@ -421,6 +421,49 @@ def test_sync_downloads_llmstxt_pages_and_read_returns_them(
     assert "retrieval" not in payload["extra"]
 
 
+def test_sync_caches_a_page_that_is_also_a_parent(
+    isolated_home: Path,
+    project_cwd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    index = (
+        "# Docs\n\n"
+        "- [Actions](https://example.test/docs/en/actions)\n"
+        "- [Actions Billing](https://example.test/docs/en/actions/billing)\n"
+    )
+    original_client = httpx2.Client
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        url = str(request.url)
+        if url == "https://example.test/docs/llms.txt":
+            body = index.encode()
+        elif url.endswith("/en/actions"):
+            body = b"# Actions\n"
+        else:
+            body = b"# Billing\n"
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/markdown; charset=utf-8"},
+            content=body,
+            request=request,
+        )
+
+    def client_factory(**kwargs: Any) -> httpx2.Client:
+        return original_client(transport=httpx2.MockTransport(handle), **kwargs)
+
+    monkeypatch.setattr(httpx2, "Client", client_factory)
+    runner = CliRunner()
+
+    _register_and_sync(runner, "docs", "https://example.test/docs/llms.txt", doc_type="llmstxt")
+    actions = runner.invoke(app, ["--json", "read", "docs/en/actions/index"], catch_exceptions=False)
+    billing = runner.invoke(app, ["--json", "read", "docs/en/actions/billing"], catch_exceptions=False)
+
+    assert actions.exit_code == 0
+    assert billing.exit_code == 0
+    assert json.loads(actions.output)["data"][0]["content"] == "# Actions\n"
+    assert json.loads(billing.output)["data"][0]["content"] == "# Billing\n"
+
+
 def test_sync_skips_a_failed_llmstxt_page(
     isolated_home: Path,
     project_cwd: Path,

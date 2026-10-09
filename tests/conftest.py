@@ -14,7 +14,7 @@ from typing import Any, Literal
 import httpx2
 import pytest
 
-from apiscope.cache import CacheMetadata
+from apiscope.cache import CACHE_FORMAT_VERSION, CacheMetadata
 from apiscope.constants import APISCOPE_HOME_ENV
 from apiscope.schema import DocumentType
 from apiscope.sync._lib import transport
@@ -81,6 +81,14 @@ def golden() -> Callable[[str, str], None]:
     return check
 
 
+@pytest.fixture
+def expected() -> Callable[[str], str]:
+    def load(name: str) -> str:
+        return (GOLDEN / name).read_text(encoding="utf-8")
+
+    return load
+
+
 # ==============================================================================
 # common data builders
 # ==============================================================================
@@ -117,7 +125,7 @@ def cache_metadata() -> Callable[..., CacheMetadata]:
         source: str = "file:///source",
     ) -> CacheMetadata:
         return CacheMetadata(
-            format_version="1",
+            format_version=CACHE_FORMAT_VERSION,
             doc_type=doc_type,
             source=source,
             source_digest="digest",

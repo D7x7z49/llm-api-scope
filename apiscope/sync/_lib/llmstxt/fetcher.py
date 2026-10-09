@@ -1,6 +1,7 @@
 # apiscope/sync/_lib/llmstxt/fetcher.py
 import re
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -41,26 +42,93 @@ class LlmstxtFetcher:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": "the index is not a file"})
 
         base, index_dir = _index_base(source)
+        index_path = content_path / index_name
         try:
-            index_text = (content_path / index_name).read_text(encoding="utf-8")
+            index_text = index_path.read_text(encoding="utf-8")
+            index_bytes = index_path.read_bytes()
         except (OSError, UnicodeError) as error:
             raise SourceFetchError(source.original, "fetch.transport_failed", {"detail": str(error)}) from error
+        index_path.unlink(missing_ok=True)
+
+        digests: dict[str, str] = {index_name: _store_body(content_path, index_bytes)}
+        page_routes: list[str] = []
         for link in _links(index_text):
             target = urljoin(base, link)
             try:
-                page = content_path / _route(base, target)
+                route = _route(base, target)
                 data = _page_bytes(target, index_dir, proxy=proxy, no_proxy=no_proxy)
             except (OSError, ValueError, httpx2.HTTPError):
                 continue
-            page.parent.mkdir(parents=True, exist_ok=True)
-            page.write_bytes(data)
+            if route == index_name:
+                continue
+            digests[route] = _store_body(content_path, data)
+            page_routes.append(route)
 
         return FetchResult(
             fetched_at=datetime.now(timezone.utc),
             content_kind="directory",
             content_name=None,
             content_digest=digest_content(content_path),
+            manifest=_tree_manifest(_logical_leaves(digests, page_routes)),
         )
+
+
+def _store_body(content_path: Path, data: bytes) -> str:
+    digest = sha256(data).hexdigest()
+    body_path = content_path / digest
+    if not body_path.exists():
+        body_path.write_bytes(data)
+    return digest
+
+
+# a page route that is also a parent becomes an index leaf, so the tree stays a tree.
+def _logical_leaves(digests: dict[str, str], page_routes: list[str]) -> dict[str, str]:
+    sections: set[str] = set()
+    for route in page_routes:
+        parts = route.split("/")
+        for length in range(1, len(parts)):
+            sections.add("/".join(parts[:length]))
+
+    leaves: dict[str, str] = {}
+    for route, digest in digests.items():
+        leaves[f"{route}/index" if route in sections else route] = digest
+    return leaves
+
+
+# a Merkle map over the logical tree; the same encoding as the generic content manifest.
+def _tree_manifest(leaves: dict[str, str]) -> dict[str, str]:
+    leaf_keys = set(leaves)
+    manifest = dict(leaves)
+    nodes: set[str] = set()
+    for key in leaves:
+        parts = key.split("/")
+        for length in range(1, len(parts) + 1):
+            nodes.add("/".join(parts[:length]))
+
+    children: dict[str, list[str]] = {}
+    for node in nodes:
+        children.setdefault(node.rpartition("/")[0], []).append(node)
+
+    for node in sorted(nodes, key=lambda value: value.count("/"), reverse=True):
+        if node in manifest:
+            continue
+        manifest[node] = _node_digest(children.get(node, []), manifest, leaf_keys)
+    manifest["."] = _node_digest(children.get("", []), manifest, leaf_keys)
+    return manifest
+
+
+def _node_digest(children: list[str], manifest: dict[str, str], leaf_keys: set[str]) -> str:
+    digest = sha256()
+    for child in sorted(children):
+        name = child.rpartition("/")[2]
+        kind = "f" if child in leaf_keys else "d"
+        digest.update(kind.encode("ascii"))
+        digest.update(b"\0")
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(manifest[child].encode("ascii"))
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _index_base(source: ParsedSource) -> tuple[str, Path | None]:

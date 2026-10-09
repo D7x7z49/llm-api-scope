@@ -265,7 +265,12 @@ def _sync_target(runtime: RuntimeContext, target: SyncTarget) -> None:
                 no_proxy=runtime.config.setting.local.no_proxy,
             )
             if result.content_kind == "directory":
-                write_manifest(staging, build_manifest(staging / CACHE_CONTENT_DIRECTORY))
+                manifest = (
+                    result.manifest
+                    if result.manifest is not None
+                    else build_manifest(staging / CACHE_CONTENT_DIRECTORY)
+                )
+                write_manifest(staging, manifest)
             write_metadata(
                 staging,
                 CacheMetadata(

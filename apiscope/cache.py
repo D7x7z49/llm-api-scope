@@ -24,7 +24,7 @@ from apiscope.schema import DocumentType, StrictSchemaModel
 
 
 CACHE_CONTENT_DIRECTORY: Final = "content"
-CACHE_FORMAT_VERSION: Final = "1"
+CACHE_FORMAT_VERSION: Final = "2"
 CACHE_METADATA_FILENAME: Final = "metadata.json"
 CACHE_MANIFEST_FILENAME: Final = "manifest.json"
 
@@ -175,6 +175,19 @@ def write_manifest(path: Path, manifest: Mapping[str, str]) -> None:
     manifest_path.write_text(json.dumps(dict(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def load_manifest(entry: Path) -> dict[str, str] | None:
+    manifest_path = entry / CACHE_MANIFEST_FILENAME
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(manifest, dict):
+        return None
+    if not all(isinstance(key, str) and isinstance(value, str) for key, value in manifest.items()):
+        return None
+    return manifest
+
+
 @contextmanager
 def staging_cache(cache_root: Path, identity: str) -> Iterator[Path]:
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -224,14 +237,7 @@ def _content_is_valid(path: Path, metadata: CacheMetadata) -> bool:
 
 
 def _manifest_is_valid(entry: Path) -> bool:
-    manifest_path = entry / CACHE_MANIFEST_FILENAME
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    return isinstance(manifest, dict) and all(
-        isinstance(key, str) and isinstance(value, str) for key, value in manifest.items()
-    )
+    return load_manifest(entry) is not None
 
 
 def _hash_file(path: Path) -> str:
