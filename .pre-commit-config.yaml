@@ -25,6 +25,11 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
+  - repo: https://github.com/D7x7z49/lint-editor
+    rev: v0.1.1
+    hooks:
+      - id: lint-editor
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.15
     hooks:
