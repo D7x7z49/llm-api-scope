@@ -21,11 +21,13 @@ STEP.
 NOTE.
 - let the expected value explain why the behavior matters, not only what the code currently returns
 - keep shared expected data small and intentional; local values are often kinder to the reader
-- remember that parametrized lists and mappings are passed without copying, so give each case its own data when mutation is possible
+- remember that parametrized lists and mappings are passed without copying;
+  give each case its own data when mutation is possible
 - use an exact text comparison when the complete output is the user-facing contract
 - parse serialized JSON before comparing it when key order and whitespace carry no meaning
 - preserve ordering, fields, or normalization only when the product promise gives them meaning
-- choose a snapshot or golden file when a large exact output is truly the promise and reviewing changes will remain comfortable
+- choose a snapshot or golden file when a large exact output is truly the promise;
+  reviewing changes will remain comfortable
 - prefer an explicit expected value over a generated one that could repeat the same mistake
 - when changing expected data, explain the changed promise through the test name or nearby setup
 

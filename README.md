@@ -22,7 +22,8 @@ text is the default output; `--json` prints the data layer instead.
 `apiscope list` shows what is registered, filtered by type.
 
 a source link is registered once; a repeated link fails, even under another name or type.
-a private source in the home configuration uses an absolute path, and a project source uses a path relative to the project root.
+a private source in the home configuration uses an absolute path.
+a project source uses a path relative to the project root.
 
 six document types share one command surface:
 
@@ -88,7 +89,8 @@ the local setting holds the proxy and the `no_proxy` bypass list.
 ```
 
 the HTTP client uses only the configured `[proxy]` and `[no_proxy]` and ignores environment proxy variables.
-for repository operations, apiscope passes configured proxy settings to `git` and `gh`; when `[proxy]` is unset, it does not set or clear their proxy.
+for repository operations, apiscope passes configured proxy settings to `git` and `gh`.
+when `[proxy]` is unset, it does not set or clear their proxy.
 `[no_proxy]` is a comma-separated list of hosts, domains, or `*` that bypasses the configured proxy.
 
 the cache lives in the app directory of the selected layer, and the rest of its rules sit under `## commands`.
@@ -103,7 +105,8 @@ register a source:
 apiscope add <name> <source> --type <type> [--ttl <days>]
 ```
 
-`arxiv` accepts a canonical identifier such as `1706.03762` or `hep-th/9901001`; append `vN` for a fixed version. URL forms are not accepted.
+`arxiv` accepts a canonical identifier such as `1706.03762` or `hep-th/9901001`.
+append `vN` for a fixed version. URL forms are not accepted.
 
 ### remove
 
@@ -135,7 +138,8 @@ the selector is the same as in list, and the optional name narrows the range to 
 a source refreshes when its cache is older than its ttl, and `--force` ignores the ttl.
 `repo` clones with shallow depth, and a subpath selects files with a sparse checkout.
 `llmstxt` reads the index page, caches the markdown version of each page, and skips a page that only serves HTML.
-`arxiv` prefers structured HTML, falls back to TeX source, and does not parse PDF-, PostScript-, or DVI-only submissions.
+`arxiv` prefers structured HTML and falls back to TeX source.
+it does not parse PDF-, PostScript-, or DVI-only submissions.
 
 ### view
 

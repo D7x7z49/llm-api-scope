@@ -8,7 +8,8 @@ PURPOSE
 AUTHORITY
 - identify the authority for each decision; do not assume code, documentation, or precedent wins by form
 - treat approved contracts and decisions as intended state; treat implementation as evidence of current behavior
-- when authority or evidence conflicts, keep the issue unresolved and ask the human or explicitly delegated agent authorized for that scope
+- when authority or evidence conflicts, keep the issue unresolved;
+  ask the human or explicitly delegated agent authorized for that scope
 - record the resolution in one authoritative source
 
 PRINCIPLES

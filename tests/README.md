@@ -1,7 +1,8 @@
 <!-- tests/README.md -->
 # Common sense for test engineering
 
-Write tests that verify necessary conditions only. No test suite covers infinite input space. Focus on high-importance inputs and consolidate logic you trust. Use monitoring and fast rollback for untested areas.
+Write tests that verify necessary conditions only. No test suite covers infinite input space.
+Focus on high-importance inputs and consolidate logic you trust. Use monitoring and fast rollback for untested areas.
 
 Before writing a test, decide its type by scope.
 
@@ -25,7 +26,8 @@ Before writing a test, decide its type by scope.
   - Limit to five to fifteen workflows
   - Include only workflows with direct business impact
 
-After writing a test, run it with your language's standard test runner. Filter by naming patterns via regex or name matching. No specific command is given; adapt to your toolchain.
+After writing a test, run it with your language's standard test runner.
+Filter by naming patterns via regex or name matching. No specific command is given; adapt to your toolchain.
 
 For external dependencies, mock according to test type.
 
@@ -44,6 +46,9 @@ Before committing a test, ask yourself five questions.
 - Where would the system break if you delete this test?
 - Are you testing logic or implementation details?
 
-Add UNIX-style comments only for non-obvious assertions or data setup. Keep comments short. Use prepositions instead of colons or dashes. For example, write "# check for empty list" not "# verify empty list returns zero: edge case".
+Add UNIX-style comments only for non-obvious assertions or data setup. Keep comments short.
+Use prepositions instead of colons or dashes.
+For example, write "# check for empty list" not "# verify empty list returns zero: edge case".
 
-Remember the limitations of this approach. It is not suitable for safety-critical or life-critical systems. Rely on monitoring and fast rollback for untested areas.
+Remember the limitations of this approach. It is not suitable for safety-critical or life-critical systems.
+Rely on monitoring and fast rollback for untested areas.
